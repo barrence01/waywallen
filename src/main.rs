@@ -80,6 +80,8 @@ pub struct AppState {
     /// and completion. Snapshotted into status events.
     pub scan_in_progress: std::sync::atomic::AtomicBool,
     pub ui_path: std::sync::Mutex<Option<PathBuf>>,
+    /// Latest tray/host xdg-activation token (SNI `ProvideXdgActivationToken`).
+    pub xdg_activation_token: std::sync::Mutex<Option<String>>,
     /// Live DBus connection. Populated by `dbus_iface::serve` once the
     /// Daemon1 interface is published for property notifications.
     pub dbus_conn: std::sync::Mutex<Option<Arc<zbus::Connection>>>,
@@ -187,12 +189,54 @@ fn parse_args() -> Args {
 /// Spawn the `waywallen-ui` subprocess fire-and-forget.
 /// The UI reads the WS port from the Daemon1 DBus interface.
 pub fn spawn_ui(state: &AppState) -> bool {
+    spawn_ui_with_token(state, "")
+}
+
+/// Raise an existing UI if present, otherwise spawn one.
+/// Uses a pending SNI xdg-activation token when the tray host provided one
+/// (Wayland). On X11 the token is empty and Raise still restores via Qt.
+pub async fn open_or_raise_ui(state: &AppState) -> bool {
+    let token = state
+        .xdg_activation_token
+        .lock()
+        .unwrap()
+        .take()
+        .unwrap_or_default();
+    if try_raise_ui(state, &token).await {
+        return true;
+    }
+    spawn_ui_with_token(state, &token)
+}
+
+async fn try_raise_ui(state: &AppState, token: &str) -> bool {
+    let Some(conn) = state.dbus_conn.lock().unwrap().clone() else {
+        return false;
+    };
+    let proxy = match zbus::Proxy::new(
+        conn.as_ref(),
+        "org.waywallen.waywallen.UI",
+        "/org/waywallen/waywallen/UI",
+        "org.waywallen.waywallen.UI1",
+    )
+    .await
+    {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    proxy.call_method("Raise", &(token,)).await.is_ok()
+}
+
+fn spawn_ui_with_token(state: &AppState, token: &str) -> bool {
     let ui_bin = match state.ui_path.lock().unwrap().clone() {
         Some(p) => p,
         None => return false,
     };
     log::info!("launching ui: {}", ui_bin.display());
-    match std::process::Command::new(&ui_bin).spawn() {
+    let mut cmd = std::process::Command::new(&ui_bin);
+    if !token.is_empty() {
+        cmd.env("XDG_ACTIVATION_TOKEN", token);
+    }
+    match cmd.spawn() {
         Ok(child) => {
             log::info!("ui pid: {}", child.id());
             true
@@ -383,6 +427,7 @@ async fn async_main() -> anyhow::Result<()> {
         ws_port: std::sync::atomic::AtomicU16::new(0),
         scan_in_progress: std::sync::atomic::AtomicBool::new(false),
         ui_path: std::sync::Mutex::new(None),
+        xdg_activation_token: std::sync::Mutex::new(None),
         dbus_conn: std::sync::Mutex::new(None),
         shutdown: shutdown_tx,
         tasks: task_mgr.clone(),

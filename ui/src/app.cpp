@@ -17,6 +17,15 @@ using namespace Qt::Literals::StringLiterals;
 
 namespace proto = waywallen::control::v1;
 
+namespace
+{
+
+constexpr const char* kUiBusName    = "org.waywallen.waywallen.UI";
+constexpr const char* kUiObjectPath = "/org/waywallen/waywallen/UI";
+constexpr const char* kUiInterface  = "org.waywallen.waywallen.UI1";
+
+} // namespace
+
 auto app_instance(waywallen::App* in = nullptr) -> waywallen::App* {
     static waywallen::App* instance { in };
     rstd_assert(instance != nullptr, "app object not inited");
@@ -164,6 +173,56 @@ void App::init() {
     }
 
     rstd_assert(d->m_main_win, "main window must exist");
+}
+
+void App::registerUiRaiseService() {
+    auto bus = QDBusConnection::sessionBus();
+    if (! bus.isConnected()) return;
+    auto* raise_bus = new UiRaiseBus(this);
+    if (! bus.registerObject(QString::fromLatin1(kUiObjectPath),
+                             QString::fromLatin1(kUiInterface),
+                             raise_bus,
+                             QDBusConnection::ExportAllSlots)) {
+        qWarning("failed to register UI Raise on DBus: %s",
+                 qPrintable(bus.lastError().message()));
+        delete raise_bus;
+    }
+}
+
+void App::raiseMainWindow(const QString& xdgActivationToken) {
+    Q_D(App);
+    if (! d->m_main_win) return;
+    if (! xdgActivationToken.isEmpty()) {
+        qputenv("XDG_ACTIVATION_TOKEN", xdgActivationToken.toUtf8());
+    }
+    d->m_main_win->showNormal();
+    d->m_main_win->raise();
+    d->m_main_win->requestActivate();
+}
+
+bool claimOrRaiseUiInstance() {
+    auto bus = QDBusConnection::sessionBus();
+    if (! bus.isConnected()) {
+        qWarning("UI single-instance: session bus unavailable; continuing");
+        return true;
+    }
+    if (bus.registerService(QString::fromLatin1(kUiBusName))) {
+        return true;
+    }
+    const QByteArray token = qgetenv("XDG_ACTIVATION_TOKEN");
+    if (! token.isEmpty()) {
+        qunsetenv("XDG_ACTIVATION_TOKEN");
+    }
+    QDBusMessage msg = QDBusMessage::createMethodCall(QString::fromLatin1(kUiBusName),
+                                                      QString::fromLatin1(kUiObjectPath),
+                                                      QString::fromLatin1(kUiInterface),
+                                                      QStringLiteral("Raise"));
+    msg << QString::fromUtf8(token);
+    QDBusMessage reply = bus.call(msg, QDBus::Block, 2000);
+    if (reply.type() != QDBusMessage::ReplyMessage) {
+        qWarning("UI single-instance: Raise failed: %s", qPrintable(reply.errorMessage()));
+    }
+    return false;
 }
 
 auto App::engine() const -> QQmlApplicationEngine* {
