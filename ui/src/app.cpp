@@ -192,11 +192,21 @@ void App::registerUiRaiseService() {
 void App::raiseMainWindow(const QString& xdgActivationToken) {
     Q_D(App);
     if (! d->m_main_win) return;
-    if (! xdgActivationToken.isEmpty()) {
+    
+    const bool have_token = !xdgActivationToken.isEmpty();
+    if (have_token) {
         qputenv("XDG_ACTIVATION_TOKEN", xdgActivationToken.toUtf8());
     }
+
+    Qt::WindowStates state = d->m_main_win->windowStates();
+    if (state.testFlag(Qt::WindowMinimized)) {
+        d->m_main_win->setWindowStates(state & ~Qt::WindowMinimized);
+    }
+
+    d->m_main_win->show();
     d->m_main_win->showNormal();
     d->m_main_win->raise();
+
     d->m_main_win->requestActivate();
 }
 
