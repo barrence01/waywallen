@@ -25,18 +25,6 @@ void RemoteListModel::append(const QList<RemoteRow>& rows, bool hasMore) {
     if (! rows.isEmpty()) insert(static_cast<int>(size()), rows);
 }
 
-void RemoteListModel::prepend(const QList<RemoteRow>& rows) {
-    if (! rows.isEmpty()) insert(0, rows);
-}
-
-void RemoteListModel::trimFront(int count) {
-    if (count > 0) remove(0, count);
-}
-
-void RemoteListModel::trimBack(int count) {
-    if (count > 0) remove(static_cast<int>(size()) - count, count);
-}
-
 QStringList RemoteListModel::itemIds() const {
     QStringList ids;
     ids.reserve(static_cast<qsizetype>(size()));

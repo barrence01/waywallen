@@ -100,7 +100,6 @@ private:
     void prefetchPage(quint32 page, quint64 generation);
     void applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows, bool more);
     auto tryApplyCached(quint32 page, FetchMode mode) -> bool;
-    void restoreHasMore();
 
     QString                m_source_id;
     QString                m_query;

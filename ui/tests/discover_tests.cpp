@@ -34,57 +34,6 @@ struct ModelFixture {
 
 } // namespace
 
-class RemoteListModelTest : public QObject {
-    Q_OBJECT
-
-private slots:
-    void prepend_inserts_at_front() {
-        ModelFixture fx;
-        fx.model.reset(makeRows('a', 2), true);
-        fx.model.prepend(makeRows('b', 2));
-        QCOMPARE(fx.model.count(), 4);
-        QCOMPARE(fx.model.itemIds(),
-                 (QStringList { QStringLiteral("b0"), QStringLiteral("b1"), QStringLiteral("a0"),
-                                QStringLiteral("a1") }));
-    }
-
-    void prepend_empty_is_noop() {
-        ModelFixture fx;
-        fx.model.reset(makeRows('a', 1), false);
-        fx.model.prepend({});
-        QCOMPARE(fx.model.count(), 1);
-        QCOMPARE(fx.model.itemIds(), (QStringList { QStringLiteral("a0") }));
-    }
-
-    void trimFront_removes_leading_rows() {
-        ModelFixture fx;
-        fx.model.reset(makeRows('a', 4), true);
-        fx.model.trimFront(2);
-        QCOMPARE(fx.model.count(), 2);
-        QCOMPARE(fx.model.itemIds(),
-                 (QStringList { QStringLiteral("a2"), QStringLiteral("a3") }));
-    }
-
-    void trimBack_removes_trailing_rows() {
-        ModelFixture fx;
-        fx.model.reset(makeRows('a', 4), true);
-        fx.model.trimBack(2);
-        QCOMPARE(fx.model.count(), 2);
-        QCOMPARE(fx.model.itemIds(),
-                 (QStringList { QStringLiteral("a0"), QStringLiteral("a1") }));
-    }
-
-    void trim_non_positive_is_noop() {
-        ModelFixture fx;
-        fx.model.reset(makeRows('a', 2), true);
-        fx.model.trimFront(0);
-        fx.model.trimFront(-1);
-        fx.model.trimBack(0);
-        fx.model.trimBack(-3);
-        QCOMPARE(fx.model.count(), 2);
-    }
-};
-
 class RemoteSearchPageWindowTest : public QObject {
     Q_OBJECT
 
@@ -199,10 +148,6 @@ private slots:
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     int              status = 0;
-    {
-        RemoteListModelTest tc;
-        status |= QTest::qExec(&tc, argc, argv);
-    }
     {
         RemoteSearchPageWindowTest tc;
         status |= QTest::qExec(&tc, argc, argv);

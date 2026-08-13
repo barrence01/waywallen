@@ -53,12 +53,13 @@ Item {
                 horizontalAlignment: Image.AlignHCenter
                 verticalAlignment: Image.AlignVCenter
                 smooth: true
-                cache: false
+                cache: true
                 asynchronous: true
                 sourceSize: Qt.size(Math.ceil(width), Math.ceil(height))
-                playing: root._inViewport
-                onStatusChanged: if (status === AnimatedImage.Ready && root._inViewport)
-                                     playing = true
+                onStatusChanged: {
+                    if (status === AnimatedImage.Ready)
+                        playing = Qt.binding(() => root._inViewport)
+                }
                 layer.enabled: root._inViewport
                 layer.effect: MD.RoundClip {
                     corners: MD.Util.corners(root._radius)
