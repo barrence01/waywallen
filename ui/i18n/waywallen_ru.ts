@@ -136,6 +136,10 @@
         <translation>Выход</translation>
     </message>
     <message>
+        <source>Assigned</source>
+        <translation>Назначено</translation>
+    </message>
+    <message>
         <source>Restart</source>
         <translation>Перезапустить</translation>
     </message>
@@ -483,6 +487,10 @@
 </context>
 <context>
     <name>PlaylistListSheet</name>
+    <message>
+        <source>Create playlist</source>
+        <translation>Создать плейлист</translation>
+    </message>
     <message>
         <source>Playlists</source>
         <translation>Плейлисты</translation>
@@ -1320,8 +1328,8 @@ Unsaved frame state may be lost.</source>
         <translation>Состояние:</translation>
     </message>
     <message>
-        <source>Active Renderers</source>
-        <translation>Активные рендереры</translation>
+        <source>Renderers</source>
+        <translation>Рендереры</translation>
     </message>
     <message>
         <source>Mute all</source>
@@ -1332,8 +1340,16 @@ Unsaved frame state may be lost.</source>
         <translation>Приостановить всё</translation>
     </message>
     <message>
-        <source>No active renderers</source>
-        <translation>Активных рендереров нет</translation>
+        <source>Stop all</source>
+        <translation>Остановить всё</translation>
+    </message>
+    <message>
+        <source>No renderers</source>
+        <translation>Рендереров нет</translation>
+    </message>
+    <message>
+        <source>Exit</source>
+        <translation>Выход</translation>
     </message>
     <message>
         <source>Components</source>
@@ -1456,6 +1472,22 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Apply failed</source>
         <translation>Не удалось применить</translation>
+    </message>
+    <message>
+        <source>Display #%1</source>
+        <translation>Монитор #%1</translation>
+    </message>
+    <message>
+        <source>Playlist #%1</source>
+        <translation>Плейлист #%1</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on all displays</source>
+        <translation>Плейлист «%1» остановлен на всех мониторах</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on %2</source>
+        <translation>Плейлист «%1» остановлен на %2</translation>
     </message>
     <message>
         <source>Portal apply failed</source>
@@ -1744,6 +1776,14 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Playlist update failed</source>
         <translation>Не удалось обновить плейлист</translation>
+    </message>
+    <message>
+        <source>Playlist creation failed</source>
+        <translation>Не удалось создать плейлист</translation>
+    </message>
+    <message>
+        <source>Playlist created</source>
+        <translation>Плейлист создан</translation>
     </message>
     <message>
         <source>Playlist updated</source>

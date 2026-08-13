@@ -17,6 +17,61 @@ const PLUGIN_UPDATE_NOTIFICATION_ID: &str = "org.waywallen.waywallen.plugin-upda
 pub struct ApplyResult {
     pub renderer_id: String,
     pub entry: WallpaperEntry,
+    pub activation: ApplyActivation,
+    pub stopped_playlists: Vec<StoppedPlaylist>,
+}
+
+pub struct StoppedPlaylist {
+    pub id: i64,
+    pub name: String,
+    pub display_ids: Vec<DisplayId>,
+    pub all_displays: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApplyActivation {
+    Active,
+    Deferred,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApplySource {
+    UserWallpaper,
+    UserQueueStep,
+    UserPlaylistActivation,
+    UserPlaylistJump,
+    QueueRotation,
+    PlaylistRotation,
+    PlaylistRebuild,
+    StartupRestore,
+    DisplayRecall,
+    PlaylistAttach,
+    PluginRestart,
+}
+
+impl ApplySource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UserWallpaper => "user-wallpaper",
+            Self::UserQueueStep => "user-queue-step",
+            Self::UserPlaylistActivation => "user-playlist-activation",
+            Self::UserPlaylistJump => "user-playlist-jump",
+            Self::QueueRotation => "queue-rotation",
+            Self::PlaylistRotation => "playlist-rotation",
+            Self::PlaylistRebuild => "playlist-rebuild",
+            Self::StartupRestore => "startup-restore",
+            Self::DisplayRecall => "display-recall",
+            Self::PlaylistAttach => "playlist-attach",
+            Self::PluginRestart => "plugin-restart",
+        }
+    }
+
+    pub fn preempts_pending_start(self) -> bool {
+        !matches!(
+            self,
+            Self::QueueRotation | Self::PlaylistRotation | Self::PlaylistRebuild
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -26,8 +81,9 @@ pub enum RendererSharingPolicy {
     Shared,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ApplyRequest {
+    pub source: ApplySource,
     pub display_ids: Option<Vec<DisplayId>>,
     pub renderer_name: Option<String>,
     pub first_frame_timeout: Option<Duration>,

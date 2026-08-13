@@ -389,7 +389,7 @@ MD.Page {
                         }
                     }
 
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         spacing: 24
 
@@ -436,9 +436,6 @@ MD.Page {
                             }
                         }
 
-                        Item {
-                            Layout.fillWidth: true
-                        }
                     }
 
                     MD.Divider {
@@ -448,7 +445,7 @@ MD.Page {
                     }
 
                     MD.Text {
-                        text: qsTr("Connected")
+                        text: connectedRow.active ? qsTr("Connected") : qsTr("Assigned")
                         typescale: MD.Token.typescale.title_small
                         color: MD.Token.color.on_surface
                     }
@@ -460,6 +457,12 @@ MD.Page {
                                 return "";
                             const links = root.selected.links || [];
                             return links.length > 0 ? (links[0].rendererId || "") : "";
+                        }
+                        readonly property bool active: {
+                            if (!root.selected)
+                                return false;
+                            const links = root.selected.links || [];
+                            return links.length > 0 && !!links[0].active;
                         }
                         // Re-resolve when the manager's renderer list changes
                         // (the `renderers` access wires up the dependency) so a
@@ -495,12 +498,12 @@ MD.Page {
                             MD.Icon {
                                 readonly property string status: connectedRow.renderer ? connectedRow.renderer.status : ""
                                 name: {
-                                    if (!connectedRow.renderer)
+                                    if (!connectedRow.renderer || !connectedRow.active)
                                         return MD.Token.icon.pause;
                                     return status === "paused" ? MD.Token.icon.pause : MD.Token.icon.play_arrow;
                                 }
                                 size: 24
-                                color: !connectedRow.renderer || status === "paused" ? MD.Token.color.on_surface_variant : MD.Token.color.primary
+                                color: !connectedRow.renderer || !connectedRow.active || status === "paused" ? MD.Token.color.on_surface_variant : MD.Token.color.primary
                             }
 
                             ColumnLayout {
@@ -670,6 +673,7 @@ MD.Page {
                             MD.ComboBox {
                                 id: fillmodeBox
                                 Layout.fillWidth: true
+                                mdState.size: MD.Enum.S
                                 model: root.kFillModeLabels
                                 currentIndex: {
                                     if (!root.selected)

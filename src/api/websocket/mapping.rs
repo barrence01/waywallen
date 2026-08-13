@@ -321,6 +321,7 @@ pub(super) fn display_snapshot_to_pb(
             .map(|l| pb::DisplayLinkInfo {
                 renderer_id: l.renderer_id,
                 z_order: l.z_order,
+                active: l.active,
             })
             .collect(),
         effective_layout: Some(layout_prefs_to_pb_resolved(&s.effective_layout)),
@@ -666,14 +667,70 @@ pub(super) fn renderer_snapshot_to_pb(
     s: RendererSnapshot,
     settings: &SettingsStore,
 ) -> pb::RendererInstance {
+    fn exit_to_pb(exit: &crate::wallframe::routing::RendererExitSnapshot) -> pb::RendererExit {
+        pb::RendererExit {
+            code: exit.code.unwrap_or_default(),
+            signal: exit.signal.unwrap_or_default(),
+            has_code: exit.code.is_some(),
+            has_signal: exit.signal.is_some(),
+            reason: exit.reason.clone(),
+        }
+    }
+
     let fps: u32 = settings
         .plugin(&s.name)
         .and_then(|kv| kv.get("fps").and_then(|v| v.parse().ok()))
         .unwrap_or(0);
+    let state = match &s.state {
+        crate::wallframe::routing::RendererLifecycleState::Starting { generation } => {
+            pb::renderer_state::Kind::Starting(pb::RendererStartingState {
+                generation: *generation,
+            })
+        }
+        crate::wallframe::routing::RendererLifecycleState::Running {
+            generation,
+            activity,
+        } => pb::renderer_state::Kind::Running(pb::RendererRunningState {
+            generation: *generation,
+            activity: match activity {
+                crate::wallframe::routing::RendererActivity::Playing => {
+                    pb::RendererActivity::Playing as i32
+                }
+                crate::wallframe::routing::RendererActivity::Paused => {
+                    pb::RendererActivity::Paused as i32
+                }
+                crate::wallframe::routing::RendererActivity::Muted => {
+                    pb::RendererActivity::Muted as i32
+                }
+            },
+        }),
+        crate::wallframe::routing::RendererLifecycleState::Stopping { generation, keep } => {
+            pb::renderer_state::Kind::Stopping(pb::RendererStoppingState {
+                generation: *generation,
+                keep: *keep,
+            })
+        }
+        crate::wallframe::routing::RendererLifecycleState::Stopped { keep, last_exit } => {
+            pb::renderer_state::Kind::Stopped(pb::RendererStoppedState {
+                keep: *keep,
+                last_exit: last_exit.as_ref().map(exit_to_pb),
+            })
+        }
+        crate::wallframe::routing::RendererLifecycleState::Killed { keep, last_exit } => {
+            pb::renderer_state::Kind::Killed(pb::RendererKilledState {
+                keep: *keep,
+                last_exit: Some(exit_to_pb(last_exit)),
+            })
+        }
+        crate::wallframe::routing::RendererLifecycleState::Failed { failure } => {
+            pb::renderer_state::Kind::Failed(pb::RendererFailedState {
+                failure: Some(exit_to_pb(failure)),
+            })
+        }
+    };
     pb::RendererInstance {
         renderer_id: s.id,
         fps,
-        status: s.status.as_str().to_string(),
         name: s.name,
         pid: s.pid,
         drm_render_major: s.drm_render_major,
@@ -693,6 +750,7 @@ pub(super) fn renderer_snapshot_to_pb(
             .into_iter()
             .map(runtime_condition_to_pb)
             .collect(),
+        state: Some(pb::RendererState { kind: Some(state) }),
     }
 }
 
@@ -790,6 +848,7 @@ pub(super) async fn status_sync_event(state: &Arc<DaemonContext>) -> pb::Event {
             display_backend: Some(display_backend_status_to_pb(display_backend)),
             global_paused: lifecycle.paused,
             global_muted: lifecycle.muted,
+            global_stopped: lifecycle.stopped,
         })),
     }
 }

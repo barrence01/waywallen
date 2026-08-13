@@ -72,6 +72,26 @@ Item {
             next.push(id);
         root.applyTargetIds = next;
     }
+    function displayLabelForId(id) {
+        const display = W.App.displayManager.get(id);
+        return display ? display.displayLabel : qsTr("Display #%1").arg(id);
+    }
+    function toastStoppedPlaylists() {
+        const playlists = applyQuery.stoppedPlaylists || [];
+        for (let i = 0; i < playlists.length; ++i) {
+            const playlist = playlists[i];
+            const name = playlist.playlistName || qsTr("Playlist #%1").arg(playlist.playlistId);
+            if (playlist.allDisplays) {
+                W.Action.toast(qsTr("Playlist \"%1\" stopped on all displays").arg(name));
+                continue;
+            }
+            const labels = [];
+            const ids = playlist.displayIds || [];
+            for (let j = 0; j < ids.length; ++j)
+                labels.push(root.displayLabelForId(ids[j]));
+            W.Action.toast(qsTr("Playlist \"%1\" stopped on %2").arg(name).arg(labels.join(", ")));
+        }
+    }
     function infoSizeOf(w) {
         return m_list.data && w ? m_list.data.sizeOf(w) : 0;
     }
@@ -152,6 +172,7 @@ Item {
         target: applyQuery
         function onStatusChanged() {
             if (applyQuery.status === 2) {
+                root.toastStoppedPlaylists();
                 wallpaperGetQuery.reload();
             } else if (applyQuery.status === 3) {
                 const message = applyQuery.error && applyQuery.error.length > 0 ? applyQuery.error : qsTr("Apply failed");
@@ -632,6 +653,7 @@ Item {
 
                             MD.ComboBox {
                                 Layout.fillWidth: true
+                                mdState.size: MD.Enum.S
                                 model: root.kFillModeLabels
                                 currentIndex: root.fillmodeIndex(m_wallpaper_layout_flow.currentFillmode)
                                 onActivated: idx => {
@@ -882,6 +904,7 @@ Item {
                     id: m_combo
                     visible: m_prop_delegate.type === "combo" && m_prop_delegate.supported
                     Layout.fillWidth: true
+                    mdState.size: MD.Enum.S
                     model: m_prop_delegate.optionLabels || []
                     onActivated: idx => {
                         const values = m_prop_delegate.optionValues || [];
@@ -900,7 +923,7 @@ Item {
                     visible: m_prop_delegate.type === "textinput"
                     Layout.fillWidth: true
                     text: m_prop_delegate.currentValue
-                    mdState.dense: true
+                    mdState.size: MD.Enum.S
                     onAccepted: submit()
 
                     function submit() {

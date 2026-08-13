@@ -134,6 +134,10 @@
         <translation>退出</translation>
     </message>
     <message>
+        <source>Assigned</source>
+        <translation>已分配</translation>
+    </message>
+    <message>
         <source>Restart</source>
         <translation>重启</translation>
     </message>
@@ -479,6 +483,10 @@
 </context>
 <context>
     <name>PlaylistListSheet</name>
+    <message>
+        <source>Create playlist</source>
+        <translation>创建播放列表</translation>
+    </message>
     <message>
         <source>Playlists</source>
         <translation>播放列表</translation>
@@ -1314,8 +1322,8 @@ Unsaved frame state may be lost.</source>
         <translation>状态：</translation>
     </message>
     <message>
-        <source>Active Renderers</source>
-        <translation>运行的渲染器</translation>
+        <source>Renderers</source>
+        <translation>渲染器</translation>
     </message>
     <message>
         <source>Mute all</source>
@@ -1326,8 +1334,16 @@ Unsaved frame state may be lost.</source>
         <translation>全部暂停</translation>
     </message>
     <message>
-        <source>No active renderers</source>
-        <translation>没有活跃的渲染器</translation>
+        <source>Stop all</source>
+        <translation>全部停止</translation>
+    </message>
+    <message>
+        <source>No renderers</source>
+        <translation>没有渲染器</translation>
+    </message>
+    <message>
+        <source>Exit</source>
+        <translation>退出</translation>
     </message>
     <message>
         <source>Components</source>
@@ -1450,6 +1466,22 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Apply failed</source>
         <translation>应用失败</translation>
+    </message>
+    <message>
+        <source>Display #%1</source>
+        <translation>显示器 #%1</translation>
+    </message>
+    <message>
+        <source>Playlist #%1</source>
+        <translation>播放列表 #%1</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on all displays</source>
+        <translation>播放列表“%1”已在所有显示器上停止</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on %2</source>
+        <translation>播放列表“%1”已在 %2 上停止</translation>
     </message>
     <message>
         <source>Portal apply failed</source>
@@ -1738,6 +1770,14 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Playlist update failed</source>
         <translation>播放列表更新失败</translation>
+    </message>
+    <message>
+        <source>Playlist creation failed</source>
+        <translation>创建播放列表失败</translation>
+    </message>
+    <message>
+        <source>Playlist created</source>
+        <translation>已创建播放列表</translation>
     </message>
     <message>
         <source>Playlist updated</source>
