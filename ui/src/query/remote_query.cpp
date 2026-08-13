@@ -221,7 +221,6 @@ auto RemoteSearchQuery::hasMore() const -> bool {
 }
 auto RemoteSearchQuery::errorText() const -> const QString& { return m_error; }
 
-
 void RemoteSearchQuery::reload() {
     if (! m_browsing_enabled || m_source_id.isEmpty()) {
         clearResults();
@@ -378,14 +377,13 @@ void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode, quint64 generati
             self->m_error   = sr.error();
             self->m_window.putCache(page, rows, more);
 
-            const bool skipped = (mode == FetchMode::Append && self->m_window.slicesEmpty())
-                                 || (mode == FetchMode::Append && self->noMore())
-                                 || self->m_window.pageApplied(page);
+            const bool skipped = (mode == FetchMode::Append && self->m_window.slicesEmpty()) ||
+                                 (mode == FetchMode::Append && self->noMore()) ||
+                                 self->m_window.pageApplied(page);
             if (skipped) return;
 
             self->applyPage(page, mode, rows, more);
-            if (mode == FetchMode::Reset && more)
-                self->tryApplyCached(page + 1, FetchMode::Append);
+            if (mode == FetchMode::Reset && more) self->tryApplyCached(page + 1, FetchMode::Append);
         });
         co_return;
     });

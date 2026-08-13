@@ -6,7 +6,11 @@ namespace waywallen
 {
 
 export struct RemoteSearchPageWindow {
-    enum class FetchMode { Reset, Append };
+    enum class FetchMode
+    {
+        Reset,
+        Append
+    };
 
     struct PageSlice {
         quint32 page { 0 };
@@ -31,8 +35,8 @@ export struct RemoteSearchPageWindow {
     auto slicesEmpty() const -> bool;
 
     auto applyPage(model::RemoteListModel* model, quint32 page, FetchMode mode,
-                   const QList<model::RemoteRow>& rows, bool more, bool noMore,
-                   qint32 offset) -> ApplyResult;
+                   const QList<model::RemoteRow>& rows, bool more, bool noMore, qint32 offset)
+        -> ApplyResult;
     auto tryApplyCached(model::RemoteListModel* model, quint32 page, FetchMode mode, bool noMore,
                         qint32 offset) -> ApplyResult;
 

@@ -7,7 +7,8 @@ using waywallen::ShareStore;
 using waywallen::model::RemoteListModel;
 using waywallen::model::RemoteRow;
 
-namespace {
+namespace
+{
 
 auto makeRow(const QString& id) -> RemoteRow {
     RemoteRow row;
@@ -41,8 +42,13 @@ private slots:
     void reset_page_sets_offset_and_slice() {
         ModelFixture           fx;
         RemoteSearchPageWindow window;
-        const auto result = window.applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                                             makeRows('a', 3), true, true, 0);
+        const auto             result = window.applyPage(&fx.model,
+                                                         1,
+                                                         RemoteSearchPageWindow::FetchMode::Reset,
+                                                         makeRows('a', 3),
+                                                         true,
+                                                         true,
+                                                         0);
         QVERIFY(result.ok);
         QCOMPARE(result.offset, 0);
         QCOMPARE(result.noMore, false);
@@ -59,14 +65,22 @@ private slots:
         bool                   noMore = true;
 
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), true, true, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               true,
+                               true,
+                               0)
                     .ok);
         for (quint32 page = 2; page <= 6; ++page) {
-            const auto r = window.applyPage(&fx.model, page,
+            const auto r = window.applyPage(&fx.model,
+                                            page,
                                             RemoteSearchPageWindow::FetchMode::Append,
-                                            makeRows(static_cast<char>('a' + page - 1), 2), true,
-                                            noMore, offset);
+                                            makeRows(static_cast<char>('a' + page - 1), 2),
+                                            true,
+                                            noMore,
+                                            offset);
             QVERIFY(r.ok);
             offset = r.offset;
             noMore = r.noMore;
@@ -81,12 +95,21 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), true, true, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               true,
+                               true,
+                               0)
                     .ok);
-        const auto last = window.applyPage(&fx.model, 2,
+        const auto last = window.applyPage(&fx.model,
+                                           2,
                                            RemoteSearchPageWindow::FetchMode::Append,
-                                           makeRows('b', 2), false, false, 0);
+                                           makeRows('b', 2),
+                                           false,
+                                           false,
+                                           0);
         QVERIFY(last.ok);
         QVERIFY(last.noMore);
         QVERIFY(! fx.model.hasMore());
@@ -98,20 +121,25 @@ private slots:
         RemoteSearchPageWindow window;
 
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), true, true, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               true,
+                               true,
+                               0)
                     .ok);
         window.putCache(2, makeRows('b', 2), true);
 
-        const auto cached =
-            window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 0);
+        const auto cached = window.tryApplyCached(
+            &fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 0);
         QVERIFY(cached.ok);
         QCOMPARE(fx.model.count(), 4);
         QCOMPARE(window.slices.size(), 2);
         QVERIFY(! window.containsCache(2));
 
-        const auto again =
-            window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 1);
+        const auto again = window.tryApplyCached(
+            &fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 1);
         QVERIFY(! again.ok);
         QCOMPARE(fx.model.count(), 4);
     }
@@ -120,8 +148,13 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 1), true, true, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 1),
+                               true,
+                               true,
+                               0)
                     .ok);
         window.putCache(2, makeRows('b', 1), false);
         window.clear();
@@ -133,8 +166,13 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), true, true, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               true,
+                               true,
+                               0)
                     .ok);
         QVERIFY(window.pageApplied(1));
         QVERIFY(! window.pageApplied(2));
@@ -146,8 +184,8 @@ private slots:
 
     void apply_page_null_model() {
         RemoteSearchPageWindow window;
-        const auto result = window.applyPage(nullptr, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                                             makeRows('a', 3), true, false, 0);
+        const auto             result = window.applyPage(
+            nullptr, 1, RemoteSearchPageWindow::FetchMode::Reset, makeRows('a', 3), true, false, 0);
         QVERIFY(! result.ok);
         QVERIFY(window.slices.isEmpty());
     }
@@ -156,22 +194,25 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
 
-        const auto resetResult = window.applyPage(&fx.model, 1,
-                                                  RemoteSearchPageWindow::FetchMode::Reset,
-                                                  {}, true, false, 0);
+        const auto resetResult = window.applyPage(
+            &fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset, {}, true, false, 0);
         QVERIFY(resetResult.ok);
         QVERIFY(window.slices.isEmpty());
         QCOMPARE(fx.model.count(), 0);
 
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), true, false, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               true,
+                               false,
+                               0)
                     .ok);
         QCOMPARE(window.slices.size(), 1);
 
-        const auto appendResult = window.applyPage(&fx.model, 2,
-                                                   RemoteSearchPageWindow::FetchMode::Append,
-                                                   {}, true, false, 0);
+        const auto appendResult = window.applyPage(
+            &fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, {}, true, false, 0);
         QVERIFY(appendResult.ok);
         QCOMPARE(window.slices.size(), 1);
         QCOMPARE(fx.model.count(), 2);
@@ -182,8 +223,8 @@ private slots:
         RemoteSearchPageWindow window;
         window.putCache(2, makeRows('b', 2), true);
 
-        const auto result =
-            window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 0);
+        const auto result = window.tryApplyCached(
+            &fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 0);
         QVERIFY(! result.ok);
         QVERIFY(window.containsCache(2));
         QCOMPARE(fx.model.count(), 0);
@@ -193,14 +234,21 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), false, false, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               false,
+                               false,
+                               0)
                     .ok);
         window.putCache(2, makeRows('b', 2), true);
 
-        const auto result =
-            window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append,
-                                  /*noMore=*/true, 0);
+        const auto result = window.tryApplyCached(&fx.model,
+                                                  2,
+                                                  RemoteSearchPageWindow::FetchMode::Append,
+                                                  /*noMore=*/true,
+                                                  0);
         QVERIFY(! result.ok);
         QVERIFY(window.containsCache(2));
         QCOMPARE(fx.model.count(), 2);
@@ -210,8 +258,13 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 4), true, false, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 4),
+                               true,
+                               false,
+                               0)
                     .ok);
 
         window.putCache(3, makeRows('c', 3), true);
@@ -229,18 +282,32 @@ private slots:
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         QVERIFY(window
-                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('a', 2), true, false, 0)
+                    .applyPage(&fx.model,
+                               1,
+                               RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2),
+                               true,
+                               false,
+                               0)
                     .ok);
         QVERIFY(window
-                    .applyPage(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append,
-                               makeRows('b', 2), true, false, 0)
+                    .applyPage(&fx.model,
+                               2,
+                               RemoteSearchPageWindow::FetchMode::Append,
+                               makeRows('b', 2),
+                               true,
+                               false,
+                               0)
                     .ok);
         QCOMPARE(window.slices.size(), 2);
 
-        const auto reloadResult = window.applyPage(&fx.model, 1,
+        const auto reloadResult = window.applyPage(&fx.model,
+                                                   1,
                                                    RemoteSearchPageWindow::FetchMode::Reset,
-                                                   makeRows('x', 5), true, false, 0);
+                                                   makeRows('x', 5),
+                                                   true,
+                                                   false,
+                                                   0);
         QVERIFY(reloadResult.ok);
         QCOMPARE(window.slices.size(), 1);
         QCOMPARE(window.slices.front().page, 1u);
