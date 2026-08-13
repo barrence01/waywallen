@@ -219,8 +219,11 @@ auto RemoteSearchQuery::hasMore() const -> bool {
     const auto t = model();
     return t && t->hasMore();
 }
-auto RemoteSearchQuery::hasPrevious() const -> bool { return m_window.hasPrevious(); }
 auto RemoteSearchQuery::errorText() const -> const QString& { return m_error; }
+
+void RemoteSearchQuery::restoreHasMore() {
+    if (auto t = model(); t && ! noMore()) t->setHasMore(true);
+}
 
 void RemoteSearchQuery::reload() {
     if (! m_browsing_enabled || m_source_id.isEmpty()) {
@@ -246,11 +249,6 @@ void RemoteSearchQuery::fetchMore(qint32) {
     fetchPage(static_cast<quint32>(offset() + 2), FetchMode::Append);
 }
 
-void RemoteSearchQuery::loadPrevious() {
-    if (! m_browsing_enabled || ! hasPrevious() || querying()) return;
-    fetchPage(m_window.frontPage() - 1, FetchMode::Prepend);
-}
-
 void RemoteSearchQuery::clearSession() {
     ++m_generation;
     cancel();
@@ -271,12 +269,10 @@ void RemoteSearchQuery::clearResults() {
 
 void RemoteSearchQuery::applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows,
                                   bool more) {
-    const auto result =
-        m_window.applyPage(model(), page, mode, rows, more, noMore(), offset());
+    const auto result = m_window.applyPage(model(), page, mode, rows, more, noMore(), offset());
     if (! result.ok) return;
     setOffset(result.offset);
     setNoMore(result.noMore);
-    if (result.leadingDelta) Q_EMIT windowLeadingChanged(result.leadingDelta);
     Q_EMIT stateChanged();
 }
 
@@ -285,7 +281,6 @@ auto RemoteSearchQuery::tryApplyCached(quint32 page, FetchMode mode) -> bool {
     if (! result.ok) return false;
     setOffset(result.offset);
     setNoMore(result.noMore);
-    if (result.leadingDelta) Q_EMIT windowLeadingChanged(result.leadingDelta);
     Q_EMIT stateChanged();
     return true;
 }
@@ -345,10 +340,13 @@ void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode, quint64 generati
     if (! t) return;
 
     if (m_window.containsCache(page)) {
-        tryApplyCached(page, mode);
+        if (! tryApplyCached(page, mode)) restoreHasMore();
         return;
     }
-    if (m_inflight_pages.contains(page)) return;
+    if (m_inflight_pages.contains(page)) {
+        restoreHasMore();
+        return;
+    }
 
     t->setHasMore(false);
     setStatus(Status::Querying);
@@ -394,14 +392,19 @@ void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode, quint64 generati
             self->m_error   = sr.error();
             self->m_window.putCache(page, rows, more);
 
-            if (mode == FetchMode::Append && self->m_window.slicesEmpty()) return;
-            if (mode == FetchMode::Append && self->noMore()) return;
-            if (self->m_window.pageApplied(page)) return;
+            const bool skipped = (mode == FetchMode::Append && self->m_window.slicesEmpty())
+                                 || (mode == FetchMode::Append && self->noMore())
+                                 || self->m_window.pageApplied(page);
+            if (skipped) {
+                self->restoreHasMore();
+                return;
+            }
 
             self->applyPage(page, mode, rows, more);
             if (mode == FetchMode::Reset && more)
                 self->tryApplyCached(page + 1, FetchMode::Append);
         });
+        if (! result) self->restoreHasMore();
         co_return;
     });
 }

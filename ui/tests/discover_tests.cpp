@@ -89,7 +89,7 @@ class RemoteSearchPageWindowTest : public QObject {
     Q_OBJECT
 
 private slots:
-    void reset_page_one_has_no_previous() {
+    void reset_page_sets_offset_and_slice() {
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         const auto result = window.applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
@@ -97,86 +97,51 @@ private slots:
         QVERIFY(result.ok);
         QCOMPARE(result.offset, 0);
         QCOMPARE(result.noMore, false);
-        QCOMPARE(result.leadingDelta, 0);
-        QVERIFY(! window.hasPrevious());
         QCOMPARE(window.slices.size(), 1);
         QCOMPARE(window.slices.front().page, 1u);
         QCOMPARE(fx.model.count(), 3);
         QVERIFY(fx.model.hasMore());
     }
 
-    void append_past_hot_window_trims_front() {
+    void append_grows_model_and_tracks_offset() {
         ModelFixture           fx;
         RemoteSearchPageWindow window;
         qint32                 offset = 0;
         bool                   noMore = true;
 
-        auto apply = [&](quint32 page, char prefix) -> RemoteSearchPageWindow::ApplyResult {
-            const auto r =
-                window.applyPage(&fx.model, page, RemoteSearchPageWindow::FetchMode::Append,
-                                 makeRows(prefix, 2), true, noMore, offset);
-            offset = r.offset;
-            noMore = r.noMore;
-            return r;
-        };
-
         QVERIFY(window
                     .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
                                makeRows('a', 2), true, true, 0)
                     .ok);
-
-        // Pages 2..6 fill the hot window (6 pages). Page 7 must trim page 1.
-        for (quint32 page = 2; page <= RemoteSearchPageWindow::kMaxHotPages; ++page) {
-            const auto r = apply(page, static_cast<char>('a' + page - 1));
-            QVERIFY(r.ok);
-        }
-
-        QCOMPARE(window.slices.size(), RemoteSearchPageWindow::kMaxHotPages);
-        const auto trimmed = apply(RemoteSearchPageWindow::kMaxHotPages + 1, 'z');
-        QVERIFY(trimmed.ok);
-        QCOMPARE(trimmed.leadingDelta, -2);
-        QCOMPARE(window.slices.size(), RemoteSearchPageWindow::kMaxHotPages);
-        QCOMPARE(window.slices.front().page, 2u);
-        QVERIFY(window.hasPrevious());
-        QCOMPARE(offset, static_cast<qint32>(RemoteSearchPageWindow::kMaxHotPages));
-        QCOMPARE(fx.model.count(), RemoteSearchPageWindow::kMaxHotPages * 2);
-    }
-
-    void prepend_restores_has_more_when_trimming_back() {
-        ModelFixture           fx;
-        RemoteSearchPageWindow window;
-        qint32                 offset = 0;
-        bool                   noMore = false;
-
-        // Window starts at page 2 so hasPrevious is true once filled.
-        QVERIFY(window
-                    .applyPage(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Reset,
-                               makeRows('b', 2), true, true, 0)
-                    .ok);
-        for (quint32 page = 3; page <= RemoteSearchPageWindow::kMaxHotPages + 1; ++page) {
-            const auto r =
-                window.applyPage(&fx.model, page, RemoteSearchPageWindow::FetchMode::Append,
-                                 makeRows(static_cast<char>('a' + page - 1), 2), true, noMore,
-                                 offset);
+        for (quint32 page = 2; page <= 6; ++page) {
+            const auto r = window.applyPage(&fx.model, page,
+                                            RemoteSearchPageWindow::FetchMode::Append,
+                                            makeRows(static_cast<char>('a' + page - 1), 2), true,
+                                            noMore, offset);
             QVERIFY(r.ok);
             offset = r.offset;
             noMore = r.noMore;
         }
-        QCOMPARE(window.slices.size(), RemoteSearchPageWindow::kMaxHotPages);
-        QVERIFY(window.hasPrevious());
-
-        noMore = true;
-        fx.model.setHasMore(false);
-
-        const auto prepended =
-            window.applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Prepend,
-                             makeRows('p', 2), true, noMore, offset);
-        QVERIFY(prepended.ok);
-        QCOMPARE(prepended.leadingDelta, 2);
-        QCOMPARE(prepended.noMore, false);
-        QVERIFY(fx.model.hasMore());
+        QCOMPARE(fx.model.count(), 12);
+        QCOMPARE(window.slices.size(), 6);
         QCOMPARE(window.slices.front().page, 1u);
-        QCOMPARE(window.slices.size(), RemoteSearchPageWindow::kMaxHotPages);
+        QCOMPARE(offset, 5);
+    }
+
+    void last_page_marks_no_more() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+        QVERIFY(window
+                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2), true, true, 0)
+                    .ok);
+        const auto last = window.applyPage(&fx.model, 2,
+                                           RemoteSearchPageWindow::FetchMode::Append,
+                                           makeRows('b', 2), false, false, 0);
+        QVERIFY(last.ok);
+        QVERIFY(last.noMore);
+        QVERIFY(! fx.model.hasMore());
+        QCOMPARE(fx.model.count(), 4);
     }
 
     void cache_hit_applies_without_duplicate() {
@@ -194,6 +159,7 @@ private slots:
         QVERIFY(cached.ok);
         QCOMPARE(fx.model.count(), 4);
         QCOMPARE(window.slices.size(), 2);
+        QVERIFY(! window.containsCache(2));
 
         const auto again =
             window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 1);
@@ -212,7 +178,6 @@ private slots:
         window.clear();
         QVERIFY(window.slicesEmpty());
         QVERIFY(! window.containsCache(2));
-        QVERIFY(! window.hasPrevious());
     }
 
     void page_applied_blocks_reapply() {

@@ -52,7 +52,6 @@ export class RemoteSearchQuery : public QueryList,
                    prefetchNextPageChanged FINAL)
     Q_PROPERTY(waywallen::model::RemoteListModel* model READ model CONSTANT FINAL)
     Q_PROPERTY(bool hasMore READ hasMore NOTIFY stateChanged FINAL)
-    Q_PROPERTY(bool hasPrevious READ hasPrevious NOTIFY stateChanged FINAL)
     Q_PROPERTY(QString errorText READ errorText NOTIFY stateChanged FINAL)
 
 public:
@@ -78,12 +77,10 @@ public:
 
     auto model() const -> model::RemoteListModel*;
     auto hasMore() const -> bool;
-    auto hasPrevious() const -> bool;
     auto errorText() const -> const QString&;
 
     void             reload() override;
     Q_INVOKABLE void loadMore();
-    Q_INVOKABLE void loadPrevious();
     Q_INVOKABLE void clearSession();
     Q_SLOT void      fetchMore(qint32) override;
 
@@ -94,7 +91,6 @@ public:
     Q_SIGNAL void browsingEnabledChanged();
     Q_SIGNAL void prefetchNextPageChanged();
     Q_SIGNAL void stateChanged();
-    Q_SIGNAL void windowLeadingChanged(int deltaCount);
 
 private:
     using FetchMode = RemoteSearchPageWindow::FetchMode;
@@ -104,17 +100,18 @@ private:
     void prefetchPage(quint32 page, quint64 generation);
     void applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows, bool more);
     auto tryApplyCached(quint32 page, FetchMode mode) -> bool;
+    void restoreHasMore();
 
-    QString                    m_source_id;
-    QString                    m_query;
-    QString                    m_sort_key;
-    QStringList                m_tags;
-    QString                    m_error;
-    bool                       m_browsing_enabled { false };
-    bool                       m_prefetch_next_page { false };
-    quint64                    m_generation { 0 };
-    RemoteSearchPageWindow     m_window;
-    QHash<quint32, bool>       m_inflight_pages;
+    QString                m_source_id;
+    QString                m_query;
+    QString                m_sort_key;
+    QStringList            m_tags;
+    QString                m_error;
+    bool                   m_browsing_enabled { false };
+    bool                   m_prefetch_next_page { false };
+    quint64                m_generation { 0 };
+    RemoteSearchPageWindow m_window;
+    QHash<quint32, bool>   m_inflight_pages;
 };
 
 export class RemoteDetailsQuery : public Query,

@@ -547,9 +547,6 @@ MD.Page {
                         leftMargin: 8
                         rightMargin: 8
 
-                        property bool _scrollLock: false
-                        property int _anchorIndex: -1
-
                         readonly property real _availableWidth: Math.max(0, width - leftMargin - rightMargin)
                         readonly property int _cols: Math.max(1, Math.floor(_availableWidth / root.discoverTweakState.itemSize))
                         readonly property real _stretchedItemWidth: _availableWidth / _cols
@@ -558,58 +555,39 @@ MD.Page {
                         readonly property real _displayItemHeight: _displayItemWidth / Math.max(root.discoverTweakState.itemAspectRatio, 0.1)
                         cellWidth: _stretchedItemWidth
                         cellHeight: _fillCell ? _displayItemHeight : root.discoverTweakState.itemHeight
+                        readonly property bool _canScroll: contentHeight > height + topMargin + bottomMargin
 
                         model: searchQuery.model
 
-                        onContentYChanged: {
-                            if (_scrollLock)
-                                return;
-                            let idx = indexAt(width / 2, contentY + cellHeight / 2);
-                            if (idx >= 0)
-                                _anchorIndex = idx;
-                            if (!searchQuery.hasPrevious || searchQuery.querying)
-                                return;
-                            if (contentY > originY + displayMarginBeginning)
-                                return;
-                            if (_anchorIndex < 0)
-                                _anchorIndex = 0;
-                            searchQuery.loadPrevious();
+                        function _ensureFilled() {
+                            Qt.callLater(function () {
+                                // status 3 is Error: retrying here would spin while the request keeps failing.
+                                if (searchQuery.querying || searchQuery.status === 3 || !searchQuery.hasMore)
+                                    return;
+                                if (m_grid._canScroll)
+                                    return;
+                                searchQuery.loadMore();
+                            });
                         }
+
+                        onContentYChanged: {
+                            if (!_canScroll || searchQuery.querying)
+                                return;
+                            if (contentY + height >= contentHeight - displayMarginEnd)
+                                searchQuery.loadMore();
+                        }
+
+                        onContentHeightChanged: _ensureFilled()
+                        onHeightChanged: _ensureFilled()
 
                         Connections {
                             target: searchQuery
-                            function onWindowLeadingChanged(deltaCount) {
-                                if (deltaCount === 0 || m_grid._cols <= 0)
-                                    return;
-
-                                m_grid._scrollLock = true;
-                                m_grid.cancelFlick();
-
-                                if (m_grid.currentIndex >= 0) {
-                                    const next = m_grid.currentIndex + deltaCount;
-                                    m_grid.currentIndex = (next < 0 || next >= m_grid.count) ? -1 : next;
-                                }
-
-                                const anchor = m_grid._anchorIndex;
-                                Qt.callLater(function () {
-                                    const base = anchor >= 0 ? anchor : 0;
-                                    const target = Math.max(0, base + deltaCount);
-                                    if (target < m_grid.count)
-                                        m_grid.positionViewAtIndex(target, GridView.Visible);
-
-                                    m_grid._anchorIndex = -1;
-                                    m_grid._scrollLock = false;
-
-                                    if (!searchQuery.hasPrevious || searchQuery.querying)
-                                        return;
-                                    if (m_grid.contentY <= m_grid.originY + m_grid.displayMarginBeginning) {
-                                        let idx = m_grid.indexAt(m_grid.width / 2, m_grid.contentY + m_grid.cellHeight / 2);
-                                        if (idx < 0)
-                                            idx = 0;
-                                        m_grid._anchorIndex = idx;
-                                        searchQuery.loadPrevious();
-                                    }
-                                });
+                            function onStateChanged() {
+                                m_grid._ensureFilled();
+                            }
+                            function onQueryingChanged() {
+                                if (!searchQuery.querying)
+                                    m_grid._ensureFilled();
                             }
                         }
 

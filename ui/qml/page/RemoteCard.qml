@@ -20,6 +20,15 @@ Item {
     width: GridView.view ? GridView.view.cellWidth : 0
     height: GridView.view ? GridView.view.cellHeight : 0
 
+    readonly property bool _inViewport: {
+        const view = GridView.view
+        if (!view)
+            return true
+        const viewTop = view.contentY
+        const viewBottom = viewTop + view.height
+        return (y + height) > viewTop && y < viewBottom
+    }
+
     readonly property int _radius: MD.Token.shape.corner.extra_small
     readonly property real cardWidth: Math.min(root.itemWidth, root.width)
     readonly property real cardHeight: Math.min(root.itemHeight, root.height)
@@ -45,10 +54,12 @@ Item {
                 verticalAlignment: Image.AlignVCenter
                 smooth: true
                 cache: false
-                playing: true
                 asynchronous: true
-                onStatusChanged: if (status === AnimatedImage.Ready) playing = true
-                layer.enabled: true
+                sourceSize: Qt.size(Math.ceil(width), Math.ceil(height))
+                playing: root._inViewport
+                onStatusChanged: if (status === AnimatedImage.Ready && root._inViewport)
+                                     playing = true
+                layer.enabled: root._inViewport
                 layer.effect: MD.RoundClip {
                     corners: MD.Util.corners(root._radius)
                     size: Qt.vector2d(m_thumb.width, m_thumb.height)

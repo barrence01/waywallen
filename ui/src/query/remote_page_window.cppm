@@ -6,8 +6,7 @@ namespace waywallen
 {
 
 export struct RemoteSearchPageWindow {
-    enum class FetchMode { Reset, Append, Prepend };
-    enum class TrimSide { Front, Back };
+    enum class FetchMode { Reset, Append };
 
     struct PageSlice {
         quint32 page { 0 };
@@ -21,20 +20,14 @@ export struct RemoteSearchPageWindow {
 
     struct ApplyResult {
         bool   ok { false };
-        int    leadingDelta { 0 };
         qint32 offset { 0 };
         bool   noMore { false };
     };
 
-    static constexpr int kMaxWindowPages = 4;
-    static constexpr int kMaxHotPages    = kMaxWindowPages + 2;
-
     void clear();
-    auto hasPrevious() const -> bool;
     auto pageApplied(quint32 page) const -> bool;
     auto containsCache(quint32 page) const -> bool;
     void putCache(quint32 page, const QList<model::RemoteRow>& rows, bool hasMore);
-    auto frontPage() const -> quint32;
     auto slicesEmpty() const -> bool;
 
     auto applyPage(model::RemoteListModel* model, quint32 page, FetchMode mode,
@@ -45,9 +38,6 @@ export struct RemoteSearchPageWindow {
 
     QList<PageSlice>           slices;
     QHash<quint32, CachedPage> cache;
-
-private:
-    auto enforceWindow(model::RemoteListModel* model, TrimSide side, ApplyResult& result) -> int;
 };
 
 } // namespace waywallen
