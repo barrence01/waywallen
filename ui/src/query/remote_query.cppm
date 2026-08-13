@@ -47,6 +47,8 @@ export class RemoteSearchQuery : public QueryList,
     Q_PROPERTY(QStringList tags READ tags WRITE setTags NOTIFY tagsChanged FINAL)
     Q_PROPERTY(bool browsingEnabled READ browsingEnabled WRITE setBrowsingEnabled NOTIFY
                    browsingEnabledChanged FINAL)
+    Q_PROPERTY(bool prefetchNextPage READ prefetchNextPage WRITE setPrefetchNextPage NOTIFY
+                   prefetchNextPageChanged FINAL)
     Q_PROPERTY(waywallen::model::RemoteListModel* model READ model CONSTANT FINAL)
     Q_PROPERTY(bool hasMore READ hasMore NOTIFY stateChanged FINAL)
     Q_PROPERTY(bool hasPrevious READ hasPrevious NOTIFY stateChanged FINAL)
@@ -70,6 +72,9 @@ public:
     auto browsingEnabled() const -> bool;
     void setBrowsingEnabled(bool);
 
+    auto prefetchNextPage() const -> bool;
+    void setPrefetchNextPage(bool);
+
     auto model() const -> model::RemoteListModel*;
     auto hasMore() const -> bool;
     auto hasPrevious() const -> bool;
@@ -86,6 +91,7 @@ public:
     Q_SIGNAL void sortKeyChanged();
     Q_SIGNAL void tagsChanged();
     Q_SIGNAL void browsingEnabledChanged();
+    Q_SIGNAL void prefetchNextPageChanged();
     Q_SIGNAL void stateChanged();
     Q_SIGNAL void windowLeadingChanged(int deltaCount);
 
@@ -103,7 +109,7 @@ private:
         bool                    hasMore { false };
     };
 
-    static constexpr int kMaxWindowPages = 5;
+    static constexpr int kMaxWindowPages = 4;
     static constexpr int kMaxHotPages    = kMaxWindowPages + 2;
 
     void clearResults();
@@ -120,6 +126,7 @@ private:
     QStringList                m_tags;
     QString                    m_error;
     bool                       m_browsing_enabled { false };
+    bool                       m_prefetch_next_page { false };
     quint64                    m_generation { 0 };
     QList<PageSlice>           m_page_slices;
     QHash<quint32, CachedPage> m_page_cache;

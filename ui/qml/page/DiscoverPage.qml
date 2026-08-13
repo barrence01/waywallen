@@ -350,6 +350,10 @@ MD.Page {
 
     W.RemoteSearchQuery {
         id: searchQuery
+        prefetchNextPage: {
+            const w = root.Window.window
+            return !!w && (w.width > 948 * 1.5 || w.height > 632 * 1.5)
+        }
     }
 
     W.RemoteFilterDialog {

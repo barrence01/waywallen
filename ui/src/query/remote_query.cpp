@@ -207,6 +207,13 @@ void RemoteSearchQuery::setBrowsingEnabled(bool v) {
     }
 }
 
+auto RemoteSearchQuery::prefetchNextPage() const -> bool { return m_prefetch_next_page; }
+void RemoteSearchQuery::setPrefetchNextPage(bool v) {
+    if (m_prefetch_next_page == v) return;
+    m_prefetch_next_page = v;
+    Q_EMIT prefetchNextPageChanged();
+}
+
 auto RemoteSearchQuery::model() const -> model::RemoteListModel* { return tdata(); }
 auto RemoteSearchQuery::hasMore() const -> bool {
     const auto t = model();
@@ -229,8 +236,8 @@ void RemoteSearchQuery::reload() {
     setNoMore(false);
     const auto generation = ++m_generation;
     fetchPage(1, FetchMode::Reset, generation);
-    // Prefetch must not use Query::spawn — start() cancels the prior task.
-    prefetchPage(2, generation);
+    if (m_prefetch_next_page)
+        prefetchPage(2, generation);
 }
 
 void RemoteSearchQuery::loadMore() {
@@ -249,7 +256,11 @@ void RemoteSearchQuery::loadPrevious() {
     fetchPage(page, FetchMode::Prepend);
 }
 
-void RemoteSearchQuery::clearSession() { clearResults(); }
+void RemoteSearchQuery::clearSession() {
+    ++m_generation;
+    cancel();
+    clearResults();
+}
 
 void RemoteSearchQuery::clearResults() {
     m_page_cache.clear();
