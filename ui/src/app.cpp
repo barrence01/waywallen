@@ -183,8 +183,7 @@ void App::registerUiRaiseService() {
                              QString::fromLatin1(kUiInterface),
                              raise_bus,
                              QDBusConnection::ExportAllSlots)) {
-        qWarning("failed to register UI Raise on DBus: %s",
-                 qPrintable(bus.lastError().message()));
+        qWarning("failed to register UI Raise on DBus: %s", qPrintable(bus.lastError().message()));
         delete raise_bus;
     }
 }
@@ -192,8 +191,8 @@ void App::registerUiRaiseService() {
 void App::raiseMainWindow(const QString& xdgActivationToken) {
     Q_D(App);
     if (! d->m_main_win) return;
-    
-    const bool have_token = !xdgActivationToken.isEmpty();
+
+    const bool have_token = ! xdgActivationToken.isEmpty();
     if (have_token) {
         qputenv("XDG_ACTIVATION_TOKEN", xdgActivationToken.toUtf8());
     }
