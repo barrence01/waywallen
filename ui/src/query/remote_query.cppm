@@ -107,19 +107,23 @@ private:
     static constexpr int kMaxHotPages    = kMaxWindowPages + 2;
 
     void clearResults();
-    void fetchPage(quint32 page, FetchMode mode);
+    void fetchPage(quint32 page, FetchMode mode, quint64 generation = 0);
+    void prefetchPage(quint32 page, quint64 generation);
     void applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows, bool more);
+    auto pageApplied(quint32 page) const -> bool;
+    auto tryApplyCached(quint32 page, FetchMode mode) -> bool;
     auto enforceWindow(TrimSide side) -> int;
 
-    QString                   m_source_id;
-    QString                   m_query;
-    QString                   m_sort_key;
-    QStringList               m_tags;
-    QString                   m_error;
-    bool                      m_browsing_enabled { false };
-    quint64                   m_generation { 0 };
-    QList<PageSlice>          m_page_slices;
+    QString                    m_source_id;
+    QString                    m_query;
+    QString                    m_sort_key;
+    QStringList                m_tags;
+    QString                    m_error;
+    bool                       m_browsing_enabled { false };
+    quint64                    m_generation { 0 };
+    QList<PageSlice>           m_page_slices;
     QHash<quint32, CachedPage> m_page_cache;
+    QHash<quint32, bool>       m_inflight_pages;
 };
 
 export class RemoteDetailsQuery : public Query,
