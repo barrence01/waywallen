@@ -7,6 +7,7 @@ module;
 
 export module waywallen:query.remote;
 export import :query.query;
+export import :query.remote_page_window;
 export import :model.remote;
 
 namespace waywallen
@@ -96,29 +97,13 @@ public:
     Q_SIGNAL void windowLeadingChanged(int deltaCount);
 
 private:
-    enum class FetchMode { Reset, Append, Prepend };
-    enum class TrimSide { Front, Back };
-
-    struct PageSlice {
-        quint32 page { 0 };
-        int     count { 0 };
-    };
-
-    struct CachedPage {
-        QList<model::RemoteRow> rows;
-        bool                    hasMore { false };
-    };
-
-    static constexpr int kMaxWindowPages = 4;
-    static constexpr int kMaxHotPages    = kMaxWindowPages + 2;
+    using FetchMode = RemoteSearchPageWindow::FetchMode;
 
     void clearResults();
     void fetchPage(quint32 page, FetchMode mode, quint64 generation = 0);
     void prefetchPage(quint32 page, quint64 generation);
     void applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows, bool more);
-    auto pageApplied(quint32 page) const -> bool;
     auto tryApplyCached(quint32 page, FetchMode mode) -> bool;
-    auto enforceWindow(TrimSide side) -> int;
 
     QString                    m_source_id;
     QString                    m_query;
@@ -128,8 +113,7 @@ private:
     bool                       m_browsing_enabled { false };
     bool                       m_prefetch_next_page { false };
     quint64                    m_generation { 0 };
-    QList<PageSlice>           m_page_slices;
-    QHash<quint32, CachedPage> m_page_cache;
+    RemoteSearchPageWindow     m_window;
     QHash<quint32, bool>       m_inflight_pages;
 };
 

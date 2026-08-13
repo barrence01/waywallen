@@ -96,6 +96,7 @@ set(SOURCES_NO_MOC
   src/query/library_query.cpp
   src/query/settings_query.cpp
   src/query/autostart_query.cpp
+  src/query/remote_page_window.cpp
   src/query/remote_query.cpp
   src/query/playlist_query.cpp
   src/query/qr_login_query.cpp
@@ -153,6 +154,7 @@ set(MODULES
     src/model/share_store.cppm
     src/msg/backend_msg.cppm
     src/query/query.cppm
+    src/query/remote_page_window.cppm
     src/query/mod.cppm
 )
 
@@ -372,3 +374,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${APP_SVG}")
 endif()
 
 qt_finalize_target(${PROJECT_NAME})
+
+# ---------------------------------------------------------------------------
+# Unit tests (Qt Test). Default OFF — same pattern as waywallen-bridge.
+# ---------------------------------------------------------------------------
+option(WAYWALLEN_UI_BUILD_TESTS "Build waywallen-ui unit tests" OFF)
+if(WAYWALLEN_UI_BUILD_TESTS)
+  enable_testing()
+  find_package(Qt6 REQUIRED COMPONENTS Test)
+  add_subdirectory(tests)
+endif()

@@ -219,9 +219,7 @@ auto RemoteSearchQuery::hasMore() const -> bool {
     const auto t = model();
     return t && t->hasMore();
 }
-auto RemoteSearchQuery::hasPrevious() const -> bool {
-    return ! m_page_slices.isEmpty() && m_page_slices.front().page > 1;
-}
+auto RemoteSearchQuery::hasPrevious() const -> bool { return m_window.hasPrevious(); }
 auto RemoteSearchQuery::errorText() const -> const QString& { return m_error; }
 
 void RemoteSearchQuery::reload() {
@@ -229,15 +227,13 @@ void RemoteSearchQuery::reload() {
         clearResults();
         return;
     }
-    m_page_cache.clear();
-    m_page_slices.clear();
+    m_window.clear();
     m_inflight_pages.clear();
     setOffset(0);
     setNoMore(false);
     const auto generation = ++m_generation;
     fetchPage(1, FetchMode::Reset, generation);
-    if (m_prefetch_next_page)
-        prefetchPage(2, generation);
+    if (m_prefetch_next_page) prefetchPage(2, generation);
 }
 
 void RemoteSearchQuery::loadMore() {
@@ -252,8 +248,7 @@ void RemoteSearchQuery::fetchMore(qint32) {
 
 void RemoteSearchQuery::loadPrevious() {
     if (! m_browsing_enabled || ! hasPrevious() || querying()) return;
-    const quint32 page = m_page_slices.front().page - 1;
-    fetchPage(page, FetchMode::Prepend);
+    fetchPage(m_window.frontPage() - 1, FetchMode::Prepend);
 }
 
 void RemoteSearchQuery::clearSession() {
@@ -263,8 +258,7 @@ void RemoteSearchQuery::clearSession() {
 }
 
 void RemoteSearchQuery::clearResults() {
-    m_page_cache.clear();
-    m_page_slices.clear();
+    m_window.clear();
     m_inflight_pages.clear();
     setOffset(0);
     setNoMore(true);
@@ -275,80 +269,29 @@ void RemoteSearchQuery::clearResults() {
     Q_EMIT stateChanged();
 }
 
-auto RemoteSearchQuery::enforceWindow(TrimSide side) -> int {
-    auto* t = model();
-    if (! t) return 0;
-
-    int removed_leading = 0;
-    while (m_page_slices.size() > kMaxHotPages) {
-        if (side == TrimSide::Front) {
-            const auto slice = m_page_slices.takeFirst();
-            t->trimFront(slice.count);
-            removed_leading += slice.count;
-        } else {
-            const auto slice = m_page_slices.takeLast();
-            t->trimBack(slice.count);
-            setNoMore(false);
-            t->setHasMore(true);
-        }
-    }
-    if (! m_page_slices.isEmpty())
-        setOffset(static_cast<qint32>(m_page_slices.back().page - 1));
-    return removed_leading;
-}
-
 void RemoteSearchQuery::applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows,
                                   bool more) {
-    auto t = model();
-    if (! t) return;
-
-    if (mode == FetchMode::Reset) {
-        m_page_slices.clear();
-        if (! rows.isEmpty())
-            m_page_slices.push_back({ page, static_cast<int>(rows.size()) });
-        setOffset(static_cast<qint32>(page - 1));
-        setNoMore(! more);
-        t->reset(rows, more);
-    } else if (mode == FetchMode::Append) {
-        if (! rows.isEmpty())
-            m_page_slices.push_back({ page, static_cast<int>(rows.size()) });
-        setOffset(static_cast<qint32>(page - 1));
-        setNoMore(! more);
-        t->append(rows, more);
-        const int trimmed = enforceWindow(TrimSide::Front);
-        if (trimmed) Q_EMIT windowLeadingChanged(-trimmed);
-    } else {
-        if (! rows.isEmpty()) {
-            m_page_slices.prepend({ page, static_cast<int>(rows.size()) });
-            t->prepend(rows);
-            Q_EMIT windowLeadingChanged(static_cast<int>(rows.size()));
-            enforceWindow(TrimSide::Back);
-        }
-        t->setHasMore(! noMore());
-    }
+    const auto result =
+        m_window.applyPage(model(), page, mode, rows, more, noMore(), offset());
+    if (! result.ok) return;
+    setOffset(result.offset);
+    setNoMore(result.noMore);
+    if (result.leadingDelta) Q_EMIT windowLeadingChanged(result.leadingDelta);
     Q_EMIT stateChanged();
 }
 
-auto RemoteSearchQuery::pageApplied(quint32 page) const -> bool {
-    for (const auto& slice : m_page_slices) {
-        if (slice.page == page) return true;
-    }
-    return false;
-}
-
 auto RemoteSearchQuery::tryApplyCached(quint32 page, FetchMode mode) -> bool {
-    if (pageApplied(page)) return false;
-    const auto it = m_page_cache.constFind(page);
-    if (it == m_page_cache.cend()) return false;
-    if (mode == FetchMode::Append) {
-        if (m_page_slices.isEmpty() || noMore()) return false;
-    }
-    applyPage(page, mode, it->rows, it->hasMore);
+    const auto result = m_window.tryApplyCached(model(), page, mode, noMore(), offset());
+    if (! result.ok) return false;
+    setOffset(result.offset);
+    setNoMore(result.noMore);
+    if (result.leadingDelta) Q_EMIT windowLeadingChanged(result.leadingDelta);
+    Q_EMIT stateChanged();
     return true;
 }
 
 void RemoteSearchQuery::prefetchPage(quint32 page, quint64 generation) {
-    if (m_page_cache.contains(page) || m_inflight_pages.contains(page)) return;
+    if (m_window.containsCache(page) || m_inflight_pages.contains(page)) return;
 
     m_inflight_pages.insert(page, true);
     auto backend = App::instance()->backend();
@@ -390,7 +333,7 @@ void RemoteSearchQuery::prefetchPage(quint32 page, quint64 generation) {
                 if (! self->model()) return;
 
                 const bool more = sr.hasMore() && ! rows.isEmpty();
-                self->m_page_cache.insert(page, CachedPage { rows, more });
+                self->m_window.putCache(page, rows, more);
                 self->tryApplyCached(page, FetchMode::Append);
             });
             co_return;
@@ -401,7 +344,7 @@ void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode, quint64 generati
     auto t = model();
     if (! t) return;
 
-    if (m_page_cache.contains(page)) {
+    if (m_window.containsCache(page)) {
         tryApplyCached(page, mode);
         return;
     }
@@ -449,11 +392,11 @@ void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode, quint64 generati
 
             const bool more = sr.hasMore() && ! rows.isEmpty();
             self->m_error   = sr.error();
-            self->m_page_cache.insert(page, CachedPage { rows, more });
+            self->m_window.putCache(page, rows, more);
 
-            if (mode == FetchMode::Append && self->m_page_slices.isEmpty()) return;
+            if (mode == FetchMode::Append && self->m_window.slicesEmpty()) return;
             if (mode == FetchMode::Append && self->noMore()) return;
-            if (self->pageApplied(page)) return;
+            if (self->m_window.pageApplied(page)) return;
 
             self->applyPage(page, mode, rows, more);
             if (mode == FetchMode::Reset && more)

@@ -73,6 +73,10 @@ if(WAYWALLEN_BUILD_UI)
     add_subdirectory(ui)
 endif()
 
+if(WAYWALLEN_UI_BUILD_TESTS)
+    enable_testing()
+endif()
+
 message(STATUS
     "waywallen components: daemon=${WAYWALLEN_BUILD_DAEMON} ui=${WAYWALLEN_BUILD_UI} plugins=${WAYWALLEN_BUILD_PLUGINS}")
 
