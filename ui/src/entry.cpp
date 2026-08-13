@@ -45,8 +45,13 @@ int run(int argc, char** argv) {
         }
     }
 
+    if (! claimOrRaiseUiInstance()) {
+        return 0;
+    }
+
     App app(ws_port, {});
     app.init();
+    app.registerUiRaiseService();
 
     return gui_app.exec();
 }
