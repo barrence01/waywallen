@@ -543,6 +543,9 @@ MD.Page {
                         leftMargin: 8
                         rightMargin: 8
 
+                        property bool _scrollLock: false
+                        property int _anchorIndex: -1
+
                         readonly property real _availableWidth: Math.max(0, width - leftMargin - rightMargin)
                         readonly property int _cols: Math.max(1, Math.floor(_availableWidth / root.discoverTweakState.itemSize))
                         readonly property real _stretchedItemWidth: _availableWidth / _cols
@@ -555,10 +558,18 @@ MD.Page {
                         model: searchQuery.model
 
                         onContentYChanged: {
+                            if (_scrollLock)
+                                return;
+                            let idx = indexAt(width / 2, contentY + cellHeight / 2);
+                            if (idx >= 0)
+                                _anchorIndex = idx;
                             if (!searchQuery.hasPrevious || searchQuery.querying)
                                 return;
-                            if (contentY <= originY + displayMarginBeginning)
-                                searchQuery.loadPrevious();
+                            if (contentY > originY + displayMarginBeginning)
+                                return;
+                            if (_anchorIndex < 0)
+                                _anchorIndex = 0;
+                            searchQuery.loadPrevious();
                         }
 
                         Connections {
@@ -566,18 +577,34 @@ MD.Page {
                             function onWindowLeadingChanged(deltaCount) {
                                 if (deltaCount === 0 || m_grid._cols <= 0)
                                     return;
-                                const rows = Math.ceil(Math.abs(deltaCount) / m_grid._cols);
-                                const dy = rows * m_grid.cellHeight;
-                                m_grid.contentY += deltaCount > 0 ? dy : -dy;
+
+                                m_grid._scrollLock = true;
+                                m_grid.cancelFlick();
+
                                 if (m_grid.currentIndex >= 0) {
                                     const next = m_grid.currentIndex + deltaCount;
                                     m_grid.currentIndex = (next < 0 || next >= m_grid.count) ? -1 : next;
                                 }
+
+                                const anchor = m_grid._anchorIndex;
                                 Qt.callLater(function () {
+                                    const base = anchor >= 0 ? anchor : 0;
+                                    const target = Math.max(0, base + deltaCount);
+                                    if (target < m_grid.count)
+                                        m_grid.positionViewAtIndex(target, GridView.Visible);
+
+                                    m_grid._anchorIndex = -1;
+                                    m_grid._scrollLock = false;
+
                                     if (!searchQuery.hasPrevious || searchQuery.querying)
                                         return;
-                                    if (m_grid.contentY <= m_grid.originY + m_grid.displayMarginBeginning)
+                                    if (m_grid.contentY <= m_grid.originY + m_grid.displayMarginBeginning) {
+                                        let idx = m_grid.indexAt(m_grid.width / 2, m_grid.contentY + m_grid.cellHeight / 2);
+                                        if (idx < 0)
+                                            idx = 0;
+                                        m_grid._anchorIndex = idx;
                                         searchQuery.loadPrevious();
+                                    }
                                 });
                             }
                         }
