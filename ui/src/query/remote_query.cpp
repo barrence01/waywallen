@@ -246,12 +246,6 @@ void RemoteSearchQuery::fetchMore(qint32) {
     fetchPage(static_cast<quint32>(offset() + 2), FetchMode::Append);
 }
 
-void RemoteSearchQuery::clearSession() {
-    ++m_generation;
-    cancel();
-    clearResults();
-}
-
 void RemoteSearchQuery::clearResults() {
     m_window.clear();
     m_inflight_pages.clear();

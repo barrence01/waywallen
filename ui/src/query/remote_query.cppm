@@ -81,7 +81,6 @@ public:
 
     void             reload() override;
     Q_INVOKABLE void loadMore();
-    Q_INVOKABLE void clearSession();
     Q_SLOT void      fetchMore(qint32) override;
 
     Q_SIGNAL void sourceIdChanged();
