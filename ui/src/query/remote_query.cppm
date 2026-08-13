@@ -78,6 +78,7 @@ public:
     void             reload() override;
     Q_INVOKABLE void loadMore();
     Q_INVOKABLE void loadPrevious();
+    Q_INVOKABLE void clearSession();
     Q_SLOT void      fetchMore(qint32) override;
 
     Q_SIGNAL void sourceIdChanged();
@@ -97,20 +98,28 @@ private:
         int     count { 0 };
     };
 
+    struct CachedPage {
+        QList<model::RemoteRow> rows;
+        bool                    hasMore { false };
+    };
+
     static constexpr int kMaxWindowPages = 5;
+    static constexpr int kMaxHotPages    = kMaxWindowPages + 2;
 
     void clearResults();
     void fetchPage(quint32 page, FetchMode mode);
+    void applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows, bool more);
     auto enforceWindow(TrimSide side) -> int;
 
-    QString          m_source_id;
-    QString          m_query;
-    QString          m_sort_key;
-    QStringList      m_tags;
-    QString          m_error;
-    bool             m_browsing_enabled { false };
-    quint64          m_generation { 0 };
-    QList<PageSlice> m_page_slices;
+    QString                   m_source_id;
+    QString                   m_query;
+    QString                   m_sort_key;
+    QStringList               m_tags;
+    QString                   m_error;
+    bool                      m_browsing_enabled { false };
+    quint64                   m_generation { 0 };
+    QList<PageSlice>          m_page_slices;
+    QHash<quint32, CachedPage> m_page_cache;
 };
 
 export class RemoteDetailsQuery : public Query,

@@ -22,6 +22,18 @@ MD.Page {
     property var managePresentation: null
     readonly property var discoverTweakState: discoverTweakStateLoader.item
 
+    T.StackView.onStatusChanged: {
+        if (!searchQuery)
+            return;
+        const status = T.StackView.status;
+        if (status === T.StackView.Deactivating) {
+            searchQuery.clearSession();
+        } else if (status === T.StackView.Active) {
+            if (searchQuery.browsingEnabled)
+                searchQuery.reload();
+        }
+    }
+
     Loader {
         id: discoverTweakStateLoader
         active: true

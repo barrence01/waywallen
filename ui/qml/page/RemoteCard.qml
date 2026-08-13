@@ -44,7 +44,7 @@ Item {
                 horizontalAlignment: Image.AlignHCenter
                 verticalAlignment: Image.AlignVCenter
                 smooth: true
-                cache: true
+                cache: false
                 playing: true
                 asynchronous: true
                 onStatusChanged: if (status === AnimatedImage.Ready) playing = true
