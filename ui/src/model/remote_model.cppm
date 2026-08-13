@@ -75,6 +75,9 @@ public:
 
     void                    reset(QList<RemoteRow> rows, bool hasMore);
     void                    append(const QList<RemoteRow>& rows, bool hasMore);
+    void                    prepend(const QList<RemoteRow>& rows);
+    void                    trimFront(int count);
+    void                    trimBack(int count);
     Q_INVOKABLE QStringList itemIds() const;
 
     Q_SIGNAL void countChanged();

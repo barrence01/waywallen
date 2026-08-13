@@ -212,6 +212,9 @@ auto RemoteSearchQuery::hasMore() const -> bool {
     const auto t = model();
     return t && t->hasMore();
 }
+auto RemoteSearchQuery::hasPrevious() const -> bool {
+    return ! m_page_slices.isEmpty() && m_page_slices.front().page > 1;
+}
 auto RemoteSearchQuery::errorText() const -> const QString& { return m_error; }
 
 void RemoteSearchQuery::reload() {
@@ -219,22 +222,30 @@ void RemoteSearchQuery::reload() {
         clearResults();
         return;
     }
+    m_page_slices.clear();
     setOffset(0);
     setNoMore(false);
-    fetchPage(1, false);
+    fetchPage(1, FetchMode::Reset);
 }
 
 void RemoteSearchQuery::loadMore() {
     if (! m_browsing_enabled || noMore() || querying()) return;
-    fetchPage(static_cast<quint32>(offset() + 2), true);
+    fetchPage(static_cast<quint32>(offset() + 2), FetchMode::Append);
 }
 
 void RemoteSearchQuery::fetchMore(qint32) {
     if (! m_browsing_enabled || noMore()) return;
-    fetchPage(static_cast<quint32>(offset() + 2), true);
+    fetchPage(static_cast<quint32>(offset() + 2), FetchMode::Append);
+}
+
+void RemoteSearchQuery::loadPrevious() {
+    if (! m_browsing_enabled || ! hasPrevious() || querying()) return;
+    const quint32 page = m_page_slices.front().page - 1;
+    fetchPage(page, FetchMode::Prepend);
 }
 
 void RemoteSearchQuery::clearResults() {
+    m_page_slices.clear();
     setOffset(0);
     setNoMore(true);
     m_error.clear();
@@ -244,7 +255,29 @@ void RemoteSearchQuery::clearResults() {
     Q_EMIT stateChanged();
 }
 
-void RemoteSearchQuery::fetchPage(quint32 page, bool append) {
+auto RemoteSearchQuery::enforceWindow(TrimSide side) -> int {
+    auto* t = model();
+    if (! t) return 0;
+
+    int removed_leading = 0;
+    while (m_page_slices.size() > kMaxWindowPages) {
+        if (side == TrimSide::Front) {
+            const auto slice = m_page_slices.takeFirst();
+            t->trimFront(slice.count);
+            removed_leading += slice.count;
+        } else {
+            const auto slice = m_page_slices.takeLast();
+            t->trimBack(slice.count);
+            setNoMore(false);
+            t->setHasMore(true);
+        }
+    }
+    if (! m_page_slices.isEmpty())
+        setOffset(static_cast<qint32>(m_page_slices.back().page - 1));
+    return removed_leading;
+}
+
+void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode) {
     auto t = model();
     if (! t) return;
     t->setHasMore(false);
@@ -262,13 +295,13 @@ void RemoteSearchQuery::fetchPage(quint32 page, bool append) {
 
     const auto generation = ++m_generation;
     auto       self       = QWatcher { this };
-    spawn([self, backend, req = std::move(req), page, append, generation]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), page, mode, generation]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
         if (! self) co_return;
         if (self->m_generation != generation) co_return;
 
-        self->inspect_set(result, [self, page, append](const proto::Response& rsp) {
+        self->inspect_set(result, [self, page, mode](const proto::Response& rsp) {
             const auto&             sr = rsp.remoteSearch();
             QList<model::RemoteRow> rows;
             rows.reserve(sr.items().size());
@@ -285,14 +318,38 @@ void RemoteSearchQuery::fetchPage(quint32 page, bool append) {
             }
             auto t = self->model();
             if (! t) return;
+
             const bool more = sr.hasMore() && ! rows.isEmpty();
-            self->setOffset(static_cast<qint32>(page - 1));
-            self->setNoMore(! more);
-            self->m_error = sr.error();
-            if (append)
-                t->append(rows, more);
-            else
+            self->m_error   = sr.error();
+
+            if (mode == FetchMode::Reset) {
+                self->m_page_slices.clear();
+                if (! rows.isEmpty())
+                    self->m_page_slices.push_back(
+                        { page, static_cast<int>(rows.size()) });
+                self->setOffset(static_cast<qint32>(page - 1));
+                self->setNoMore(! more);
                 t->reset(std::move(rows), more);
+            } else if (mode == FetchMode::Append) {
+                if (! rows.isEmpty())
+                    self->m_page_slices.push_back(
+                        { page, static_cast<int>(rows.size()) });
+                self->setOffset(static_cast<qint32>(page - 1));
+                self->setNoMore(! more);
+                t->append(rows, more);
+                const int trimmed = self->enforceWindow(TrimSide::Front);
+                if (trimmed)
+                    Q_EMIT self->windowLeadingChanged(-trimmed);
+            } else {
+                if (! rows.isEmpty()) {
+                    self->m_page_slices.prepend(
+                        { page, static_cast<int>(rows.size()) });
+                    t->prepend(rows);
+                    Q_EMIT self->windowLeadingChanged(static_cast<int>(rows.size()));
+                    self->enforceWindow(TrimSide::Back);
+                }
+                t->setHasMore(! self->noMore());
+            }
             Q_EMIT self->stateChanged();
         });
         co_return;

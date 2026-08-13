@@ -49,6 +49,7 @@ export class RemoteSearchQuery : public QueryList,
                    browsingEnabledChanged FINAL)
     Q_PROPERTY(waywallen::model::RemoteListModel* model READ model CONSTANT FINAL)
     Q_PROPERTY(bool hasMore READ hasMore NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool hasPrevious READ hasPrevious NOTIFY stateChanged FINAL)
     Q_PROPERTY(QString errorText READ errorText NOTIFY stateChanged FINAL)
 
 public:
@@ -71,10 +72,12 @@ public:
 
     auto model() const -> model::RemoteListModel*;
     auto hasMore() const -> bool;
+    auto hasPrevious() const -> bool;
     auto errorText() const -> const QString&;
 
     void             reload() override;
     Q_INVOKABLE void loadMore();
+    Q_INVOKABLE void loadPrevious();
     Q_SLOT void      fetchMore(qint32) override;
 
     Q_SIGNAL void sourceIdChanged();
@@ -83,18 +86,31 @@ public:
     Q_SIGNAL void tagsChanged();
     Q_SIGNAL void browsingEnabledChanged();
     Q_SIGNAL void stateChanged();
+    Q_SIGNAL void windowLeadingChanged(int deltaCount);
 
 private:
-    void clearResults();
-    void fetchPage(quint32 page, bool append);
+    enum class FetchMode { Reset, Append, Prepend };
+    enum class TrimSide { Front, Back };
 
-    QString     m_source_id;
-    QString     m_query;
-    QString     m_sort_key;
-    QStringList m_tags;
-    QString     m_error;
-    bool        m_browsing_enabled { false };
-    quint64     m_generation { 0 };
+    struct PageSlice {
+        quint32 page { 0 };
+        int     count { 0 };
+    };
+
+    static constexpr int kMaxWindowPages = 5;
+
+    void clearResults();
+    void fetchPage(quint32 page, FetchMode mode);
+    auto enforceWindow(TrimSide side) -> int;
+
+    QString          m_source_id;
+    QString          m_query;
+    QString          m_sort_key;
+    QStringList      m_tags;
+    QString          m_error;
+    bool             m_browsing_enabled { false };
+    quint64          m_generation { 0 };
+    QList<PageSlice> m_page_slices;
 };
 
 export class RemoteDetailsQuery : public Query,

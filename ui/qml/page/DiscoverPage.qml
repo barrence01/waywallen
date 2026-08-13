@@ -542,6 +542,34 @@ MD.Page {
 
                         model: searchQuery.model
 
+                        onContentYChanged: {
+                            if (!searchQuery.hasPrevious || searchQuery.querying)
+                                return;
+                            if (contentY <= originY + displayMarginBeginning)
+                                searchQuery.loadPrevious();
+                        }
+
+                        Connections {
+                            target: searchQuery
+                            function onWindowLeadingChanged(deltaCount) {
+                                if (deltaCount === 0 || m_grid._cols <= 0)
+                                    return;
+                                const rows = Math.ceil(Math.abs(deltaCount) / m_grid._cols);
+                                const dy = rows * m_grid.cellHeight;
+                                m_grid.contentY += deltaCount > 0 ? dy : -dy;
+                                if (m_grid.currentIndex >= 0) {
+                                    const next = m_grid.currentIndex + deltaCount;
+                                    m_grid.currentIndex = (next < 0 || next >= m_grid.count) ? -1 : next;
+                                }
+                                Qt.callLater(function () {
+                                    if (!searchQuery.hasPrevious || searchQuery.querying)
+                                        return;
+                                    if (m_grid.contentY <= m_grid.originY + m_grid.displayMarginBeginning)
+                                        searchQuery.loadPrevious();
+                                });
+                            }
+                        }
+
                         delegate: RemoteCard {
                             remoteCapability: root.sourceCapability(root.sourceId)
                             itemWidth: m_grid._displayItemWidth
