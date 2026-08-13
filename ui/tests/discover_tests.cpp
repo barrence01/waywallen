@@ -143,6 +143,123 @@ private slots:
             window.tryApplyCached(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset, false, 0);
         QVERIFY(! dup.ok);
     }
+
+    void apply_page_null_model() {
+        RemoteSearchPageWindow window;
+        const auto result = window.applyPage(nullptr, 1, RemoteSearchPageWindow::FetchMode::Reset,
+                                             makeRows('a', 3), true, false, 0);
+        QVERIFY(! result.ok);
+        QVERIFY(window.slices.isEmpty());
+    }
+
+    void apply_page_empty_rows_does_not_add_slice() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+
+        const auto resetResult = window.applyPage(&fx.model, 1,
+                                                  RemoteSearchPageWindow::FetchMode::Reset,
+                                                  {}, true, false, 0);
+        QVERIFY(resetResult.ok);
+        QVERIFY(window.slices.isEmpty());
+        QCOMPARE(fx.model.count(), 0);
+
+        QVERIFY(window
+                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2), true, false, 0)
+                    .ok);
+        QCOMPARE(window.slices.size(), 1);
+
+        const auto appendResult = window.applyPage(&fx.model, 2,
+                                                   RemoteSearchPageWindow::FetchMode::Append,
+                                                   {}, true, false, 0);
+        QVERIFY(appendResult.ok);
+        QCOMPARE(window.slices.size(), 1);
+        QCOMPARE(fx.model.count(), 2);
+    }
+
+    void try_apply_cached_append_blocked_when_no_base_slice() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+        window.putCache(2, makeRows('b', 2), true);
+
+        const auto result =
+            window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append, false, 0);
+        QVERIFY(! result.ok);
+        QVERIFY(window.containsCache(2));
+        QCOMPARE(fx.model.count(), 0);
+    }
+
+    void try_apply_cached_append_blocked_when_no_more() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+        QVERIFY(window
+                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2), false, false, 0)
+                    .ok);
+        window.putCache(2, makeRows('b', 2), true);
+
+        const auto result =
+            window.tryApplyCached(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append,
+                                  /*noMore=*/true, 0);
+        QVERIFY(! result.ok);
+        QVERIFY(window.containsCache(2));
+        QCOMPARE(fx.model.count(), 2);
+    }
+
+    void try_apply_cached_reset_from_cache() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+        QVERIFY(window
+                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 4), true, false, 0)
+                    .ok);
+
+        window.putCache(3, makeRows('c', 3), true);
+
+        const auto result =
+            window.tryApplyCached(&fx.model, 3, RemoteSearchPageWindow::FetchMode::Reset, false, 0);
+        QVERIFY(result.ok);
+        QCOMPARE(fx.model.count(), 3);
+        QVERIFY(! window.containsCache(3));
+        QCOMPARE(window.slices.size(), 1);
+        QCOMPARE(window.slices.front().page, 3u);
+    }
+
+    void apply_page_reset_clears_previous_slices() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+        QVERIFY(window
+                    .applyPage(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset,
+                               makeRows('a', 2), true, false, 0)
+                    .ok);
+        QVERIFY(window
+                    .applyPage(&fx.model, 2, RemoteSearchPageWindow::FetchMode::Append,
+                               makeRows('b', 2), true, false, 0)
+                    .ok);
+        QCOMPARE(window.slices.size(), 2);
+
+        const auto reloadResult = window.applyPage(&fx.model, 1,
+                                                   RemoteSearchPageWindow::FetchMode::Reset,
+                                                   makeRows('x', 5), true, false, 0);
+        QVERIFY(reloadResult.ok);
+        QCOMPARE(window.slices.size(), 1);
+        QCOMPARE(window.slices.front().page, 1u);
+        QCOMPARE(fx.model.count(), 5);
+    }
+
+    void put_cache_overwrites_existing_entry() {
+        ModelFixture           fx;
+        RemoteSearchPageWindow window;
+        window.putCache(1, makeRows('a', 2), true);
+        window.putCache(1, makeRows('b', 3), false);
+
+        const auto result =
+            window.tryApplyCached(&fx.model, 1, RemoteSearchPageWindow::FetchMode::Reset, false, 0);
+        QVERIFY(result.ok);
+        QCOMPARE(fx.model.count(), 3);
+        QVERIFY(result.noMore);
+        QVERIFY(! window.containsCache(1));
+    }
 };
 
 int main(int argc, char** argv) {
