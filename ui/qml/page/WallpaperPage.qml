@@ -1027,9 +1027,9 @@ MD.Page {
                         keyNavigationWraps: true
                         currentIndex: -1
                         highlightRangeMode: GridView.NoHighlightRange
-                        cacheBuffer: 300
-                        displayMarginBeginning: 300
-                        displayMarginEnd: 300
+                        cacheBuffer: 324
+                        displayMarginBeginning: 162
+                        displayMarginEnd: 162
                         topMargin: 2
                         bottomMargin: root.selectionActionSheetActive ? root.selectionSheetReserve : 8
                         leftMargin: 8

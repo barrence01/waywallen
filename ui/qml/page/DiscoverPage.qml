@@ -538,9 +538,9 @@ MD.Page {
                         id: m_grid
                         anchors.fill: parent
                         clip: true
-                        cacheBuffer: 300
-                        displayMarginBeginning: 300
-                        displayMarginEnd: 300
+                        cacheBuffer: 324
+                        displayMarginBeginning: 162
+                        displayMarginEnd: 162
                         currentIndex: -1
                         topMargin: 2
                         bottomMargin: 8
