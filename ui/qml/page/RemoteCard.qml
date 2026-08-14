@@ -20,12 +20,23 @@ Item {
     width: GridView.view ? GridView.view.cellWidth : 0
     height: GridView.view ? GridView.view.cellHeight : 0
 
+    readonly property real _preloadMargin: 350
+
     readonly property bool _inViewport: {
         const view = GridView.view
         if (!view)
             return true
         const viewTop = view.contentY
         const viewBottom = viewTop + view.height
+        return (y + height) > viewTop && y < viewBottom
+    }
+
+    readonly property bool _inPreloadViewport: {
+        const view = GridView.view
+        if (!view)
+            return true
+        const viewTop = view.contentY - root._preloadMargin
+        const viewBottom = viewTop + view.height + 2 * root._preloadMargin
         return (y + height) > viewTop && y < viewBottom
     }
 
@@ -45,25 +56,28 @@ Item {
             anchors.margins: 6
             clip: true
 
-            AnimatedImage {
-                id: m_thumb
+            Loader {
                 anchors.fill: parent
-                source: root.previewUrl
-                fillMode: Image.PreserveAspectCrop
-                horizontalAlignment: Image.AlignHCenter
-                verticalAlignment: Image.AlignVCenter
-                smooth: true
-                cache: true
-                asynchronous: true
-                sourceSize: Qt.size(Math.ceil(width), Math.ceil(height))
-                onStatusChanged: {
-                    if (status === AnimatedImage.Ready)
-                        playing = Qt.binding(() => root._inViewport)
-                }
-                layer.enabled: root._inViewport
-                layer.effect: MD.RoundClip {
-                    corners: MD.Util.corners(root._radius)
-                    size: Qt.vector2d(m_thumb.width, m_thumb.height)
+                active: root._inPreloadViewport
+                sourceComponent: Component {
+                    AnimatedImage {
+                        id: m_thumb
+                        anchors.fill: parent
+                        source: root.previewUrl
+                        fillMode: Image.PreserveAspectCrop
+                        horizontalAlignment: Image.AlignHCenter
+                        verticalAlignment: Image.AlignVCenter
+                        smooth: true
+                        cache: true
+                        asynchronous: true
+                        playing: root._inViewport
+                        sourceSize: Qt.size(Math.ceil(width), Math.ceil(height))
+                        layer.enabled: root._inViewport
+                        layer.effect: MD.RoundClip {
+                            corners: MD.Util.corners(root._radius)
+                            size: Qt.vector2d(m_thumb.width, m_thumb.height)
+                        }
+                    }
                 }
             }
 
