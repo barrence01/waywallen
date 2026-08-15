@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Assertable
 import QtQuick
 import Qcm.Material as MD
@@ -20,6 +21,69 @@ Item {
 
     signal clicked(int modifiers)
     signal selectionRequested(int modifiers)
+
+    readonly property real _preloadMargin: 400
+    readonly property int _unloadDelayMs: 500
+
+    readonly property var _view: GridView.view
+
+    readonly property bool _viewBusy:
+        !!root._view && (root._view.flicking || root._view.moving)
+
+    readonly property int _rawZone: {
+        const view = root._view
+        if (!view)
+            return 2
+
+        const margin = root._preloadMargin
+        const top = view.contentY
+        const bottom = top + view.height
+        const itemBottom = y + height
+
+        if (itemBottom <= top - margin || y >= bottom + margin)
+            return 0
+
+        if (itemBottom <= top || y >= bottom)
+            return 1
+
+        return 2
+    }
+
+    property bool _imageWanted: true
+
+    function _syncImageWanted() {
+        switch (root._rawZone) {
+        case 2:
+            unloadTimer.stop()
+            root._imageWanted = true
+            break
+
+        case 1:
+            unloadTimer.stop()
+            if (!root._viewBusy)
+                root._imageWanted = true
+            break
+
+        case 0:
+            if (!unloadTimer.running)
+                unloadTimer.restart()
+            break
+        }
+    }
+
+    on_RawZoneChanged: _syncImageWanted()
+    on_ViewBusyChanged: _syncImageWanted()
+
+    Timer {
+        id: unloadTimer
+        interval: root._unloadDelayMs
+        onTriggered: {
+            if (root._rawZone === 0)
+                root._imageWanted = false
+        }
+    }
+
+    Component.onCompleted: _syncImageWanted()
 
     readonly property int _baseRadius: MD.Token.shape.corner.extra_small
     readonly property int _selectedRadius: MD.Token.shape.corner.large
@@ -45,14 +109,20 @@ Item {
             anchors.fill: parent
             anchors.margins: 6 + (root.selected ? root._selectedInset : 0)
 
-            W.ThumbnailImage {
+            Loader {
                 id: m_thumb
                 anchors.fill: parent
-                source  : root.wallpaper?.preview ?? ""
-                resource: root.wallpaper?.resource ?? ""
-                wpType  : root.wallpaper?.wpType ?? ""
-                fillMode: Image.PreserveAspectCrop
-                radius: root._radius
+                active: root._imageWanted
+                sourceComponent: Component {
+                    W.ThumbnailImage {
+                        anchors.fill: parent
+                        source  : root.wallpaper?.preview ?? ""
+                        resource: root.wallpaper?.resource ?? ""
+                        wpType  : root.wallpaper?.wpType ?? ""
+                        fillMode: Image.PreserveAspectCrop
+                        radius: root._radius
+                    }
+                }
             }
 
             // Scrim aligns to the image control's bounds; spans the
