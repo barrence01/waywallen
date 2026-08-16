@@ -265,8 +265,8 @@
         <translation>Мониторы не зарегистрированы</translation>
     </message>
     <message>
-        <source>Display %1</source>
-        <translation>Монитор %1</translation>
+        <source>Display #%1</source>
+        <translation>Монитор #%1</translation>
     </message>
     <message>
         <source>Edit display</source>
@@ -287,6 +287,10 @@
     <message>
         <source>Connected</source>
         <translation>Подключено</translation>
+    </message>
+    <message>
+        <source>Assigned</source>
+        <translation>Назначено</translation>
     </message>
     <message numerus="yes">
         <source>%n min left</source>
@@ -360,6 +364,21 @@
     <message>
         <source>GitHub</source>
         <translation>GitHub</translation>
+    </message>
+</context>
+<context>
+    <name>GpuDetails</name>
+    <message>
+        <source>Driver: %1</source>
+        <translation>Драйвер: %1</translation>
+    </message>
+    <message>
+        <source>PCI: %1</source>
+        <translation>PCI: %1</translation>
+    </message>
+    <message>
+        <source>Render node: %1</source>
+        <translation>Узел рендеринга: %1</translation>
     </message>
 </context>
 <context>
@@ -455,6 +474,17 @@
     </message>
 </context>
 <context>
+    <name>PagePopup</name>
+    <message>
+        <source>Failed to open page</source>
+        <translation>Не удалось открыть страницу</translation>
+    </message>
+    <message>
+        <source>Failed to load page</source>
+        <translation>Не удалось загрузить страницу</translation>
+    </message>
+</context>
+<context>
     <name>PlaylistDetailPanel</name>
     <message>
         <source>Name</source>
@@ -484,8 +514,16 @@
 <context>
     <name>PlaylistListSheet</name>
     <message>
+        <source>Create playlist</source>
+        <translation>Создать плейлист</translation>
+    </message>
+    <message>
         <source>Playlists</source>
         <translation>Плейлисты</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Общий</translation>
     </message>
     <message>
         <source>No displays</source>
@@ -1150,6 +1188,14 @@ Related display: #%1</source>
         <translation>Запускать при входе в систему</translation>
     </message>
     <message>
+        <source>Hide tray icon</source>
+        <translation>Скрыть значок в системном лотке</translation>
+    </message>
+    <message>
+        <source>Remove the status-bar icon. Reopen this window by launching Waywallen again.</source>
+        <translation>Убрать значок из системного лотка. Чтобы снова открыть это окно, запустите Waywallen ещё раз.</translation>
+    </message>
+    <message>
         <source>Allow duplicate renderers</source>
         <translation>Разрешить дублирование рендереров</translation>
     </message>
@@ -1320,8 +1366,8 @@ Unsaved frame state may be lost.</source>
         <translation>Состояние:</translation>
     </message>
     <message>
-        <source>Active Renderers</source>
-        <translation>Активные рендереры</translation>
+        <source>Renderers</source>
+        <translation>Рендереры</translation>
     </message>
     <message>
         <source>Mute all</source>
@@ -1332,8 +1378,12 @@ Unsaved frame state may be lost.</source>
         <translation>Приостановить всё</translation>
     </message>
     <message>
-        <source>No active renderers</source>
-        <translation>Активных рендереров нет</translation>
+        <source>Stop all</source>
+        <translation>Остановить всё</translation>
+    </message>
+    <message>
+        <source>No renderers</source>
+        <translation>Рендереров нет</translation>
     </message>
     <message>
         <source>Components</source>
@@ -1458,6 +1508,22 @@ Unsaved frame state may be lost.</source>
         <translation>Не удалось применить</translation>
     </message>
     <message>
+        <source>Display #%1</source>
+        <translation>Монитор #%1</translation>
+    </message>
+    <message>
+        <source>Playlist #%1</source>
+        <translation>Плейлист #%1</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on all displays</source>
+        <translation>Плейлист «%1» остановлен на всех мониторах</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on %2</source>
+        <translation>Плейлист «%1» остановлен на %2</translation>
+    </message>
+    <message>
         <source>Portal apply failed</source>
         <translation>Не удалось применить через портал</translation>
     </message>
@@ -1576,10 +1642,6 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>All</source>
         <translation>Ко всем</translation>
-    </message>
-    <message>
-        <source>Display %1</source>
-        <translation>Монитор %1</translation>
     </message>
     <message>
         <source>Renderer</source>
@@ -1746,6 +1808,14 @@ Unsaved frame state may be lost.</source>
         <translation>Не удалось обновить плейлист</translation>
     </message>
     <message>
+        <source>Playlist creation failed</source>
+        <translation>Не удалось создать плейлист</translation>
+    </message>
+    <message>
+        <source>Playlist created</source>
+        <translation>Плейлист создан</translation>
+    </message>
+    <message>
         <source>Playlist updated</source>
         <translation>Плейлист обновлён</translation>
     </message>
@@ -1818,8 +1888,8 @@ Unsaved frame state may be lost.</source>
         <translation>Монитор</translation>
     </message>
     <message>
-        <source>Display %1</source>
-        <translation>Монитор %1</translation>
+        <source>Display #%1</source>
+        <translation>Монитор #%1</translation>
     </message>
     <message>
         <source>Added to playlist</source>

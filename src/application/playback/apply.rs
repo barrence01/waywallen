@@ -5,7 +5,8 @@ use anyhow::anyhow;
 use ashpd::desktop::wallpaper::{SetOn, WallpaperRequest};
 
 use crate::application::{
-    should_duplicate_renderers, ApplyRequest, ApplyResult, RendererSharingPolicy,
+    should_duplicate_renderers, ApplyActivation, ApplyRequest, ApplyResult, ApplySource,
+    RendererSharingPolicy,
 };
 use crate::catalog::entry::WallpaperEntry;
 use crate::error::{Error, Result};
@@ -17,7 +18,11 @@ use crate::DaemonContext;
 
 /// Apply a wallpaper by id to every registered display.
 /// Supersedes any in-flight global apply task.
-pub async fn apply_wallpaper_by_id(app: &Arc<DaemonContext>, id: &str) -> Result<ApplyResult> {
+pub async fn apply_wallpaper_by_id(
+    app: &Arc<DaemonContext>,
+    id: &str,
+    source: ApplySource,
+) -> Result<ApplyResult> {
     let app_clone = app.clone();
     let id_owned = id.to_string();
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<ApplyResult>>();
@@ -26,7 +31,19 @@ pub async fn apply_wallpaper_by_id(app: &Arc<DaemonContext>, id: &str) -> Result
         "apply/global",
         format!("apply/{id_owned}"),
         async move {
-            let res = apply_wallpaper(&app_clone, &id_owned, ApplyRequest::default()).await;
+            let res = apply_wallpaper(
+                &app_clone,
+                &id_owned,
+                ApplyRequest {
+                    source,
+                    display_ids: None,
+                    renderer_name: None,
+                    first_frame_timeout: None,
+                    require_display: false,
+                    sharing: RendererSharingPolicy::UseSettings,
+                },
+            )
+            .await;
             // If the receiver is gone the caller already moved on (or
             // was itself cancelled); silently drop the result.
             let _ = tx.send(res);
@@ -43,6 +60,7 @@ pub async fn apply_wallpaper_to_displays(
     app: &Arc<DaemonContext>,
     id: &str,
     target: &[DisplayId],
+    source: ApplySource,
 ) -> Result<ApplyResult> {
     if target.is_empty() {
         return Err(Error::Internal(anyhow!(
@@ -53,8 +71,12 @@ pub async fn apply_wallpaper_to_displays(
         app,
         id,
         ApplyRequest {
+            source,
             display_ids: Some(target.to_vec()),
-            ..Default::default()
+            renderer_name: None,
+            first_frame_timeout: None,
+            require_display: false,
+            sharing: RendererSharingPolicy::UseSettings,
         },
     )
     .await
@@ -65,6 +87,7 @@ pub async fn apply_wallpaper_to_displays_with_first_frame_timeout(
     id: &str,
     target: &[DisplayId],
     timeout: Duration,
+    source: ApplySource,
 ) -> Result<ApplyResult> {
     if target.is_empty() {
         return Err(Error::Internal(anyhow!(
@@ -75,9 +98,12 @@ pub async fn apply_wallpaper_to_displays_with_first_frame_timeout(
         app,
         id,
         ApplyRequest {
+            source,
             display_ids: Some(target.to_vec()),
+            renderer_name: None,
             first_frame_timeout: Some(timeout),
-            ..Default::default()
+            require_display: false,
+            sharing: RendererSharingPolicy::UseSettings,
         },
     )
     .await
@@ -88,6 +114,7 @@ pub async fn apply_wallpaper_shared_to_displays(
     id: &str,
     target: &[DisplayId],
     first_frame_timeout: Option<Duration>,
+    source: ApplySource,
 ) -> Result<ApplyResult> {
     if target.is_empty() {
         return Err(Error::Internal(anyhow!(
@@ -98,10 +125,12 @@ pub async fn apply_wallpaper_shared_to_displays(
         app,
         id,
         ApplyRequest {
+            source,
             display_ids: Some(target.to_vec()),
+            renderer_name: None,
             first_frame_timeout,
+            require_display: false,
             sharing: RendererSharingPolicy::Shared,
-            ..Default::default()
         },
     )
     .await
@@ -117,6 +146,7 @@ pub struct PortalApplyResult {
 pub async fn apply_wallpaper_via_portal(
     app: &Arc<DaemonContext>,
     id: &str,
+    source: ApplySource,
 ) -> Result<PortalApplyResult> {
     let app_clone = app.clone();
     let id_owned = id.to_string();
@@ -126,6 +156,10 @@ pub async fn apply_wallpaper_via_portal(
         "apply/portal",
         format!("apply-portal/{id_owned}"),
         async move {
+            log::debug!(
+                "portal wallpaper apply: id={id_owned} source={}",
+                source.as_str()
+            );
             let res = apply_via_portal_inner(&app_clone, &id_owned).await;
             let _ = tx.send(res);
             Ok(())
@@ -199,110 +233,28 @@ fn resolve_renderer(
     }
 }
 
-async fn reusable_renderer_for_target(
-    app: &Arc<DaemonContext>,
-    spawn_req: &renderer_manager::SpawnRequest,
-    target_ids: &[DisplayId],
-    duplicate_renderers: bool,
-) -> Option<String> {
-    if !duplicate_renderers {
-        return app.renderer_manager.find_reusable(spawn_req).await;
-    }
-
-    for id in app.renderer_manager.reusable_renderer_ids(spawn_req).await {
-        let linked = app.router.renderer_display_ids(&id).await;
-        if linked.is_empty() || linked.iter().all(|did| target_ids.contains(did)) {
-            return Some(id);
-        }
-    }
-    None
-}
-
-async fn spawn_renderer_for_target(
-    app: &Arc<DaemonContext>,
-    spawn_req: renderer_manager::SpawnRequest,
-    target: Option<&[DisplayId]>,
-) -> Result<String> {
-    let to_stop = app.router.renderers_fully_replaced_by(target).await;
-    if !to_stop.is_empty() {
-        app.router
-            .stop_renderers_orderly(&to_stop, Duration::from_secs(1))
-            .await;
-    }
-
-    let new_id = app.renderer_manager.spawn(spawn_req).await?;
-    if let Some(handle) = app.renderer_manager.get(&new_id).await {
-        app.router.register_renderer(handle).await;
-    }
-    Ok(new_id)
-}
-
 async fn wait_for_apply_frame(
     app: &Arc<DaemonContext>,
-    renderer_id: &str,
+    renderer: &crate::wallframe::routing::ActiveRenderer,
     timeout: Option<Duration>,
 ) -> Result<()> {
     let Some(timeout) = timeout else {
         return Ok(());
     };
-    if let Err(e) = app
-        .renderer_manager
-        .wait_for_first_frame(renderer_id, timeout)
-        .await
-    {
-        app.router.unregister_renderer(renderer_id).await;
-        let _ = app.renderer_manager.kill(renderer_id).await;
+    if let Err(e) = app.router.wait_for_first_frame(renderer, timeout).await {
+        if let Err(stop_error) = app
+            .router
+            .kill_renderer_generation_drop(&renderer.renderer_id, renderer.process_generation)
+            .await
+        {
+            log::warn!(
+                "renderer {}: cleanup after first-frame failure: {stop_error}",
+                renderer.renderer_id
+            );
+        }
         return Err(e);
     }
     Ok(())
-}
-
-async fn apply_shared_renderer(
-    app: &Arc<DaemonContext>,
-    spawn_req: renderer_manager::SpawnRequest,
-    target: Option<&[DisplayId]>,
-    target_ids: &[DisplayId],
-    wallpaper_layout_override: crate::catalog::properties::WallpaperLayoutOverride,
-    first_frame_timeout: Option<Duration>,
-) -> Result<String> {
-    let renderer_id = match reusable_renderer_for_target(app, &spawn_req, target_ids, false).await {
-        Some(existing) => existing,
-        None => spawn_renderer_for_target(app, spawn_req, target).await?,
-    };
-    app.router
-        .set_renderer_wallpaper_layout_override(&renderer_id, wallpaper_layout_override)
-        .await;
-    match target {
-        None => app.router.relink_all_displays_to(&renderer_id).await,
-        Some(ids) => app.router.relink_displays_to(ids, &renderer_id).await,
-    }
-    wait_for_apply_frame(app, &renderer_id, first_frame_timeout).await?;
-    Ok(renderer_id)
-}
-
-async fn apply_duplicate_renderers(
-    app: &Arc<DaemonContext>,
-    spawn_req: &renderer_manager::SpawnRequest,
-    target_ids: &[DisplayId],
-    wallpaper_layout_override: crate::catalog::properties::WallpaperLayoutOverride,
-    first_frame_timeout: Option<Duration>,
-) -> Result<String> {
-    let mut first_renderer_id: Option<String> = None;
-    for did in target_ids {
-        let single = [*did];
-        let renderer_id = match reusable_renderer_for_target(app, spawn_req, &single, true).await {
-            Some(existing) => existing,
-            None => spawn_renderer_for_target(app, spawn_req.clone(), Some(&single)).await?,
-        };
-        app.router
-            .set_renderer_wallpaper_layout_override(&renderer_id, wallpaper_layout_override)
-            .await;
-        app.router.relink_displays_to(&single, &renderer_id).await;
-        wait_for_apply_frame(app, &renderer_id, first_frame_timeout).await?;
-        first_renderer_id.get_or_insert(renderer_id);
-    }
-
-    first_renderer_id.ok_or(Error::NoDisplayRegistered)
 }
 
 /// Shared global/per-display apply core.
@@ -345,31 +297,48 @@ pub async fn apply_wallpaper(
     if request.require_display && target_ids.is_empty() {
         return Err(Error::NoDisplayRegistered);
     }
+    let stopped_playlists = if request.source == ApplySource::UserWallpaper {
+        super::playlist::stop_for_wallpaper_override(
+            app,
+            &target_ids,
+            request.display_ids.is_none(),
+        )
+        .await?
+    } else {
+        Vec::new()
+    };
     let duplicate_renderers = should_duplicate_renderers(
         app.settings.global().duplicate_renderers_for_same_wallpaper,
         !target_ids.is_empty(),
         request.sharing,
     );
-    let renderer_id = if duplicate_renderers {
-        apply_duplicate_renderers(
-            app,
-            &spawn_req,
-            &target_ids,
+    let receipt = app
+        .router
+        .apply_assignment(crate::wallframe::routing::ApplyAssignment {
+            spawn_request: spawn_req,
+            display_ids: target_ids.clone(),
+            duplicate_renderers,
             wallpaper_layout_override,
-            request.first_frame_timeout,
-        )
-        .await?
-    } else {
-        apply_shared_renderer(
-            app,
-            spawn_req,
-            target,
-            &target_ids,
-            wallpaper_layout_override,
-            request.first_frame_timeout,
-        )
-        .await?
-    };
+            preempt_pending_start: request.source.preempts_pending_start(),
+        })
+        .await?;
+    let deferred = receipt.activation == crate::wallframe::routing::AssignmentActivation::Deferred;
+    log::debug!(
+        "wallpaper apply: id={} source={} targets={:?} sharing={} activation={}",
+        entry.item_id,
+        request.source.as_str(),
+        target_ids,
+        if duplicate_renderers {
+            "duplicate"
+        } else {
+            "shared"
+        },
+        if deferred { "deferred" } else { "active" }
+    );
+    for renderer in &receipt.active_renderers {
+        wait_for_apply_frame(app, renderer, request.first_frame_timeout).await?;
+    }
+    let renderer_id = receipt.renderer_id;
 
     {
         let mut q = app.queue.lock().await;
@@ -392,5 +361,14 @@ pub async fn apply_wallpaper(
     app.settings.flush_now().await;
     crate::system::dbus::notify_current_wallpaper_id_changed(app).await;
 
-    Ok(ApplyResult { renderer_id, entry })
+    Ok(ApplyResult {
+        renderer_id,
+        entry,
+        stopped_playlists,
+        activation: if deferred {
+            ApplyActivation::Deferred
+        } else {
+            ApplyActivation::Active
+        },
+    })
 }

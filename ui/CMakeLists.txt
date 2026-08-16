@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 set(APP_ID org.waywallen.waywallen)
 set(APP_NAME "waywallen")
-set(APP_VERSION "0.3.3")
+set(APP_VERSION "0.3.4")
 set(APP_SUMMARY "Wallpaper Manager for Linux")
 set(APP_AUTHOR "hypengw")
 
@@ -162,6 +162,7 @@ set(QML_FILES
   qml/component/StatusDot.qml
   qml/component/PagePopup.qml
   qml/component/Tag.qml
+  qml/component/GpuDetails.qml
   qml/component/GpuTag.qml
   qml/component/RendererRuntimeTag.qml
   qml/component/RuntimeConditionTag.qml
@@ -220,7 +221,10 @@ set(RESOURCES
   assets/waywallen-ui.releases.xml
 )
 
-set_source_files_properties(qml/Global.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(
+  qml/Global.qml
+  qml/component/GpuDetails.qml
+  PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 set(QML_REG_INCLUDE_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/waywallen/register"
@@ -312,6 +316,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
   INSTALL_RPATH "${WAYWALLEN_BIN_RPATH}"
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE waywallen-qml)
+
+if(WAYWALLEN_BUILD_TESTS)
+  qt_add_executable(waywallen-ui-util-tests tests/util.cpp)
+  set_target_properties(waywallen-ui-util-tests PROPERTIES CXX_SCAN_FOR_MODULES ON)
+  target_link_libraries(waywallen-ui-util-tests PRIVATE waywallen-qml)
+  add_test(NAME waywallen-ui-util-tests COMMAND waywallen-ui-util-tests)
+endif()
 
 # ---------------------------------------------------------------------------
 # Translations

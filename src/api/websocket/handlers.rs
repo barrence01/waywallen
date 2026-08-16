@@ -58,11 +58,8 @@ pub(super) async fn dispatch_inner(
                 user_property_overrides: Default::default(),
                 default_user_properties: Default::default(),
             };
-            // renderer_manager returns typed spawn errors directly.
-            let id = state.renderer_manager.spawn(spawn_req).await?;
-            if let Some(handle) = state.renderer_manager.get(&id).await {
-                state.router.register_renderer(handle).await;
-            }
+            // Wallframe returns typed spawn errors directly.
+            let id = state.router.spawn_renderer(spawn_req).await?;
             Res::RendererSpawn(pb::RendererSpawnResponse { renderer_id: id })
         }
 
@@ -83,30 +80,20 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::RendererPlay(r) => {
-            let fade_ms = state.settings.global().effective_audio_fade_ms();
-            state
-                .renderer_manager
-                .send_control(
-                    &r.renderer_id,
-                    ControlMsg::Play {
-                        transition: ControlTransition { fade_ms },
-                    },
-                )
-                .await?;
+            if !state
+                .router
+                .set_renderer_paused(&r.renderer_id, false)
+                .await
+            {
+                return Err(Error::RendererNotFound(r.renderer_id));
+            }
             Res::RendererPlay(pb::Empty {})
         }
 
         Req::RendererPause(r) => {
-            let fade_ms = state.settings.global().effective_audio_fade_ms();
-            state
-                .renderer_manager
-                .send_control(
-                    &r.renderer_id,
-                    ControlMsg::Pause {
-                        transition: ControlTransition { fade_ms },
-                    },
-                )
-                .await?;
+            if !state.router.set_renderer_paused(&r.renderer_id, true).await {
+                return Err(Error::RendererNotFound(r.renderer_id));
+            }
             Res::RendererPause(pb::Empty {})
         }
 
@@ -123,6 +110,11 @@ pub(super) async fn dispatch_inner(
         Req::GlobalMuteSet(r) => {
             let muted = application::set_mute_all(state, r.muted).await?;
             Res::GlobalMuteSet(pb::GlobalMuteSetResponse { muted })
+        }
+
+        Req::GlobalStopSet(r) => {
+            let stopped = application::set_stop_all(state, r.stopped).await?;
+            Res::GlobalStopSet(pb::GlobalStopSetResponse { stopped })
         }
 
         Req::RendererMouse(r) => {
@@ -144,6 +136,16 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::RendererFps(r) => {
+            if !state
+                .router
+                .update_renderer_assignment_fps(&r.renderer_id, r.fps)
+                .await
+            {
+                return Err(Error::RendererNotFound(r.renderer_id));
+            }
+            if state.renderer_manager.get(&r.renderer_id).await.is_none() {
+                return Ok(Res::RendererFps(pb::Empty {}));
+            }
             state
                 .renderer_manager
                 .send_setting_changed(&r.renderer_id, Vec::new(), Some(r.fps))
@@ -152,8 +154,7 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::RendererKill(r) => {
-            state.router.unregister_renderer(&r.renderer_id).await;
-            state.renderer_manager.kill(&r.renderer_id).await?;
+            state.router.kill_renderer_drop(&r.renderer_id).await?;
             Res::RendererKill(pb::Empty {})
         }
 
@@ -561,71 +562,83 @@ pub(super) async fn dispatch_inner(
             };
             repo::set_user_property_override(&state.db, entry.item_id, &r.key, value.as_deref())
                 .await?;
+            let retained_renderer_ids =
+                state.router.renderer_ids_by_resource(&entry.resource).await;
             let persist_tag = format!("item={}", entry.item_id);
-            let live_renderer = state
-                .renderer_manager
-                .find_by_resource(&entry.resource)
-                .await;
             let push_tag = if is_daemon_display_property_key(&r.key) {
-                if let Some(h) = live_renderer {
+                if retained_renderer_ids.is_empty() {
+                    String::from("offline")
+                } else {
                     let (_, wallpaper_layout_override) =
                         repo::get_wallpaper_render_properties(&state.db, entry.item_id).await?;
-                    let id = h.id.clone();
-                    state
-                        .router
-                        .set_renderer_wallpaper_layout_override(&id, wallpaper_layout_override)
-                        .await;
-                    format!("display-layout={id}")
-                } else {
-                    String::from("offline")
+                    for renderer_id in &retained_renderer_ids {
+                        state
+                            .router
+                            .update_renderer_assignment_layout(
+                                renderer_id,
+                                wallpaper_layout_override,
+                            )
+                            .await;
+                    }
+                    format!("display-layout={}", retained_renderer_ids.join(","))
                 }
             } else {
-                // Push live; unknown keys are left for renderer-side property
-                // dispatch to accept or ignore.
-                if let Some(h) = live_renderer {
-                    let effective_value = if value.is_none() {
-                        if let Some(default) = h.default_user_property(&r.key) {
-                            default
-                        } else {
+                for renderer_id in &retained_renderer_ids {
+                    state
+                        .router
+                        .update_renderer_assignment_property(renderer_id, &r.key, value.as_deref())
+                        .await;
+                }
+                let mut pushed = Vec::new();
+                let mut schema_default = None;
+                for renderer_id in &retained_renderer_ids {
+                    let Some(handle) = state.renderer_manager.get(renderer_id).await else {
+                        continue;
+                    };
+                    let effective_value = if let Some(value) = value.as_ref() {
+                        value.clone()
+                    } else if let Some(default) = handle.default_user_property(&r.key) {
+                        default
+                    } else {
+                        if schema_default.is_none() {
                             let schema = state
                                 .source_manager
                                 .call_properties(&entry.plugin_name, &entry)
                                 .await
                                 .ok()
                                 .flatten();
-                            schema
-                                .as_deref()
-                                .and_then(|schema| user_property_default_wire_value(schema, &r.key))
-                                .unwrap_or_else(|| {
-                                    log::warn!(
-                                        "WallpaperPropertySet: reset {} on {} has no default value",
-                                        r.key,
-                                        r.wallpaper_id
-                                    );
-                                    String::new()
-                                })
+                            schema_default = schema.as_deref().and_then(|schema| {
+                                user_property_default_wire_value(schema, &r.key)
+                            });
                         }
-                    } else {
-                        value.clone().unwrap_or_default()
+                        schema_default.clone().unwrap_or_else(|| {
+                            log::warn!(
+                                "WallpaperPropertySet: reset {} on {} has no default value",
+                                r.key,
+                                r.wallpaper_id
+                            );
+                            String::new()
+                        })
                     };
-                    let kv = vec![(
+                    let settings = vec![(
                         canonical_user_property_key(&r.key).to_string(),
                         effective_value,
                     )];
-                    let id = h.id.clone();
                     state
                         .renderer_manager
-                        .send_control(&h.id, ControlMsg::SettingChanged { settings: kv })
+                        .send_control(renderer_id, ControlMsg::SettingChanged { settings })
                         .await
-                        .map_err(|e| {
+                        .map_err(|error| {
                             Error::Internal(anyhow::anyhow!(
-                                "send setting_changed to renderer {}: {e}",
-                                h.id
+                                "send setting_changed to renderer {renderer_id}: {error}"
                             ))
                         })?;
-                    format!("renderer={id}")
-                } else {
+                    pushed.push(renderer_id.clone());
+                }
+                if pushed.is_empty() {
                     String::from("offline")
+                } else {
+                    format!("renderer={}", pushed.join(","))
                 }
             };
             let operation = value.as_deref().unwrap_or("<reset>");
@@ -658,17 +671,13 @@ pub(super) async fn dispatch_inner(
             };
             repo::set_wallpaper_layout_override(&state.db, entry.item_id, layout).await?;
 
-            let live_renderer = state
-                .renderer_manager
-                .find_by_resource(&entry.resource)
-                .await;
-            if let Some(h) = live_renderer {
-                let override_layout = layout
-                    .map(WallpaperLayoutOverride::from_resolved)
-                    .unwrap_or_default();
+            let override_layout = layout
+                .map(WallpaperLayoutOverride::from_resolved)
+                .unwrap_or_default();
+            for renderer_id in state.router.renderer_ids_by_resource(&entry.resource).await {
                 state
                     .router
-                    .set_renderer_wallpaper_layout_override(&h.id, override_layout)
+                    .update_renderer_assignment_layout(&renderer_id, override_layout)
                     .await;
             }
 
@@ -1178,30 +1187,11 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::WallpaperApply(r) => {
-            let target = (!r.display_ids.is_empty()).then_some(r.display_ids.as_slice());
-            let target_ids = state.router.registered_display_ids(target).await;
-            let mut playlist_running = false;
-            for did in &target_ids {
-                if state.playlists.is_owned(*did).await {
-                    playlist_running = true;
-                    break;
-                }
-            }
-            if playlist_running {
-                return Err(Error::FailedPrecondition(
-                    "pause the playlist on this display before applying a new wallpaper".into(),
-                ));
-            }
-
-            let _ = application::deactivate_playlist(&state, &r.display_ids).await;
-            state.settings.update(|s| {
-                s.global.auto_attach_playlist_id = None;
-            });
-            state.settings.flush_now().await;
             let res = application::apply_wallpaper(
                 state,
                 &r.wallpaper_id,
                 application::ApplyRequest {
+                    source: application::ApplySource::UserWallpaper,
                     display_ids: (!r.display_ids.is_empty()).then_some(r.display_ids),
                     renderer_name: (!r.renderer_name.is_empty()).then_some(r.renderer_name),
                     first_frame_timeout: Some(application::APPLY_FIRST_FRAME_TIMEOUT),
@@ -1219,12 +1209,27 @@ pub(super) async fn dispatch_inner(
                 wallpaper_id: res.entry.item_id.to_string(),
                 wp_type: res.entry.wp_type,
                 name: res.entry.name,
+                deferred: res.activation == application::ApplyActivation::Deferred,
+                stopped_playlists: res
+                    .stopped_playlists
+                    .into_iter()
+                    .map(|playlist| pb::WallpaperApplyStoppedPlaylist {
+                        playlist_id: playlist.id,
+                        playlist_name: playlist.name,
+                        display_ids: playlist.display_ids,
+                        all_displays: playlist.all_displays,
+                    })
+                    .collect(),
             })
         }
 
         Req::WallpaperApplyViaPortal(r) => {
-            let res =
-                crate::application::apply_wallpaper_via_portal(state, &r.wallpaper_id).await?;
+            let res = crate::application::apply_wallpaper_via_portal(
+                state,
+                &r.wallpaper_id,
+                application::ApplySource::UserWallpaper,
+            )
+            .await?;
             Res::WallpaperApplyViaPortal(pb::WallpaperApplyViaPortalResponse {
                 wallpaper_id: res.wallpaper_id,
                 uri: res.uri,
@@ -1593,6 +1598,10 @@ pub(super) async fn dispatch_inner(
                 if kv.is_empty() {
                     continue;
                 }
+                state
+                    .router
+                    .update_renderer_assignment_settings(&def.name, &kv)
+                    .await;
                 for id in &live_ids {
                     let Some(handle) = state.renderer_manager.get(id).await else {
                         continue;

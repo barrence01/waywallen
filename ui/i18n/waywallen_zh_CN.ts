@@ -263,8 +263,8 @@
         <translation>没有已注册的显示器</translation>
     </message>
     <message>
-        <source>Display %1</source>
-        <translation>显示器 %1</translation>
+        <source>Display #%1</source>
+        <translation>显示器 #%1</translation>
     </message>
     <message>
         <source>Edit display</source>
@@ -285,6 +285,10 @@
     <message>
         <source>Connected</source>
         <translation>已连接</translation>
+    </message>
+    <message>
+        <source>Assigned</source>
+        <translation>已分配</translation>
     </message>
     <message numerus="yes">
         <source>%n min left</source>
@@ -356,6 +360,21 @@
     <message>
         <source>GitHub</source>
         <translation>GitHub</translation>
+    </message>
+</context>
+<context>
+    <name>GpuDetails</name>
+    <message>
+        <source>Driver: %1</source>
+        <translation>驱动：%1</translation>
+    </message>
+    <message>
+        <source>PCI: %1</source>
+        <translation>PCI：%1</translation>
+    </message>
+    <message>
+        <source>Render node: %1</source>
+        <translation>渲染节点：%1</translation>
     </message>
 </context>
 <context>
@@ -451,6 +470,17 @@
     </message>
 </context>
 <context>
+    <name>PagePopup</name>
+    <message>
+        <source>Failed to open page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to load page</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PlaylistDetailPanel</name>
     <message>
         <source>Name</source>
@@ -480,8 +510,16 @@
 <context>
     <name>PlaylistListSheet</name>
     <message>
+        <source>Create playlist</source>
+        <translation>创建播放列表</translation>
+    </message>
+    <message>
         <source>Playlists</source>
         <translation>播放列表</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>No displays</source>
@@ -1144,6 +1182,14 @@ Related display: #%1</source>
         <translation>登录时启动</translation>
     </message>
     <message>
+        <source>Hide tray icon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove the status-bar icon. Reopen this window by launching Waywallen again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Allow duplicate renderers</source>
         <translation>允许重复渲染器</translation>
     </message>
@@ -1314,8 +1360,8 @@ Unsaved frame state may be lost.</source>
         <translation>状态：</translation>
     </message>
     <message>
-        <source>Active Renderers</source>
-        <translation>运行的渲染器</translation>
+        <source>Renderers</source>
+        <translation>渲染器</translation>
     </message>
     <message>
         <source>Mute all</source>
@@ -1326,8 +1372,12 @@ Unsaved frame state may be lost.</source>
         <translation>全部暂停</translation>
     </message>
     <message>
-        <source>No active renderers</source>
-        <translation>没有活跃的渲染器</translation>
+        <source>Stop all</source>
+        <translation>全部停止</translation>
+    </message>
+    <message>
+        <source>No renderers</source>
+        <translation>没有渲染器</translation>
     </message>
     <message>
         <source>Components</source>
@@ -1452,6 +1502,22 @@ Unsaved frame state may be lost.</source>
         <translation>应用失败</translation>
     </message>
     <message>
+        <source>Display #%1</source>
+        <translation>显示器 #%1</translation>
+    </message>
+    <message>
+        <source>Playlist #%1</source>
+        <translation>播放列表 #%1</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on all displays</source>
+        <translation>播放列表“%1”已在所有显示器上停止</translation>
+    </message>
+    <message>
+        <source>Playlist &quot;%1&quot; stopped on %2</source>
+        <translation>播放列表“%1”已在 %2 上停止</translation>
+    </message>
+    <message>
         <source>Portal apply failed</source>
         <translation>桌面门户应用失败</translation>
     </message>
@@ -1570,10 +1636,6 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>All</source>
         <translation>全部</translation>
-    </message>
-    <message>
-        <source>Display %1</source>
-        <translation>显示器 %1</translation>
     </message>
     <message>
         <source>Renderer</source>
@@ -1740,6 +1802,14 @@ Unsaved frame state may be lost.</source>
         <translation>播放列表更新失败</translation>
     </message>
     <message>
+        <source>Playlist creation failed</source>
+        <translation>创建播放列表失败</translation>
+    </message>
+    <message>
+        <source>Playlist created</source>
+        <translation>已创建播放列表</translation>
+    </message>
+    <message>
         <source>Playlist updated</source>
         <translation>已更新播放列表</translation>
     </message>
@@ -1810,8 +1880,8 @@ Unsaved frame state may be lost.</source>
         <translation>显示器</translation>
     </message>
     <message>
-        <source>Display %1</source>
-        <translation>显示器 %1</translation>
+        <source>Display #%1</source>
+        <translation>显示器 #%1</translation>
     </message>
     <message>
         <source>Added to playlist</source>

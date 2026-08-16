@@ -80,6 +80,10 @@ MD.Page {
         id: globalMuteSetQuery
     }
 
+    W.GlobalStopSetQuery {
+        id: globalStopSetQuery
+    }
+
     W.RendererListQuery {
         id: rendererQuery
     }
@@ -124,7 +128,8 @@ MD.Page {
     function rendererLabel(d) {
         const name = (d && d.name && d.name.length) ? d.name : "renderer";
         const pid = (d && d.pid) ? d.pid : 0;
-        return name + "-" + pid;
+        const identity = pid > 0 ? String(pid) : String(d && d.id || "").slice(0, 8);
+        return identity.length > 0 ? name + "-" + identity : name;
     }
 
     function desktopLabel(value) {
@@ -258,7 +263,7 @@ MD.Page {
                 }
             }
 
-            // --- Active Renderers ---
+            // --- Renderers ---
             SectionPane {
                 contentItem: ColumnLayout {
                     spacing: 8
@@ -268,7 +273,7 @@ MD.Page {
                         spacing: 8
 
                         SectionTitle {
-                            text: qsTr("Active Renderers")
+                            text: qsTr("Renderers")
                         }
 
                         Item {
@@ -296,12 +301,23 @@ MD.Page {
                                 globalPauseSetQuery.reload();
                             }
                         }
+
+                        MD.FilterChip {
+                            text: qsTr("Stop all")
+                            checkable: false
+                            checked: W.Notify.globalStopped
+                            enabled: W.Notify.daemonPhase === W.Notify.DaemonPhase.Ready && !globalStopSetQuery.querying
+                            onClicked: {
+                                globalStopSetQuery.stopped = !W.Notify.globalStopped;
+                                globalStopSetQuery.reload();
+                            }
+                        }
                     }
 
                     SectionHint {
                         readonly property var liveRenderers: W.App.rendererManager.renderers
                         visible: !liveRenderers || liveRenderers.length === 0
-                        text: qsTr("No active renderers")
+                        text: qsTr("No renderers")
                     }
 
                     ListView {
@@ -311,10 +327,8 @@ MD.Page {
                         interactive: false
                         spacing: 4
 
-                        // Live, push-updated. Backend events (RendererSnapshot /
-                        // RendererChanged / RendererRemoved) flow through
-                        // RendererManager so a child process exiting drops out of
-                        // this list without needing a manual refresh.
+                        // Push-updated logical renderer slots remain visible while
+                        // their process is retained in a stopped state.
                         model: W.App.rendererManager.renderers
 
                         delegate: MD.ListItem {
@@ -326,9 +340,12 @@ MD.Page {
                             text: root.rendererLabel(modelData)
                             font.family: "monospace"
                             leader: MD.Icon {
-                                name: modelData.status === "paused" ? MD.Token.icon.pause : MD.Token.icon.play_arrow
+                                name: modelData.running
+                                    ? (modelData.status === "paused" ? MD.Token.icon.pause : MD.Token.icon.play_arrow)
+                                    : MD.Token.icon.stop
                                 size: 24
-                                color: modelData.status === "paused" ? MD.Token.color.on_surface_variant : MD.Token.color.primary
+                                color: modelData.running && modelData.status !== "paused"
+                                    ? MD.Token.color.primary : MD.Token.color.on_surface_variant
                             }
                             trailing: RowLayout {
                                 spacing: 6
@@ -358,6 +375,11 @@ MD.Page {
                                     text: rendererItem.modelData.status || ""
                                 }
                                 W.Tag {
+                                    visible: rendererItem.modelData.keep
+                                    text: "keep"
+                                }
+                                W.Tag {
+                                    visible: rendererItem.modelData.running
                                     text: (rendererItem.modelData.fps || 0) + " fps"
                                 }
                                 W.Tag {

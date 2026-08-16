@@ -1,5 +1,8 @@
 module;
 #include "QExtra/macro_qt.hpp"
+#ifndef Q_MOC_RUN
+#    include <rstd/enum.hpp>
+#endif
 
 #ifdef Q_MOC_RUN
 #    include "waywallen/objmodel/renderer.moc"
@@ -19,6 +22,18 @@ namespace proto = waywallen::control::v1;
 export namespace waywallen
 {
 
+#ifndef Q_MOC_RUN
+class RendererStateValue final {
+    RSTD_ENUM_DEFAULT(RendererStateValue, (Unknown), (Unknown), (Starting, (quint64 generation;)),
+                      (Running, (quint64 generation; proto::RendererActivity activity;)),
+                      (Stopping, (quint64 generation; bool keep;)),
+                      (Stopped, (bool keep; QString reason;)),
+                      (Killed, (bool keep; QString reason;)), (Failed, (QString reason;)))
+};
+#else
+class RendererStateValue;
+#endif
+
 /// One renderer, mirroring `proto::RendererInstance` as a QObject so
 /// QML can bind directly to its fields. Identity is `id()`; mutate via
 /// `updateFrom(info)` which diff-emits per changed property.
@@ -29,7 +44,12 @@ class Renderer : public QObject {
 
     Q_PROPERTY(QString id READ id CONSTANT FINAL)
     Q_PROPERTY(quint32 fps READ fps NOTIFY fpsChanged FINAL)
-    Q_PROPERTY(QString status READ status NOTIFY statusChanged FINAL)
+    Q_PROPERTY(State state READ state NOTIFY stateChanged FINAL)
+    Q_PROPERTY(QString status READ status NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool running READ running NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool keep READ keep NOTIFY stateChanged FINAL)
+    Q_PROPERTY(quint64 processGeneration READ processGeneration NOTIFY stateChanged FINAL)
+    Q_PROPERTY(QString lastExitReason READ lastExitReason NOTIFY stateChanged FINAL)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged FINAL)
     Q_PROPERTY(quint32 pid READ pid NOTIFY pidChanged FINAL)
     Q_PROPERTY(quint32 textureWidth READ textureWidth NOTIFY textureSizeChanged FINAL)
@@ -37,18 +57,34 @@ class Renderer : public QObject {
     Q_PROPERTY(
         QVariantList runtimeConditions READ runtimeConditions NOTIFY runtimeConditionsChanged FINAL)
     Q_PROPERTY(QVariantList runtimeTags READ runtimeTags NOTIFY runtimeTagsChanged FINAL)
-    // DRM render-node id of the GPU this renderer is on. Populated from
-    // the renderer's `Ready` event during the synchronous spawn handshake,
-    // so by the time UI sees this object the value is already final.
-    Q_PROPERTY(quint32 drmRenderMajor READ drmRenderMajor CONSTANT FINAL)
-    Q_PROPERTY(quint32 drmRenderMinor READ drmRenderMinor CONSTANT FINAL)
+    Q_PROPERTY(quint32 drmRenderMajor READ drmRenderMajor NOTIFY drmRenderChanged FINAL)
+    Q_PROPERTY(quint32 drmRenderMinor READ drmRenderMinor NOTIFY drmRenderChanged FINAL)
 
 public:
+    enum class State
+    {
+        Unknown,
+        Starting,
+        Playing,
+        Paused,
+        Muted,
+        Stopping,
+        Stopped,
+        Killed,
+        Failed,
+    };
+    Q_ENUM(State)
+
     explicit Renderer(const proto::RendererInstance& info, QObject* parent = nullptr);
 
     auto id() const -> const QString& { return m_id; }
     auto fps() const -> quint32 { return m_fps; }
-    auto status() const -> const QString& { return m_status; }
+    auto state() const -> State;
+    auto status() const -> QString;
+    auto running() const -> bool;
+    auto keep() const -> bool;
+    auto processGeneration() const -> quint64;
+    auto lastExitReason() const -> QString;
     auto name() const -> const QString& { return m_name; }
     auto pid() const -> quint32 { return m_pid; }
     auto textureWidth() const -> quint32 { return m_texture_width; }
@@ -63,25 +99,26 @@ public:
     void updateFrom(const proto::RendererInstance& info);
 
     Q_SIGNAL void fpsChanged();
-    Q_SIGNAL void statusChanged();
+    Q_SIGNAL void stateChanged();
     Q_SIGNAL void nameChanged();
     Q_SIGNAL void pidChanged();
     Q_SIGNAL void textureSizeChanged();
+    Q_SIGNAL void drmRenderChanged();
     Q_SIGNAL void runtimeConditionsChanged();
     Q_SIGNAL void runtimeTagsChanged();
 
 private:
-    QString      m_id;
-    quint32      m_fps;
-    QString      m_status;
-    QString      m_name;
-    quint32      m_pid;
-    quint32      m_texture_width;
-    quint32      m_texture_height;
-    quint32      m_drm_render_major;
-    quint32      m_drm_render_minor;
-    QVariantList m_runtime_conditions;
-    QVariantList m_runtime_tags;
+    QString            m_id;
+    quint32            m_fps;
+    RendererStateValue m_state;
+    QString            m_name;
+    quint32            m_pid;
+    quint32            m_texture_width;
+    quint32            m_texture_height;
+    quint32            m_drm_render_major;
+    quint32            m_drm_render_minor;
+    QVariantList       m_runtime_conditions;
+    QVariantList       m_runtime_tags;
 };
 
 /// Singleton model for all currently-registered renderers. Fed by:
