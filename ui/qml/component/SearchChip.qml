@@ -10,8 +10,8 @@ import Qcm.Material as MD
 // Even an XS `MD.TextField` is 40px tall — too bulky next
 // to chip / button rows. This keeps the toolbar visually homogeneous.
 //
-// `textEdited` is emitted after a 200ms idle on the raw input, so
-// consumers can connect it directly without their own debounce timer.
+// `textEdited` is emitted after `debounceMs` idle on the raw input, or
+// immediately on Enter / Clear, so consumers can connect it directly.
 Item {
     id: root
 
@@ -19,17 +19,22 @@ Item {
     property string placeholderText
     // Debounce window for the outward `textEdited` signal. Per-keystroke
     // input still updates `text` immediately for any direct binding.
-    property int debounceMs: 200
+    property int debounceMs: 1000
     signal textEdited()
 
     implicitHeight: 32
     implicitWidth: 200
 
+    function submit() {
+        m_debounce.stop();
+        root.textEdited();
+    }
+
     Qml.Timer {
         id: m_debounce
         interval: root.debounceMs
         repeat: false
-        onTriggered: root.textEdited()
+        onTriggered: root.submit()
     }
 
     Rectangle {
@@ -115,6 +120,7 @@ Item {
                     // already carries `capitalization: MixedCase`.
                     font: m_placeholder.font
                     onTextEdited: m_debounce.restart()
+                    onAccepted: root.submit()
                     Keys.onEscapePressed: event => {
                         focus = false;
                         event.accepted = true;
@@ -140,8 +146,7 @@ Item {
                     m_input.clear();
                     // Clear is an explicit user gesture; bypass the
                     // debounce so the result list resets immediately.
-                    m_debounce.stop();
-                    root.textEdited();
+                    root.submit();
                 }
             }
         }

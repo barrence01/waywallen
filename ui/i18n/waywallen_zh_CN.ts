@@ -77,6 +77,21 @@
     </message>
 </context>
 <context>
+    <name>CanvasDialog</name>
+    <message>
+        <source>Edit canvas</source>
+        <translation>编辑画布</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>保存</translation>
+    </message>
+    <message>
+        <source>Canvas name</source>
+        <translation>画布名称</translation>
+    </message>
+</context>
+<context>
     <name>ContentRatingFilter</name>
     <message>
         <source>is</source>
@@ -259,6 +274,30 @@
         <translation>居中</translation>
     </message>
     <message>
+        <source>Reset</source>
+        <translation>重置</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <source>Delete canvas?</source>
+        <translation>删除画布？</translation>
+    </message>
+    <message>
+        <source>The canvas layout will be removed. Its displays become independent again.</source>
+        <translation>画布布局将被删除，其中的显示器会重新变为独立显示器。</translation>
+    </message>
+    <message>
+        <source>Refresh displays</source>
+        <translation>刷新显示器</translation>
+    </message>
+    <message>
+        <source>Failed to refresh displays</source>
+        <translation>刷新显示器失败</translation>
+    </message>
+    <message>
         <source>No displays registered</source>
         <translation>没有已注册的显示器</translation>
     </message>
@@ -267,8 +306,28 @@
         <translation>显示器 #%1</translation>
     </message>
     <message>
+        <source>Empty canvas</source>
+        <translation>空画布</translation>
+    </message>
+    <message>
+        <source>%1 overlapping displays</source>
+        <translation>%1 个重叠显示器</translation>
+    </message>
+    <message>
+        <source>Offline</source>
+        <translation>离线</translation>
+    </message>
+    <message>
         <source>Edit display</source>
         <translation>编辑显示器</translation>
+    </message>
+    <message>
+        <source>Edit canvas</source>
+        <translation>编辑画布</translation>
+    </message>
+    <message>
+        <source>Delete canvas</source>
+        <translation>删除画布</translation>
     </message>
     <message>
         <source>ID:</source>
@@ -279,8 +338,44 @@
         <translation>大小：</translation>
     </message>
     <message>
+        <source>Empty</source>
+        <translation>空</translation>
+    </message>
+    <message>
+        <source>Members:</source>
+        <translation>成员：</translation>
+    </message>
+    <message>
+        <source>%1 total, %2 online</source>
+        <translation>共 %1 个，%2 个在线</translation>
+    </message>
+    <message>
         <source>Refresh:</source>
         <translation>刷新率：</translation>
+    </message>
+    <message>
+        <source>Canvas update failed</source>
+        <translation>画布更新失败</translation>
+    </message>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>未命名画布</translation>
+    </message>
+    <message>
+        <source>Create canvas</source>
+        <translation>创建画布</translation>
+    </message>
+    <message>
+        <source>Canvas %1</source>
+        <translation>画布 %1</translation>
+    </message>
+    <message>
+        <source>Canvas area:</source>
+        <translation>画布区域：</translation>
+    </message>
+    <message>
+        <source>Canvas</source>
+        <translation>画布</translation>
     </message>
     <message>
         <source>Connected</source>
@@ -473,11 +568,11 @@
     <name>PagePopup</name>
     <message>
         <source>Failed to open page</source>
-        <translation type="unfinished"></translation>
+        <translation>打开页面失败</translation>
     </message>
     <message>
         <source>Failed to load page</source>
-        <translation type="unfinished"></translation>
+        <translation>加载页面失败</translation>
     </message>
 </context>
 <context>
@@ -519,7 +614,7 @@
     </message>
     <message>
         <source>Shared</source>
-        <translation type="unfinished"></translation>
+        <translation>共享</translation>
     </message>
     <message>
         <source>No displays</source>
@@ -1183,11 +1278,11 @@ Related display: #%1</source>
     </message>
     <message>
         <source>Hide tray icon</source>
-        <translation type="unfinished"></translation>
+        <translation>隐藏托盘图标</translation>
     </message>
     <message>
         <source>Remove the status-bar icon. Reopen this window by launching Waywallen again.</source>
-        <translation type="unfinished"></translation>
+        <translation>移除状态栏图标。再次启动 Waywallen 即可重新打开此窗口。</translation>
     </message>
     <message>
         <source>Allow duplicate renderers</source>
@@ -1562,6 +1657,10 @@ Unsaved frame state may be lost.</source>
         <translation>信息</translation>
     </message>
     <message>
+        <source>Open web page</source>
+        <translation>打开网页</translation>
+    </message>
+    <message>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
@@ -1636,6 +1735,14 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>All</source>
         <translation>全部</translation>
+    </message>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>未命名画布</translation>
+    </message>
+    <message>
+        <source>%1 of %2 members online</source>
+        <translation>%1/%2 个成员在线</translation>
     </message>
     <message>
         <source>Renderer</source>
@@ -1874,6 +1981,10 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Last modified</source>
         <translation>最后修改时间</translation>
+    </message>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>未命名画布</translation>
     </message>
     <message>
         <source>Display</source>

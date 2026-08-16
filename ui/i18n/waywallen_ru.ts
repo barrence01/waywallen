@@ -79,6 +79,21 @@
     </message>
 </context>
 <context>
+    <name>CanvasDialog</name>
+    <message>
+        <source>Edit canvas</source>
+        <translation>Редактировать холст</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Сохранить</translation>
+    </message>
+    <message>
+        <source>Canvas name</source>
+        <translation>Название холста</translation>
+    </message>
+</context>
+<context>
     <name>ContentRatingFilter</name>
     <message>
         <source>is</source>
@@ -261,6 +276,30 @@
         <translation>По центру</translation>
     </message>
     <message>
+        <source>Reset</source>
+        <translation>Сбросить</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Применить</translation>
+    </message>
+    <message>
+        <source>Delete canvas?</source>
+        <translation>Удалить холст?</translation>
+    </message>
+    <message>
+        <source>The canvas layout will be removed. Its displays become independent again.</source>
+        <translation>Компоновка холста будет удалена. Его дисплеи снова станут независимыми.</translation>
+    </message>
+    <message>
+        <source>Refresh displays</source>
+        <translation>Обновить мониторы</translation>
+    </message>
+    <message>
+        <source>Failed to refresh displays</source>
+        <translation>Не удалось обновить мониторы</translation>
+    </message>
+    <message>
         <source>No displays registered</source>
         <translation>Мониторы не зарегистрированы</translation>
     </message>
@@ -269,8 +308,28 @@
         <translation>Монитор #%1</translation>
     </message>
     <message>
+        <source>Empty canvas</source>
+        <translation>Пустой холст</translation>
+    </message>
+    <message>
+        <source>%1 overlapping displays</source>
+        <translation>Перекрывающихся дисплеев: %1</translation>
+    </message>
+    <message>
+        <source>Offline</source>
+        <translation>Не в сети</translation>
+    </message>
+    <message>
         <source>Edit display</source>
         <translation>Изменить монитор</translation>
+    </message>
+    <message>
+        <source>Edit canvas</source>
+        <translation>Редактировать холст</translation>
+    </message>
+    <message>
+        <source>Delete canvas</source>
+        <translation>Удалить холст</translation>
     </message>
     <message>
         <source>ID:</source>
@@ -281,8 +340,44 @@
         <translation>Размер:</translation>
     </message>
     <message>
+        <source>Empty</source>
+        <translation>Пусто</translation>
+    </message>
+    <message>
+        <source>Members:</source>
+        <translation>Участники:</translation>
+    </message>
+    <message>
+        <source>%1 total, %2 online</source>
+        <translation>Всего: %1, в сети: %2</translation>
+    </message>
+    <message>
         <source>Refresh:</source>
         <translation>Частота:</translation>
+    </message>
+    <message>
+        <source>Canvas update failed</source>
+        <translation>Не удалось обновить холст</translation>
+    </message>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>Безымянный холст</translation>
+    </message>
+    <message>
+        <source>Create canvas</source>
+        <translation>Создать холст</translation>
+    </message>
+    <message>
+        <source>Canvas %1</source>
+        <translation>Холст %1</translation>
+    </message>
+    <message>
+        <source>Canvas area:</source>
+        <translation>Область холста:</translation>
+    </message>
+    <message>
+        <source>Canvas</source>
+        <translation>Холст</translation>
     </message>
     <message>
         <source>Connected</source>
@@ -1568,6 +1663,10 @@ Unsaved frame state may be lost.</source>
         <translation>Сведения</translation>
     </message>
     <message>
+        <source>Open web page</source>
+        <translation>Открыть веб-страницу</translation>
+    </message>
+    <message>
         <source>Open containing folder</source>
         <translation>Открыть папку с файлом</translation>
     </message>
@@ -1642,6 +1741,14 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>All</source>
         <translation>Ко всем</translation>
+    </message>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>Безымянный холст</translation>
+    </message>
+    <message>
+        <source>%1 of %2 members online</source>
+        <translation>Участников в сети: %1 из %2</translation>
     </message>
     <message>
         <source>Renderer</source>
@@ -1882,6 +1989,10 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Last modified</source>
         <translation>Дата изменения</translation>
+    </message>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>Безымянный холст</translation>
     </message>
     <message>
         <source>Display</source>

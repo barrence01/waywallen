@@ -500,6 +500,7 @@ MD.Page {
                     W.SearchChip {
                         id: m_search_field
                         Layout.preferredWidth: 120
+                        debounceMs: 1000
                         placeholderText: qsTr("Search")
                         onTextEdited: searchQuery.query = text
                     }

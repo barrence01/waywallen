@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 set(APP_ID org.waywallen.waywallen)
 set(APP_NAME "waywallen")
-set(APP_VERSION "0.3.4")
+set(APP_VERSION "0.3.5")
 set(APP_SUMMARY "Wallpaper Manager for Linux")
 set(APP_AUTHOR "hypengw")
 
@@ -190,6 +190,7 @@ set(QML_FILES
   qml/dialog/QrLoginDialog.qml
   qml/dialog/PluginActionFormDialog.qml
   qml/dialog/DisplayEditDialog.qml
+  qml/dialog/CanvasDialog.qml
   qml/page/WallpaperPage.qml
   qml/page/PlaylistDetailPanel.qml
   qml/page/WallpaperDetailPanel.qml
@@ -213,6 +214,7 @@ set(QML_FILES
   qml/page/PluginManagePage.qml
   qml/page/SettingsPage.qml
   qml/page/DisplaysPage.qml
+  qml/page/display/CanvasEditorState.qml
   qml/page/SourceManagePage.qml
   qml/page/AddLibraryPage.qml
   qml/page/AboutPage.qml

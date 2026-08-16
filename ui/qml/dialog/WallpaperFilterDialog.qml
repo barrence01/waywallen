@@ -134,6 +134,8 @@ MD.Dialog {
                         delegate: W.Tag {
                             required property var modelData
                             text: modelData
+                            removable: true
+                            onRemoved: root.applyFilterTags((root.filterTags || []).filter(t => t !== modelData))
                         }
                     }
                 }

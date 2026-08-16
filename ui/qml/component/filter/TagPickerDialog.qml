@@ -17,7 +17,7 @@ MD.Dialog {
     title: dialogTitle
     parent: T.Overlay.overlay
     horizontalPadding: 16
-    implicitWidth: Math.min(330, parent ? parent.width - 48 : 330)
+    implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
     standardButtons: T.Dialog.Cancel | T.Dialog.Reset | T.Dialog.Apply
 
     property var pending: []

@@ -59,6 +59,8 @@ QtObject {
                 delegate: W.Tag {
                     required property var modelData
                     text: modelData
+                    removable: true
+                    onRemoved: root.toggleValue(modelData)
                 }
             }
 
