@@ -1,5 +1,6 @@
 use crate::error::{Error, Result, ResultExt};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::net::Shutdown;
 use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream as StdUnixStream;
 use std::os::unix::process::ExitStatusExt;
@@ -85,6 +86,8 @@ const MAX_RUNTIME_TAG_KEY_BYTES: usize = 32;
 const MAX_RUNTIME_TAG_VALUE_BYTES: usize = 64;
 const WRITER_QUEUE_CAPACITY: usize = 64;
 const RENDERER_FAILED_EXIT_GRACE: Duration = Duration::from_millis(250);
+const RENDERER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const RENDERER_INIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 fn renderer_exit_status(status: &ExitStatus) -> String {
     let hint = match status.code() {
@@ -106,6 +109,21 @@ fn renderer_exit_status(status: &ExitStatus) -> String {
         description.push_str(hint);
     }
     description
+}
+
+fn renderer_was_force_killed(status: Option<&ExitStatus>, force_requested: bool) -> bool {
+    force_requested
+        && status.is_none_or(|status| {
+            status
+                .signal()
+                .is_some_and(|signal| signal == libc::SIGKILL)
+        })
+}
+
+fn renderer_exit_failed(status: Option<&ExitStatus>) -> bool {
+    status.is_some_and(|status| {
+        status.signal().is_some() || status.code().is_some_and(|code| code != 0)
+    })
 }
 
 async fn failed_renderer_process_status(child: &mut Child) -> String {
@@ -137,6 +155,28 @@ fn renderer_spawn_error_reason(error: Error) -> String {
     match error {
         Error::RendererSpawnFailed(reason) => reason,
         other => other.to_string(),
+    }
+}
+
+async fn run_init_handshake_with_timeout(
+    sock: &StdUnixStream,
+    init: ControlMsg,
+    timeout: Duration,
+) -> Result<DrmNode> {
+    let handshake_stream = sock.try_clone().context("try_clone for Init handshake")?;
+    let mut handshake =
+        tokio::task::spawn_blocking(move || run_init_handshake(&handshake_stream, &init));
+    match tokio::time::timeout(timeout, &mut handshake).await {
+        Ok(result) => result.context("init handshake join")?,
+        Err(_) => {
+            let _ = sock.shutdown(Shutdown::Both);
+            if let Err(error) = handshake.await {
+                log::warn!("renderer Init handshake worker failed after timeout: {error}");
+            }
+            Err(Error::RendererSpawnFailed(format!(
+                "timed out waiting for renderer Ready after {timeout:?}"
+            )))
+        }
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -829,7 +869,7 @@ impl RendererManager {
 
         // A dynamic-loader or early initialization failure happens after
         // exec succeeds, so observe the child while waiting for IPC.
-        let connect_timeout = tokio::time::sleep(Duration::from_secs(10));
+        let connect_timeout = tokio::time::sleep(RENDERER_CONNECT_TIMEOUT);
         tokio::pin!(connect_timeout);
         let (tokio_stream, _addr) = tokio::select! {
             accepted = listener.accept() => accepted.context("accept")?,
@@ -857,13 +897,8 @@ impl RendererManager {
 
         // Emit typed Init right after accept; CLI extras only identify
         // launch resources now.
-        let handshake_stream = std_stream
-            .try_clone()
-            .context("try_clone for Init handshake")?;
         let handshake =
-            tokio::task::spawn_blocking(move || run_init_handshake(&handshake_stream, &init_msg))
-                .await
-                .context("init handshake join")?;
+            run_init_handshake_with_timeout(&std_stream, init_msg, RENDERER_INIT_TIMEOUT).await;
         let gpu = match handshake {
             Ok(gpu) => gpu,
             Err(error) => {
@@ -1437,26 +1472,29 @@ impl RendererManager {
 
         let mut child_guard = handle.child.lock().await;
         let mut exit = None;
-        let mut killed = false;
+        let mut force_kill_requested = false;
+        let mut wait_error = None;
         if let Some(mut child) = child_guard.take() {
             exit = child.try_wait().ok().flatten();
             if exit.is_none() {
-                killed = true;
-                let _ = child.start_kill();
-                exit = tokio::time::timeout(Duration::from_secs(2), child.wait())
-                    .await
-                    .ok()
-                    .and_then(std::result::Result::ok);
+                match tokio::time::timeout(RENDERER_FAILED_EXIT_GRACE, child.wait()).await {
+                    Ok(Ok(status)) => exit = Some(status),
+                    Ok(Err(error)) => wait_error = Some(error.to_string()),
+                    Err(_) => {
+                        force_kill_requested = child.start_kill().is_ok();
+                        exit = tokio::time::timeout(Duration::from_secs(2), child.wait())
+                            .await
+                            .ok()
+                            .and_then(std::result::Result::ok);
+                    }
+                }
             }
         }
+        let force_killed = renderer_was_force_killed(exit.as_ref(), force_kill_requested);
         let event = RendererProcessExit {
             renderer_id: id.to_string(),
             process_generation,
-            kind: if killed
-                || exit
-                    .as_ref()
-                    .is_some_and(|status| status.signal().is_some())
-            {
+            kind: if force_killed {
                 RendererProcessExitKind::Killed
             } else {
                 RendererProcessExitKind::Failed
@@ -1464,8 +1502,10 @@ impl RendererManager {
             code: exit.as_ref().and_then(ExitStatus::code),
             signal: exit.as_ref().and_then(ExitStatusExt::signal),
             reason: exit.as_ref().map(renderer_exit_status).unwrap_or_else(|| {
-                if killed {
+                if force_killed {
                     "renderer IPC closed; process was killed".to_string()
+                } else if let Some(error) = wait_error {
+                    format!("renderer IPC closed; wait failed: {error}")
                 } else {
                     "renderer IPC closed".to_string()
                 }
@@ -1537,8 +1577,7 @@ impl RendererManager {
                 }
                 Ok(Err(error)) => {
                     wait_error = Some(error.to_string());
-                    let _ = child.start_kill();
-                    forced = true;
+                    forced = child.start_kill().is_ok();
                     exit = tokio::time::timeout(Duration::from_secs(1), child.wait())
                         .await
                         .ok()
@@ -1546,8 +1585,7 @@ impl RendererManager {
                 }
                 Err(_) => {
                     log::warn!("renderer {id}: Shutdown timeout (5s), escalating to SIGKILL");
-                    let _ = child.start_kill();
-                    forced = true;
+                    forced = child.start_kill().is_ok();
                     exit = tokio::time::timeout(Duration::from_secs(1), child.wait())
                         .await
                         .ok()
@@ -1555,35 +1593,31 @@ impl RendererManager {
                 }
             }
         }
+        let force_killed = renderer_was_force_killed(exit.as_ref(), forced);
         Ok(RendererProcessExit {
             renderer_id: id.to_string(),
             process_generation: handle.process_generation,
-            kind: if forced
-                || exit
-                    .as_ref()
-                    .is_some_and(|status| status.signal().is_some())
-            {
+            kind: if force_killed {
                 RendererProcessExitKind::Killed
-            } else if exit
-                .as_ref()
-                .is_some_and(|status| status.code().is_some_and(|code| code != 0))
-                || wait_error.is_some()
-            {
+            } else if renderer_exit_failed(exit.as_ref()) || wait_error.is_some() {
                 RendererProcessExitKind::Failed
             } else {
                 RendererProcessExitKind::Stopped
             },
             code: exit.as_ref().and_then(ExitStatus::code),
             signal: exit.as_ref().and_then(ExitStatusExt::signal),
-            reason: if forced {
+            reason: if force_killed {
                 wait_error.map_or_else(
                     || "renderer did not exit after Shutdown and was killed".to_string(),
                     |error| format!("wait after Shutdown failed: {error}; renderer was killed"),
                 )
             } else {
-                exit.as_ref()
-                    .map(renderer_exit_status)
-                    .unwrap_or_else(|| "renderer stopped".to_string())
+                exit.as_ref().map(renderer_exit_status).unwrap_or_else(|| {
+                    wait_error.map_or_else(
+                        || "renderer stopped".to_string(),
+                        |error| format!("wait after Shutdown failed: {error}"),
+                    )
+                })
             },
         })
     }
@@ -1774,6 +1808,23 @@ mod subscription_tests {
         let message = renderer_exit_status(&status);
         assert!(message.contains("signal: 11"), "{message}");
         assert!(!message.contains("possible"), "{message}");
+    }
+
+    #[test]
+    fn renderer_signal_exit_is_not_force_killed() {
+        let segfault = ExitStatus::from_raw(libc::SIGSEGV);
+        let external_sigkill = ExitStatus::from_raw(libc::SIGKILL);
+
+        assert!(!renderer_was_force_killed(Some(&segfault), true));
+        assert!(!renderer_was_force_killed(Some(&external_sigkill), false));
+        assert!(renderer_exit_failed(Some(&segfault)));
+        assert!(renderer_exit_failed(Some(&external_sigkill)));
+    }
+
+    #[test]
+    fn daemon_sigkill_is_force_killed() {
+        let status = ExitStatus::from_raw(libc::SIGKILL);
+        assert!(renderer_was_force_killed(Some(&status), true));
     }
 
     #[tokio::test]
@@ -2385,6 +2436,23 @@ mod init_handshake_tests {
             Some("0.8 0.7 0.6")
         );
         assert_eq!(properties.get("speed").map(String::as_str), Some("100"));
+    }
+
+    #[tokio::test]
+    async fn init_handshake_times_out_and_unblocks_receiver() {
+        let (daemon, _renderer) = StdUnixStream::pair().expect("UnixStream::pair");
+        let init = build_init_msg(&SpawnRequest::default(), &def_legacy("timeout-renderer"));
+
+        let error = run_init_handshake_with_timeout(&daemon, init, Duration::from_millis(20))
+            .await
+            .expect_err("missing Ready must time out");
+
+        assert!(
+            error
+                .to_string()
+                .contains("timed out waiting for renderer Ready after 20ms"),
+            "{error}"
+        );
     }
 
     #[test]

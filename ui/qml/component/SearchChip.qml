@@ -19,7 +19,7 @@ Item {
     property string placeholderText
     // Debounce window for the outward `textEdited` signal. Per-keystroke
     // input still updates `text` immediately for any direct binding.
-    property int debounceMs: 200
+    property int debounceMs: 1000
     signal textEdited()
 
     implicitHeight: 32
