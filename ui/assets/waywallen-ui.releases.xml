@@ -1,3 +1,26 @@
+<release version="0.3.5" date="2026-08-16">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>Canvases with compose wallpapers across multiple outputs.</li>
+      <li>Displays can request a fresh frame from active renderers.</li>
+      <li>Open remote link in Wallpaper details page.</li>
+    </ul>
+    <p>Fixes:</p>
+    <ul>
+      <li>Automatic display backends are selected correctly.</li>
+      <li>Renderer init signal times out.</li>
+      <li>Qt strings fall back to the qtbase catalog. #200 by @wehrwolfmann</li>
+    </ul>
+    <p>Improved:</p>
+    <ul>
+      <li>Remote filters show compact choices inline.</li>
+      <li>Search input uses 1s debounce.</li>
+      <li>GPU names include resolved vendor and device names.</li>
+      <li>Russian translations are refreshed. #199 by @wehrwolfmann</li>
+    </ul>
+  </description>
+</release>
 <release version="0.3.4" date="2026-08-13">
   <description>
     <p>Added:</p>
