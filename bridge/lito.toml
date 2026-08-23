@@ -24,6 +24,12 @@ public-include-directories = ["include"]
 private-definitions = ["_GNU_SOURCE"]
 threads = true
 
+[[when]]
+condition = 'target.os == "linux"'
+
+[when.usage]
+linker-options = ["-Wl,--version-script=waywallen-bridge.map"]
+
 [external-dependencies.pkg-config.gbm]
 workspace = true
 visibility = "private"
