@@ -92,11 +92,6 @@ path = "."
 source = "waywallen-rust"
 package = "waywallen"
 
-[workspace.external-dependencies.cmake.waywallen-control]
-package = "waywallen-control"
-source = "waywallen-control"
-adapter = "ui/cmake/Control.cmake"
-
 [workspace.external-sources.qml-material]
 git = "https://github.com/hypengw/QmlMaterial.git"
 
@@ -111,6 +106,7 @@ package = "Qt6"
 components = [
   "Core",
   "DBus",
+  "LinguistTools",
   "Protobuf",
   "ProtobufQuick",
   "ProtobufWellKnownTypes",
@@ -120,9 +116,12 @@ components = [
   "WebSockets",
 ]
 host-tools = [
+  { name = "lrelease", target = "Qt6::lrelease" },
   { name = "moc", target = "Qt6::moc" },
+  { name = "protoc", target = "WrapProtoc::WrapProtoc" },
   { name = "qmlcachegen", target = "Qt6::qmlcachegen" },
   { name = "qmlimportscanner", target = "Qt6::qmlimportscanner" },
   { name = "qmltyperegistrar", target = "Qt6::qmltyperegistrar" },
+  { name = "qtprotobufgen", target = "Qt6::qtprotobufgen" },
   { name = "rcc", target = "Qt6::rcc" },
 ]

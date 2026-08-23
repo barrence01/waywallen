@@ -137,6 +137,9 @@ visibility = "public"
 workspace = true
 visibility = "private"
 
+[external-sources.waywallen-control]
+workspace = true
+
 [external-dependencies.cmake.qt6]
 workspace = true
 targets = [
@@ -149,13 +152,6 @@ targets = [
   { name = "Qt6::QuickControls2", visibility = "private" },
   { name = "Qt6::QuickPrivate", visibility = "private" },
   { name = "Qt6::WebSockets", visibility = "private" },
-]
-
-[external-dependencies.cmake.waywallen-control]
-workspace = true
-targets = [
-  { name = "waywallen-control", visibility = "private" },
-  { name = "waywallen-controlplugin", visibility = "private" },
 ]
 
 [external-dependencies.cmake.qml-material]

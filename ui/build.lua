@@ -3,6 +3,32 @@ local qt = require("@lito.qt")
 
 local ui = lito.target({ kind = "bin", name = "waywallen-ui" })
 local qt6 = lito.external_dependency(ui, "qt6")
+local control_source = lito.external_source(ui, "waywallen-control")
+
+qt.protobuf({
+  target = ui,
+  qt = qt6,
+  source = control_source,
+  proto_files = {
+    "control.proto",
+    "filter.proto",
+  },
+  proto_includes = { "." },
+  output = "lito-protobuf/waywallen_control",
+  qml_uri = "waywallen.control",
+  qml_version = "1.0",
+})
+
+qt.translations({
+  target = ui,
+  qt = qt6,
+  name = "waywallen_ui",
+  ts_files = {
+    "i18n/waywallen_zh_CN.ts",
+    "i18n/waywallen_ru.ts",
+  },
+  resource_prefix = "/i18n",
+})
 
 qt.qml_module({
   target = ui,
