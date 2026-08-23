@@ -16,8 +16,8 @@ dependencies:
 
   # Toolchain: clang / clang++ / lld all 22.x (BUILD.md requires >=22)
   # clang-tools provides clang-scan-deps (required by C++20 module compilation)
-  # build_appimage.sh adds the native activation wrappers, glibc 2.28 sysroot,
-  # and Mesa GBM development package for the host architecture.
+  # Portable packaging also needs native activation wrappers, a compatible
+  # glibc sysroot, and Mesa GBM development files for the host architecture.
   - clang=22
   - clangxx=22
   - clang-tools=22
