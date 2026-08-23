@@ -37,6 +37,9 @@ static auto renderer_to_map(const proto::RendererPluginInfo& r) -> QVariantMap {
         sm[u"identity"_s]        = s.identity();
         sm[u"label_key"_s]       = s.labelKey();
         sm[u"description_key"_s] = s.descriptionKey();
+        sm[u"label"_s]           = pluginMessageFromPb(s.label(), s.labelKey());
+        sm[u"description"_s]     = pluginMessageFromPb(s.description(), s.descriptionKey());
+        sm[u"group_label"_s]     = pluginMessageFromPb(s.groupLabel(), s.group());
         sm[u"min"_s]             = s.min();
         sm[u"max"_s]             = s.max();
         sm[u"step"_s]            = s.step();

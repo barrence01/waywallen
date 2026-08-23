@@ -13,6 +13,7 @@ qt.qml_module({
   qml_files = {
     "qml/Window.qml",
     "qml/Global.qml",
+    "qml/I18n.qml",
     "qml/component/StatusDot.qml",
     "qml/component/PagePopup.qml",
     "qml/component/Tag.qml",
@@ -77,6 +78,7 @@ qt.qml_module({
   },
   singletons = {
     "qml/Global.qml",
+    "qml/I18n.qml",
     "qml/component/GpuDetails.qml",
   },
   resources = {
@@ -118,6 +120,11 @@ qt.qml_module({
       output = "waywallen/objmodel/library",
     },
     { source = "src/notify.cppm", mode = "module-split", output = "waywallen/notify" },
+    {
+      source = "src/plugin_translation.cppm",
+      mode = "module-split",
+      output = "waywallen/plugin_translation",
+    },
     {
       source = "src/objmodel/renderer.cppm",
       mode = "module-split",

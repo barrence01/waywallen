@@ -11,11 +11,8 @@ function M.info()
                 types = {"video"},
                 scan = true,
                 auto_detect = true,
-                library_label = "Video Folder",
-                library_hint =
-                    "A directory containing video files. Subdirectories up to two " ..
-                    "levels deep are also scanned. Supported formats: MP4, MKV, " ..
-                    "WebM, MOV, AVI, and other common containers.",
+                library_label = tr("Video Folder"),
+                library_hint = tr([[A directory containing video files. Subdirectories up to two levels deep are also scanned. Supported formats: MP4, MKV, WebM, MOV, AVI, and other common containers.]]),
             },
             wallpaper = {
                 properties = true,

@@ -9,6 +9,7 @@ export import :display;
 export import :gpu;
 export import :library;
 export import :notify;
+export import :plugin_translation;
 export import :renderer;
 export import :msg.store;
 export import :model.store_item;

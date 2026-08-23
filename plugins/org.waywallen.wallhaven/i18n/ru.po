@@ -1,0 +1,62 @@
+msgid ""
+msgstr "Project-Id-Version: org.waywallen.wallhaven 0.1.0\nLanguage: ru\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+#: main.lua:36
+msgid "API key"
+msgstr "API-ключ"
+
+#: main.lua:37
+msgid "Copy the API key from Wallhaven Account Settings."
+msgstr "Скопируйте API-ключ из настроек учётной записи Wallhaven."
+
+#: main.lua:27
+msgid "Log in to Wallhaven"
+msgstr "Войти в Wallhaven"
+
+#: wallhaven/api.lua:58
+msgid "NSFW wallpapers require a Wallhaven API key."
+msgstr "Для обоев NSFW требуется API-ключ Wallhaven."
+
+#: main.lua:28
+msgid "Optional. Use an API key from your Wallhaven account settings. Do not enter your Wallhaven password."
+msgstr "Необязательно. Используйте API-ключ из настроек учётной записи Wallhaven. Не вводите пароль Wallhaven."
+
+#: main.lua:61
+msgid "Popular"
+msgstr "Популярные"
+
+#: wallhaven/api.lua:56
+msgid "Purity"
+msgstr "Категория контента"
+
+#: main.lua:60
+msgid "Recent"
+msgstr "Новые"
+
+#: main.lua:47
+msgid "Remove API key"
+msgstr "Удалить API-ключ"
+
+#: wallhaven/api.lua:97
+msgid "Resolution"
+msgstr "Разрешение"
+
+#: main.lua:17
+msgid "Status"
+msgstr "Статус"
+
+#: wallhaven/api.lua:67
+msgid "Topics"
+msgstr "Темы"
+
+#: main.lua:59
+msgid "Trending"
+msgstr "В тренде"
+
+#: main.lua:38
+msgid "Wallhaven API key"
+msgstr "API-ключ Wallhaven"
+
+#: main.lua:8
+msgid "Wallhaven account"
+msgstr "Учётная запись Wallhaven"

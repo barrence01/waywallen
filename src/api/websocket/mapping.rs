@@ -227,7 +227,7 @@ pub(super) fn renderer_def_to_pb(
     let mut settings: Vec<pb::SettingSchema> = def
         .settings
         .iter()
-        .map(|(k, v)| crate::control_proto::setting_def_to_proto(k, v))
+        .map(|(k, v)| crate::control_proto::setting_def_to_proto(k, v, &def.plugin_id))
         .collect();
     // Stable order so UIs can rely on deterministic layout: by manifest
     // `order` then key name.

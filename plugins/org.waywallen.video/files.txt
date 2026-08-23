@@ -1,4 +1,6 @@
 ../../../../bin/waywallen-video-renderer
+i18n/ru.po
+i18n/zh-CN.po
 main.lua
 plugin.toml
 video/source.lua

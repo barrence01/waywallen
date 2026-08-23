@@ -4,6 +4,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 
 use crate::catalog::entry::WallpaperType;
+use crate::plugin::i18n::{LocalizedTextDef, PluginTranslationDocument, PluginTranslationMeta};
 
 // ---------------------------------------------------------------------------
 // Installable-plugin manifest (`plugins/<dir>/plugin.toml`)
@@ -36,6 +37,8 @@ pub struct PluginMeta {
     /// Lua entry ABI version supported by `entry`.
     #[serde(default)]
     pub entry_version: Option<u32>,
+    #[serde(default)]
+    pub i18n: Option<PluginTranslationMeta>,
     /// Declarative file manifest with paths relative to the plugin dir.
     /// Loaded during scanning from the required `files.txt`.
     #[serde(skip)]
@@ -43,6 +46,8 @@ pub struct PluginMeta {
     /// True when the plugin was discovered from a system scan root.
     #[serde(skip)]
     pub system: bool,
+    #[serde(skip)]
+    pub translations: Vec<PluginTranslationDocument>,
 }
 
 /// Hard-coded name of the per-plugin file manifest every plugin must
@@ -95,6 +100,16 @@ impl PluginScan {
                 system: m.system,
             })
             .collect()
+    }
+
+    pub fn translation_documents(
+        &self,
+    ) -> std::result::Result<Vec<PluginTranslationDocument>, String> {
+        crate::plugin::i18n::prepare_plugin_translation_documents(
+            self.plugins
+                .iter()
+                .flat_map(|plugin| plugin.translations.iter().cloned()),
+        )
     }
 }
 
@@ -197,6 +212,12 @@ pub struct SettingDef {
     /// Optional i18n key for a short helper / tooltip line.
     #[serde(default)]
     pub description_key: Option<String>,
+    #[serde(default)]
+    pub label: Option<LocalizedTextDef>,
+    #[serde(default)]
+    pub description: Option<LocalizedTextDef>,
+    #[serde(default)]
+    pub group_label: Option<LocalizedTextDef>,
     /// Numeric lower bound (inclusive) for `U32`/`I32`/`F32` settings.
     /// Ignored on string/bool; `SettingsSet` rejects out-of-range values.
     #[serde(default)]
@@ -231,6 +252,9 @@ impl SettingDef {
             identity,
             label_key: None,
             description_key: None,
+            label: None,
+            description: None,
+            group_label: None,
             min: None,
             max: None,
             step: None,
@@ -614,6 +638,21 @@ pub fn scan_plugins(dir: &Path, system: bool) -> PluginScan {
             ),
         }
 
+        if let Some(i18n) = &meta.i18n {
+            match crate::plugin::i18n::load_plugin_translation_documents(
+                &plugin_dir,
+                &meta.id,
+                i18n,
+                &meta.files,
+            ) {
+                Ok(documents) => meta.translations = documents,
+                Err(error) => {
+                    log::warn!("skip plugin {}: {error}", meta.id);
+                    continue;
+                }
+            }
+        }
+
         if let Some(entry) = meta.entry.take() {
             match meta.entry_version {
                 Some(entry_version) => out.entries.push(EntryRef {
@@ -647,6 +686,39 @@ pub fn scan_plugins(dir: &Path, system: bool) -> PluginScan {
                     def.name
                 );
                 continue;
+            }
+            let invalid_text = def.settings.iter().find_map(|(key, setting)| {
+                for (field, value) in [
+                    ("label", setting.label.as_ref()),
+                    ("description", setting.description.as_ref()),
+                    ("group_label", setting.group_label.as_ref()),
+                ] {
+                    if value.is_some_and(|value| !value.is_valid()) {
+                        return Some(format!(
+                            "renderer {} setting {key}.{field} requires a non-empty msgid",
+                            def.name
+                        ));
+                    }
+                }
+                None
+            });
+            if let Some(error) = invalid_text {
+                log::error!("{error}");
+                continue;
+            }
+            for (key, setting) in &def.settings {
+                if setting.label.is_none() && setting.label_key.is_some() {
+                    log::warn!(
+                        "renderer {} setting {key}: label_key is deprecated; use label = {{ msgid = \"...\" }}",
+                        def.name
+                    );
+                }
+                if setting.description.is_none() && setting.description_key.is_some() {
+                    log::warn!(
+                        "renderer {} setting {key}: description_key is deprecated; use description = {{ msgid = \"...\" }}",
+                        def.name
+                    );
+                }
             }
             log::info!(
                 "loaded renderer component: {} (plugin {}, types: {:?})",
@@ -865,8 +937,10 @@ types = ["image"]
             update: None,
             entry: None,
             entry_version: None,
+            i18n: None,
             files: Vec::new(),
             system,
+            translations: Vec::new(),
         }
     }
 
@@ -894,6 +968,9 @@ types = ["image"]
             identity,
             label_key: None,
             description_key: None,
+            label: None,
+            description: None,
+            group_label: None,
             min: None,
             max: None,
             step: None,
@@ -967,6 +1044,67 @@ events = ["pointer"]
 
         let ids: Vec<_> = scan.plugins.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids, vec!["org.test.system", "org.test.user"]);
+    }
+
+    #[test]
+    fn scan_loads_only_declared_plugin_translations() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins = tmp.path().join("plugins");
+        let plugin_dir = plugins.join("org.test.localized");
+        std::fs::create_dir_all(plugin_dir.join("i18n")).unwrap();
+        std::fs::write(
+            plugin_dir.join("plugin.toml"),
+            r#"[plugin]
+id = "org.test.localized"
+name = "Localized"
+
+[plugin.i18n]
+directory = "i18n"
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            plugin_dir.join("files.txt"),
+            "plugin.toml\nfiles.txt\ni18n/zh-CN.po\ni18n/ru.po\n",
+        )
+        .unwrap();
+        std::fs::write(plugin_dir.join("i18n/zh-CN.po"), b"zh").unwrap();
+        std::fs::write(plugin_dir.join("i18n/ru.po"), b"ru").unwrap();
+        std::fs::write(plugin_dir.join("i18n/de.po"), b"not declared").unwrap();
+
+        let scan = scan_plugin_roots(&[PluginRoot::system(plugins)]);
+        let documents = scan.translation_documents().unwrap();
+        assert_eq!(scan.plugins.len(), 1);
+        assert_eq!(documents.len(), 2);
+        assert_eq!(documents[0].plugin_id, "org.test.localized");
+        assert_eq!(documents[0].locale, "ru");
+        assert_eq!(documents[0].po, b"ru");
+        assert_eq!(documents[1].locale, "zh-CN");
+        assert_eq!(documents[1].po, b"zh");
+    }
+
+    #[test]
+    fn scan_rejects_translation_directory_escape() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins = tmp.path().join("plugins");
+        let plugin_dir = plugins.join("org.test.localized");
+        std::fs::create_dir_all(&plugin_dir).unwrap();
+        std::fs::write(
+            plugin_dir.join("plugin.toml"),
+            r#"[plugin]
+id = "org.test.localized"
+name = "Localized"
+
+[plugin.i18n]
+directory = "../i18n"
+"#,
+        )
+        .unwrap();
+        std::fs::write(plugin_dir.join("files.txt"), "plugin.toml\nfiles.txt\n").unwrap();
+
+        let scan = scan_plugin_roots(&[PluginRoot::system(plugins)]);
+        assert!(scan.plugins.is_empty());
+        assert!(scan.translation_documents().unwrap().is_empty());
     }
 
     #[test]

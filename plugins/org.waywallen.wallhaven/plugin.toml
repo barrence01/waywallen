@@ -4,3 +4,6 @@ name = "Wallhaven"
 version = "0.1.0"
 entry = "main.lua"
 entry_version = 3
+
+[plugin.i18n]
+directory = "i18n"

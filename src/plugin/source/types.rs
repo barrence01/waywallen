@@ -1,4 +1,5 @@
 use super::*;
+use crate::plugin::i18n::LocalizedText;
 
 /// User-Agent the `ctx.http` default client sends.
 pub(super) const WAYWALLEN_HTTP_USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) waywallen";
@@ -68,10 +69,10 @@ pub struct SourcePluginInfo {
     pub version: String,
     /// Short UI label or placeholder for prompting a library path.
     /// Empty when the plugin did not declare one.
-    pub library_label: String,
+    pub library_label: LocalizedText,
     /// Longer helper text for choosing a library path.
     /// May contain newlines or inline-code Markdown markers.
-    pub library_hint: String,
+    pub library_hint: LocalizedText,
     /// User-configurable settings the plugin declares via `info().settings`,
     /// stored under the Lua source name in the shared component settings map.
     pub settings: Vec<SourceSetting>,
@@ -86,10 +87,10 @@ pub struct SourceSetting {
     /// "string" | "bool" | "u32" | "i32" | "f32".
     pub ty: String,
     pub default: String,
-    /// Human-readable label and help text (shown verbatim; no i18n yet).
-    pub label: String,
-    pub description: String,
+    pub label: LocalizedText,
+    pub description: LocalizedText,
     pub group: String,
+    pub group_label: LocalizedText,
     pub order: i32,
     pub choices: Vec<String>,
 }
@@ -105,9 +106,9 @@ pub enum SourceActionKind {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceActionField {
     pub key: String,
-    pub label: String,
-    pub description: String,
-    pub placeholder: String,
+    pub label: LocalizedText,
+    pub description: LocalizedText,
+    pub placeholder: LocalizedText,
     pub secret: bool,
     pub required: bool,
 }
@@ -117,11 +118,12 @@ pub struct SourceActionField {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceAction {
     pub id: String,
-    pub label: String,
-    pub description: String,
-    pub browse_description: String,
-    pub browse_button_label: String,
+    pub label: LocalizedText,
+    pub description: LocalizedText,
+    pub browse_description: LocalizedText,
+    pub browse_button_label: LocalizedText,
     pub group: String,
+    pub group_label: LocalizedText,
     pub order: i32,
     pub kind: SourceActionKind,
     pub visible: bool,
@@ -135,8 +137,9 @@ pub struct SourceAction {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceStatus {
     pub id: String,
-    pub label: String,
+    pub label: LocalizedText,
     pub group: String,
+    pub group_label: LocalizedText,
     pub order: i32,
     pub value: String,
 }
@@ -146,7 +149,7 @@ pub struct SourceStatus {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DiscoverSort {
     pub key: String,
-    pub label: String,
+    pub label: LocalizedText,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -160,11 +163,11 @@ pub enum DiscoverFilterType {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct DiscoverFilter {
     pub id: String,
-    pub title: String,
+    pub title: LocalizedText,
     pub ty: DiscoverFilterType,
     pub values: Vec<String>,
-    pub description: String,
-    pub confirmation: String,
+    pub description: LocalizedText,
+    pub confirmation: LocalizedText,
 }
 
 /// Discover capability of a single source plugin, derived from
@@ -176,10 +179,10 @@ pub struct DiscoverSourceInfo {
     pub plugin_id: String,
     pub name: String,
     /// Human-readable display name (falls back to `name`).
-    pub display_name: String,
+    pub display_name: LocalizedText,
     pub supports_search: bool,
     pub remote_capability: Option<RemoteCapability>,
-    pub remote_hint: String,
+    pub remote_hint: LocalizedText,
     pub sorts: Vec<DiscoverSort>,
     pub filters: Vec<DiscoverFilter>,
     /// Domain id of the owning installable plugin (e.g.

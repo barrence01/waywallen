@@ -10,6 +10,7 @@ import :gpu;
 import :renderer;
 import :query;
 import :notify;
+import :plugin_translation;
 import :ui_language;
 
 using namespace waywallen;
@@ -161,6 +162,10 @@ void App::init() {
     // would only spring into existence when the first QML consumer
     // accesses it — and would miss the daemon's startup scan event.
     (void)Notify::instance();
+
+    auto* plugin_translations = PluginTranslationStore::instance();
+    plugin_translations->setLocale(d->m_ui_language->resolvedLanguage());
+    plugin_translations->initialize();
 
     // Connect to the daemon's WebSocket (no-op if port is still 0).
     d->m_backend->connectTo();
@@ -341,6 +346,8 @@ bool App::setUiLanguage(const QString& language) {
     const auto previous_resolved   = d->m_ui_language->resolvedLanguage();
     if (! d->m_ui_language->setLanguage(language)) return false;
 
+    PluginTranslationStore::instance()->setLocale(d->m_ui_language->resolvedLanguage());
+
     if (previous_preference != d->m_ui_language->preference()) Q_EMIT uiLanguageChanged();
     if (previous_resolved != d->m_ui_language->resolvedLanguage())
         Q_EMIT resolvedUiLanguageChanged();
@@ -353,6 +360,7 @@ bool App::eventFilter(QObject* watched, QEvent* event) {
         const auto previous_resolved = d->m_ui_language->resolvedLanguage();
         if (d->m_ui_language->preference() == QStringLiteral("system") &&
             d->m_ui_language->refreshSystemLanguage()) {
+            PluginTranslationStore::instance()->setLocale(d->m_ui_language->resolvedLanguage());
             Q_EMIT uiLanguageChanged();
             if (previous_resolved != d->m_ui_language->resolvedLanguage())
                 Q_EMIT resolvedUiLanguageChanged();

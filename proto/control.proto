@@ -99,6 +99,7 @@ message Request {
     CanvasDeleteRequest         canvas_delete = 82;
     CanvasLayoutSetRequest      canvas_layout_set = 83;
     CanvasMemberConfigureRequest canvas_member_configure = 84;
+    PluginTranslationListRequest     plugin_translation_list = 85;
   }
 }
 
@@ -185,6 +186,7 @@ message Response {
     Empty                       canvas_delete = 82;
     CanvasLayoutSetResponse     canvas_layout_set = 83;
     CanvasMemberConfigureResponse canvas_member_configure = 84;
+    PluginTranslationListResponse      plugin_translation_list = 85;
   }
 }
 
@@ -256,6 +258,11 @@ enum ErrorCode {
 }
 
 message Empty {}
+
+message PluginMessage {
+  string plugin_id = 1;
+  string msgid = 2;
+}
 
 // ---------------------------------------------------------------------------
 // Health
@@ -450,6 +457,9 @@ message SettingSchema {
   repeated string choices = 10;
   string group = 11;
   int32 order = 12;
+  PluginMessage label = 13;
+  PluginMessage description = 14;
+  PluginMessage group_label = 15;
 }
 
 enum SettingValueType {
@@ -622,6 +632,8 @@ message SourcePluginInfo {
   // User-configurable settings the plugin declares via `info().settings`,
   // rendered by the generic plugin-settings page.
   repeated SettingSchema settings = 7;
+  PluginMessage library_label_text = 8;
+  PluginMessage library_hint_text = 9;
 }
 
 message WallpaperApplyRequest {
@@ -929,6 +941,7 @@ message RemoteAvailabilityRequest {}
 message RemoteSortOption {
   string key = 1;
   string label = 2;
+  PluginMessage label_text = 3;
 }
 
 enum RemoteFilterType {
@@ -945,6 +958,9 @@ message RemoteFilterDef {
   repeated string values = 4;
   string description = 5;
   string confirmation = 6;
+  PluginMessage title_text = 7;
+  PluginMessage description_text = 8;
+  PluginMessage confirmation_text = 9;
 }
 
 message RemoteSourceInfo {
@@ -973,6 +989,8 @@ message RemoteSourceInfo {
   // Provider-owned account image returned by lifecycle.check().
   string avatar_url = 14;
   repeated RemoteFilterDef filters = 15;
+  PluginMessage display_name_text = 16;
+  PluginMessage remote_hint_text = 17;
 }
 
 enum RemoteCapability {
@@ -995,6 +1013,9 @@ message PluginActionField {
   string placeholder = 4;
   bool secret = 5;
   bool required = 6;
+  PluginMessage label_text = 7;
+  PluginMessage description_text = 8;
+  PluginMessage placeholder_text = 9;
 }
 
 message PluginActionDef {
@@ -1015,6 +1036,11 @@ message PluginActionDef {
   string browse_description = 11;
   // Optional plugin-owned label for the browse login button.
   string browse_button_label = 12;
+  PluginMessage label_text = 13;
+  PluginMessage description_text = 14;
+  PluginMessage browse_description_text = 15;
+  PluginMessage browse_button_label_text = 16;
+  PluginMessage group_label = 17;
 }
 message PluginStatusRow {
   string id = 1;
@@ -1022,6 +1048,8 @@ message PluginStatusRow {
   string group = 3;
   int32 order = 4;
   string value = 5;
+  PluginMessage label_text = 6;
+  PluginMessage group_label = 7;
 }
 
 // Trigger a plugin-declared action. The daemon routes `action_id` to the
@@ -1830,6 +1858,17 @@ message PluginListResponse {
   repeated PluginInfo plugins = 1;
   repeated string inactive_system = 2;
   repeated string inactive_user = 3;
+}
+
+message PluginTranslationListRequest {}
+message PluginTranslationDocument {
+  string plugin_id = 1;
+  string locale = 2;
+  bytes po = 3;
+}
+message PluginTranslationListResponse {
+  uint64 generation = 1;
+  repeated PluginTranslationDocument documents = 2;
 }
 
 // All distinct tag names currently in the library DB, for the wallpaper

@@ -105,13 +105,14 @@ auto UiLanguageController::refreshSystemLanguage() -> bool {
 
 void UiLanguageController::discoverLanguages() {
     const QDir i18n_dir(QStringLiteral(":/i18n"));
-    const auto catalogs =
+    const auto translation_files =
         i18n_dir.entryList({ QStringLiteral("waywallen_*.qm") }, QDir::Files, QDir::Name);
     constexpr auto prefix_size = qsizetype(sizeof("waywallen_") - 1);
     constexpr auto suffix_size = qsizetype(sizeof(".qm") - 1);
 
-    for (const auto& catalog : catalogs) {
-        const auto code = catalog.sliced(prefix_size, catalog.size() - prefix_size - suffix_size);
+    for (const auto& translation_file : translation_files) {
+        const auto code = translation_file.sliced(
+            prefix_size, translation_file.size() - prefix_size - suffix_size);
         const QLocale locale(code);
         if (locale.language() == QLocale::C || locale.language() == QLocale::English) continue;
 
@@ -154,29 +155,29 @@ auto UiLanguageController::applyLanguage(const QString& preference, bool persist
     const auto locale = preference == QString::fromLatin1(kSystemLanguage) ? QLocale::system()
                                                                            : QLocale(preference);
 
-    // "qt" is the umbrella catalog and ships only with a full Qt installation.
+    // "qt" is the umbrella translation and ships only with a full Qt installation.
     // Deployments that carry qtbase alone - the AppImage, the Flatpak runtime,
     // distros that split Qt translations per module - have "qtbase" only, so
     // fall back to it before giving up on Qt's own strings.
     const auto qt_translations = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
 
     auto next_qt_translator = Box<QTranslator>::make();
-    auto next_qt_catalog    = QStringLiteral("qt");
+    auto next_qt_name       = QStringLiteral("qt");
     bool next_qt_loaded =
-        next_qt_translator->load(locale, next_qt_catalog, QStringLiteral("_"), qt_translations);
+        next_qt_translator->load(locale, next_qt_name, QStringLiteral("_"), qt_translations);
     if (! next_qt_loaded) {
-        next_qt_catalog = QStringLiteral("qtbase");
+        next_qt_name = QStringLiteral("qtbase");
         next_qt_loaded =
-            next_qt_translator->load(locale, next_qt_catalog, QStringLiteral("_"), qt_translations);
+            next_qt_translator->load(locale, next_qt_name, QStringLiteral("_"), qt_translations);
     }
 
     auto       next_app_translator = Box<QTranslator>::make();
     const bool next_app_loaded     = next_app_translator->load(
         locale, QStringLiteral("waywallen"), QStringLiteral("_"), QStringLiteral(":/i18n"));
-    const bool app_catalog_required = preference != QString::fromLatin1(kSystemLanguage) &&
-                                      preference != QString::fromLatin1(kEnglishLanguage);
-    if (app_catalog_required && ! next_app_loaded) {
-        qWarning("ui language: application catalog for '%s' could not be loaded",
+    const bool app_translation_required = preference != QString::fromLatin1(kSystemLanguage) &&
+                                          preference != QString::fromLatin1(kEnglishLanguage);
+    if (app_translation_required && ! next_app_loaded) {
+        qWarning("ui language: application translation for '%s' could not be loaded",
                  qPrintable(preference));
         return false;
     }
@@ -204,8 +205,8 @@ auto UiLanguageController::applyLanguage(const QString& preference, bool persist
     m_qt_translator_installed  = next_qt_installed;
     m_app_translator_installed = next_app_installed;
     m_preference               = preference;
-    m_resolved_language =
-        locale.language() == QLocale::C ? QString::fromLatin1(kEnglishLanguage) : locale.name();
+    m_resolved_language = locale.language() == QLocale::C ? QString::fromLatin1(kEnglishLanguage)
+                                                          : locale.bcp47Name();
 
     m_engine.setUiLanguage(locale.bcp47Name());
     m_engine.retranslate();
@@ -215,11 +216,11 @@ auto UiLanguageController::applyLanguage(const QString& preference, bool persist
         settings.setValue(kSettingsKey, m_preference);
     }
 
-    qInfo("ui language: preference=%s resolved=%s app_catalog=%s qt_catalog=%s",
+    qInfo("ui language: preference=%s resolved=%s app_translation=%s qt_translation=%s",
           qPrintable(m_preference),
           qPrintable(m_resolved_language),
           next_app_loaded ? "loaded" : "source",
-          next_qt_loaded ? qPrintable(next_qt_catalog) : "source");
+          next_qt_loaded ? qPrintable(next_qt_name) : "source");
     return true;
 }
 

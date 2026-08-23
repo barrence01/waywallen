@@ -1,0 +1,42 @@
+[package]
+name = "waywallen-i18n"
+version.workspace = true
+
+[[bin]]
+name = "waywallen-i18n"
+module = "waywallen.i18n.cli"
+sources = [
+  "main.cpp",
+  "cli.cppm",
+  "cli.cpp",
+  "plugin.cppm",
+  "plugin.cpp",
+]
+
+[[test]]
+name = "waywallen-i18n-contract"
+sources = [
+  "plugin.cppm",
+  "plugin.cpp",
+  "tests/plugin.cpp",
+]
+
+[dependencies.luato]
+workspace = true
+visibility = "private"
+
+[dependencies.waywallen-plugin-i18n]
+path = "po"
+visibility = "private"
+
+[dependencies.rstd-std]
+workspace = true
+visibility = "private"
+
+[dependencies.rstd-argparse]
+workspace = true
+visibility = "private"
+
+[dependencies.rstd-toml]
+workspace = true
+visibility = "private"

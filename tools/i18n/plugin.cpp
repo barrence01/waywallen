@@ -7,6 +7,7 @@ module waywallen.i18n.plugin;
 import luato.i18n;
 import rstd;
 import rstd.toml;
+import waywallen.i18n.po;
 
 namespace waywallen::i18n
 {
@@ -28,8 +29,10 @@ using ToolResult = Result<T, Failure>;
 struct Project {
     rstd::path::PathBuf     root;
     String                  id;
-    String                  catalog_directory;
+    String                  version;
+    String                  translation_directory;
     BTreeMap<String, empty> declared_files;
+    rstd::toml::Value       manifest;
 };
 
 struct OwnedSource {
@@ -79,6 +82,16 @@ void emit_diagnostic(const luato::i18n::Diagnostic& diagnostic) {
                                  related.message.as_str());
         write_text(stderr, line.as_str());
     }
+}
+
+void emit_po_error(ref<str> path, const po::Error& error) {
+    auto text = rstd::format("{}:{}:{}: error[{}]: {}\n",
+                             path,
+                             error.line,
+                             error.column,
+                             po::code_name(error.code),
+                             error.message.as_str());
+    write_text(stderr, text.as_str());
 }
 
 auto join_path(ref<rstd::path::Path> base, ref<str> child) -> rstd::path::PathBuf {
@@ -143,7 +156,7 @@ auto parse_declared_files(ref<str> document, ref<rstd::path::Path> files_path)
         while (end < document.len() && document.as_bytes()[end] != u8('\n')) ++end;
         auto line = document.get(begin, end).unwrap().trim_ascii();
         if (! line.is_empty()) {
-            const bool relevant   = line.ends_with(".lua"_str) || line.ends_with(".json"_str);
+            const bool relevant   = line.ends_with(".lua"_str) || line.ends_with(".po"_str);
             auto       normalized = normalize_relative(line, "files.txt"_str);
             if (normalized.is_err()) {
                 if (relevant) return Err(rstd::move(normalized).unwrap_err_unchecked());
@@ -204,6 +217,14 @@ auto load_project(ref<rstd::path::Path> requested_root) -> ToolResult<Project> {
                            rstd::format("{}: error[plugin-manifest]: plugin.id cannot be empty",
                                         manifest_path.as_path())));
     }
+    auto version = required_string(**plugin, "version"_str, manifest_path.as_path(), "plugin"_str);
+    if (version.is_err()) return Err(rstd::move(version).unwrap_err_unchecked());
+    if (version->is_empty()) {
+        return Err(
+            failure(ExitCode::Plugin,
+                    rstd::format("{}: error[plugin-manifest]: plugin.version cannot be empty",
+                                 manifest_path.as_path())));
+    }
 
     auto i18n = (*plugin)->get("i18n"_str);
     if (i18n.is_none() || ! (*i18n)->is_table()) {
@@ -228,8 +249,10 @@ auto load_project(ref<rstd::path::Path> requested_root) -> ToolResult<Project> {
 
     return Ok(Project { rstd::move(root),
                         rstd::move(id).unwrap_unchecked(),
+                        rstd::move(version).unwrap_unchecked(),
                         rstd::move(normalized_directory).unwrap_unchecked(),
-                        rstd::move(declared).unwrap_unchecked() });
+                        rstd::move(declared).unwrap_unchecked(),
+                        rstd::move(document) });
 }
 
 auto validate_owned_file(const Project& project, ref<str> logical)
@@ -283,16 +306,13 @@ auto extract_sources(const Vec<OwnedSource>& owned) -> ToolResult<luato::i18n::E
     }
 
     auto callee = Vec<String>::make();
-    callee.push(String::make("W"_str));
-    callee.push(String::make("I18n"_str));
     callee.push(String::make("tr"_str));
     auto options   = luato::i18n::ExtractionOptions { luato::i18n::CallSpec {
         rstd::move(callee),
         usize {},
         usize(1),
-        usize(2),
         String::make("TRANSLATORS:"_str),
-        Some(String::make("W"_str)),
+        Some(String::make("tr"_str)),
     } };
     auto extracted = luato::i18n::extract(sources.as_slice(), options);
     if (extracted.is_err()) {
@@ -302,20 +322,117 @@ auto extract_sources(const Vec<OwnedSource>& owned) -> ToolResult<luato::i18n::E
     return Ok(rstd::move(extracted).unwrap_unchecked());
 }
 
-auto catalog_logical_path(const Project& project, ref<str> locale) -> ToolResult<String> {
-    auto candidate = rstd::format("{}/{}.json", project.catalog_directory.as_str(), locale);
-    return normalize_relative(candidate.as_str(), "catalog"_str);
+auto manifest_message(const rstd::toml::Value& value, ref<str> owner)
+    -> ToolResult<luato::i18n::Message> {
+    if (! value.is_table()) {
+        return Err(failure(ExitCode::Plugin,
+                           rstd::format("plugin.toml: error[plugin-manifest]: '{}' must be an "
+                                        "inline table with msgid",
+                                        owner)));
+    }
+    auto manifest_path = rstd::path::PathBuf::from("plugin.toml"_str);
+    auto msgid         = required_string(value, "msgid"_str, manifest_path.as_path(), owner);
+    if (msgid.is_err()) return Err(rstd::move(msgid).unwrap_err_unchecked());
+    if (msgid->is_empty()) {
+        return Err(failure(ExitCode::Plugin,
+                           rstd::format("plugin.toml: error[plugin-manifest]: '{}.msgid' cannot be "
+                                        "empty",
+                                        owner)));
+    }
+
+    auto occurrences = Vec<luato::i18n::Occurrence>::make();
+    occurrences.push(luato::i18n::Occurrence {
+        rstd::parse::SourceId("plugin.toml"_str),
+        rstd::parse::Span {},
+        rstd::parse::Span {},
+        rstd::parse::SourcePosition { usize {}, usize {} },
+        None(),
+    });
+    return Ok(luato::i18n::Message {
+        rstd::move(msgid).unwrap_unchecked(), rstd::move(occurrences), Vec<String>::make() });
 }
 
-auto catalog_directory(const Project& project, bool create) -> ToolResult<rstd::path::PathBuf> {
-    auto path   = join_path(project.root.as_path(), project.catalog_directory.as_str());
+auto extract_manifest(const Project& project) -> ToolResult<luato::i18n::Extraction> {
+    auto messages  = Vec<luato::i18n::Message>::make();
+    auto renderers = project.manifest.get("renderers"_str);
+    if (renderers.is_none()) {
+        return Ok(
+            luato::i18n::Extraction { rstd::move(messages), Vec<luato::i18n::Diagnostic>::make() });
+    }
+    auto renderer_table = (*renderers)->as_table();
+    if (renderer_table.is_none()) {
+        return Err(
+            failure(ExitCode::Plugin,
+                    String::make("plugin.toml: error[plugin-manifest]: 'renderers' must be a "
+                                 "table"_str)));
+    }
+    for (auto renderer_item : (**renderer_table).iter()) {
+        auto [renderer_name, renderer] = renderer_item;
+        auto settings                  = renderer->get("settings"_str);
+        if (settings.is_none()) continue;
+        auto setting_table = (*settings)->as_table();
+        if (setting_table.is_none()) {
+            return Err(failure(
+                ExitCode::Plugin,
+                rstd::format("plugin.toml: error[plugin-manifest]: 'renderers.{}.settings' must be "
+                             "a table",
+                             renderer_name->as_str())));
+        }
+        for (auto setting_item : (**setting_table).iter()) {
+            auto [setting_name, setting] = setting_item;
+            static constexpr auto text_fields =
+                rstd::array<ref<str>, 3> { "label"_str, "description"_str, "group_label"_str };
+            for (auto field : text_fields) {
+                auto declared = setting->get(field);
+                if (declared.is_none()) continue;
+                auto owner   = rstd::format("renderers.{}.settings.{}.{}",
+                                            renderer_name->as_str(),
+                                            setting_name->as_str(),
+                                            field);
+                auto message = manifest_message(**declared, owner.as_str());
+                if (message.is_err()) return Err(rstd::move(message).unwrap_err_unchecked());
+                messages.push(rstd::move(message).unwrap_unchecked());
+            }
+        }
+    }
+    return Ok(
+        luato::i18n::Extraction { rstd::move(messages), Vec<luato::i18n::Diagnostic>::make() });
+}
+
+auto merge_project_extractions(luato::i18n::Extraction lua, luato::i18n::Extraction manifest)
+    -> luato::i18n::Extraction {
+    auto extractions = Vec<luato::i18n::Extraction>::make();
+    extractions.push(rstd::move(lua));
+    extractions.push(rstd::move(manifest));
+    return luato::i18n::merge_extractions(rstd::move(extractions));
+}
+
+auto translation_logical_path(const Project& project, ref<str> locale) -> ToolResult<String> {
+    auto candidate = rstd::format("{}/{}.po", project.translation_directory.as_str(), locale);
+    return normalize_relative(candidate.as_str(), "translation"_str);
+}
+
+auto canonical_locale(ref<str> locale) -> ToolResult<String> {
+    auto canonical = po::canonicalize_locale(locale);
+    if (canonical.is_err()) {
+        return Err(failure(ExitCode::Usage,
+                           rstd::format("error: invalid locale '{}': {}",
+                                        locale,
+                                        canonical.unwrap_err().message.as_str())));
+    }
+    return Ok(rstd::move(canonical).unwrap_unchecked());
+}
+
+auto translation_directory_path(const Project& project, bool create)
+    -> ToolResult<rstd::path::PathBuf> {
+    auto path   = join_path(project.root.as_path(), project.translation_directory.as_str());
     auto exists = rstd::fs::exists(path.as_path());
     if (exists.is_err()) return Err(io_failure(path.as_path(), exists.unwrap_err()));
     if (! *exists) {
         if (! create) {
-            return Err(failure(
-                ExitCode::Io,
-                rstd::format("{}: error[io]: catalog directory does not exist", path.as_path())));
+            return Err(failure(ExitCode::Io,
+                               rstd::format("{}: error[io]: translation directory does not exist",
+                                            path.as_path())));
         }
         auto created = rstd::fs::create_dir_all(path.as_path());
         if (created.is_err()) return Err(io_failure(path.as_path(), created.unwrap_err()));
@@ -324,30 +441,31 @@ auto catalog_directory(const Project& project, bool create) -> ToolResult<rstd::
     if (canonical.is_err()) return Err(io_failure(path.as_path(), canonical.unwrap_err()));
     auto owned = rstd::move(canonical).unwrap_unchecked();
     if (! owned.as_path().starts_with(project.root.as_path())) {
-        return Err(failure(ExitCode::Plugin,
-                           rstd::format("{}: error[unsafe-plugin-path]: catalog directory escapes "
-                                        "plugin root",
-                                        project.catalog_directory.as_str())));
+        return Err(
+            failure(ExitCode::Plugin,
+                    rstd::format("{}: error[unsafe-plugin-path]: translation directory escapes "
+                                 "plugin root",
+                                 project.translation_directory.as_str())));
     }
     auto metadata = rstd::fs::metadata(owned.as_path());
     if (metadata.is_err()) return Err(io_failure(owned.as_path(), metadata.unwrap_err()));
     if (! metadata->is_dir()) {
         return Err(
             failure(ExitCode::Plugin,
-                    rstd::format("{}: error[plugin-manifest]: catalog path is not a directory",
-                                 project.catalog_directory.as_str())));
+                    rstd::format("{}: error[plugin-manifest]: translation path is not a directory",
+                                 project.translation_directory.as_str())));
     }
     return Ok(rstd::move(owned));
 }
 
-auto read_existing_catalog(const Project& project, ref<str> logical,
-                           ref<rstd::path::Path> directory) -> ToolResult<Option<String>> {
+auto read_existing_translation(const Project& project, ref<str> logical,
+                               ref<rstd::path::Path> directory) -> ToolResult<Option<String>> {
     auto logical_path = rstd::path::PathBuf::from(logical);
     auto filename     = logical_path.as_path().file_name();
     if (filename.is_none()) {
-        return Err(
-            failure(ExitCode::Plugin,
-                    rstd::format("{}: error[unsafe-plugin-path]: invalid catalog path", logical)));
+        return Err(failure(
+            ExitCode::Plugin,
+            rstd::format("{}: error[unsafe-plugin-path]: invalid translation path", logical)));
     }
     auto path   = rstd::path::PathBuf::from(directory).join(ref<rstd::path::Path>(*filename));
     auto exists = rstd::fs::exists(path.as_path());
@@ -360,34 +478,58 @@ auto read_existing_catalog(const Project& project, ref<str> logical,
     return Ok(Some(rstd::move(document).unwrap_unchecked()));
 }
 
+auto po_messages(const luato::i18n::Extraction& extraction) -> Vec<po::SourceMessage> {
+    auto output = Vec<po::SourceMessage>::with_capacity(extraction.messages.len());
+    for (const auto& message : extraction.messages) {
+        auto references = BTreeMap<String, empty>::make();
+        for (const auto& occurrence : message.occurrences) {
+            auto reference =
+                occurrence.position.line == usize {}
+                    ? String::make(occurrence.source.as_str())
+                    : rstd::format("{}:{}", occurrence.source.as_str(), occurrence.position.line);
+            references.insert(rstd::move(reference), empty {});
+        }
+        auto ordered_references = Vec<String>::with_capacity(references.len());
+        while (auto reference = references.pop_first())
+            ordered_references.push(rstd::move(reference->template get<0>()));
+        auto comments = Vec<String>::with_capacity(message.translator_notes.len());
+        for (const auto& note : message.translator_notes) comments.push(note.clone());
+        output.push(po::SourceMessage {
+            message.msgid.clone(), rstd::move(ordered_references), rstd::move(comments) });
+    }
+    return output;
+}
+
 auto update(const Project& project, const Vec<String>& locales,
             const luato::i18n::Extraction& extraction) -> ExitCode {
     if (locales.len() != usize(1)) {
         return emit(failure(ExitCode::Usage,
                             String::make("error: update requires exactly one --locale"_str)));
     }
-    auto logical = catalog_logical_path(project, locales[usize()].as_str());
+    auto locale = canonical_locale(locales[usize()].as_str());
+    if (locale.is_err()) return emit(rstd::move(locale).unwrap_err_unchecked());
+    auto logical = translation_logical_path(project, locale->as_str());
     if (logical.is_err()) return emit(rstd::move(logical).unwrap_err_unchecked());
     if (! project.declared_files.contains_key(logical->as_str())) {
         return emit(failure(ExitCode::Plugin,
-                            rstd::format("{}: error[plugin-files]: catalog must be declared in "
+                            rstd::format("{}: error[plugin-files]: translation must be declared in "
                                          "files.txt",
                                          logical->as_str())));
     }
 
-    auto directory = catalog_directory(project, true);
+    auto directory = translation_directory_path(project, true);
     if (directory.is_err()) return emit(rstd::move(directory).unwrap_err_unchecked());
-    auto existing = read_existing_catalog(project, logical->as_str(), directory->as_path());
+    auto existing = read_existing_translation(project, logical->as_str(), directory->as_path());
     if (existing.is_err()) return emit(rstd::move(existing).unwrap_err_unchecked());
     auto existing_ref = Option<ref<str>> {};
     if (existing->is_some()) existing_ref = Some(existing->as_ref().unwrap().as_str());
-    auto rendered = luato::i18n::update_catalog(rstd::parse::SourceId(logical->clone()),
-                                                locales[usize()].as_str(),
-                                                existing_ref,
-                                                extraction);
+    auto messages           = po_messages(extraction);
+    auto project_id_version = rstd::format("{} {}", project.id.as_str(), project.version.as_str());
+    auto rendered           = po::update(
+        project_id_version.as_str(), locale->as_str(), existing_ref, messages.as_slice());
     if (rendered.is_err()) {
-        emit_diagnostic(rendered.unwrap_err());
-        return ExitCode::Catalog;
+        emit_po_error(logical->as_str(), rendered.unwrap_err());
+        return ExitCode::Translation;
     }
 
     auto logical_path = rstd::path::PathBuf::from(logical->as_str());
@@ -401,26 +543,33 @@ auto update(const Project& project, const Vec<String>& locales,
     return ExitCode::Success;
 }
 
-auto requested_catalogs(const Project& project, const Vec<String>& locales,
-                        ref<rstd::path::Path> directory) -> ToolResult<BTreeMap<String, String>> {
-    auto catalogs = BTreeMap<String, String>::make();
+auto requested_translations(const Project& project, const Vec<String>& locales,
+                            ref<rstd::path::Path> directory)
+    -> ToolResult<BTreeMap<String, String>> {
+    auto translations = BTreeMap<String, String>::make();
     if (! locales.is_empty()) {
         for (const auto& locale : locales) {
-            auto logical = catalog_logical_path(project, locale.as_str());
+            auto canonical = canonical_locale(locale.as_str());
+            if (canonical.is_err()) return Err(rstd::move(canonical).unwrap_err_unchecked());
+            auto logical = translation_logical_path(project, canonical->as_str());
             if (logical.is_err()) return Err(rstd::move(logical).unwrap_err_unchecked());
             if (! project.declared_files.contains_key(logical->as_str())) {
-                return Err(failure(ExitCode::Plugin,
-                                   rstd::format("{}: error[plugin-files]: catalog is not declared "
-                                                "in files.txt",
-                                                logical->as_str())));
+                return Err(
+                    failure(ExitCode::Plugin,
+                            rstd::format("{}: error[plugin-files]: translation is not declared "
+                                         "in files.txt",
+                                         logical->as_str())));
             }
-            if (catalogs.insert(locale.clone(), rstd::move(logical).unwrap_unchecked()).is_some()) {
+            if (translations
+                    .insert(rstd::move(canonical).unwrap_unchecked(),
+                            rstd::move(logical).unwrap_unchecked())
+                    .is_some()) {
                 return Err(
                     failure(ExitCode::Usage,
                             rstd::format("error: duplicate --locale '{}'", locale.as_str())));
             }
         }
-        return Ok(rstd::move(catalogs));
+        return Ok(rstd::move(translations));
     }
 
     auto entries = rstd::fs::read_dir(directory);
@@ -435,87 +584,67 @@ auto requested_catalogs(const Project& project, const Vec<String>& locales,
         if (! type->is_file() && ! type->is_symlink()) continue;
         auto file_name = entry.file_name();
         auto name      = file_name.as_os_str().to_str();
-        if (name.is_none() || ! name->ends_with(".json"_str)) continue;
-        auto locale  = name->strip_suffix(".json"_str).unwrap();
-        auto logical = catalog_logical_path(project, locale);
+        if (name.is_none() || ! name->ends_with(".po"_str)) continue;
+        auto locale    = name->strip_suffix(".po"_str).unwrap();
+        auto canonical = canonical_locale(locale);
+        if (canonical.is_err() || canonical->as_str() != locale) {
+            return Err(failure(ExitCode::Plugin,
+                               rstd::format("{}: error[plugin-files]: translation filename is not "
+                                            "a canonical BCP 47 locale",
+                                            *name)));
+        }
+        auto logical = translation_logical_path(project, locale);
         if (logical.is_err()) return Err(rstd::move(logical).unwrap_err_unchecked());
         if (! project.declared_files.contains_key(logical->as_str())) {
-            return Err(failure(ExitCode::Plugin,
-                               rstd::format("{}: error[plugin-files]: catalog is not declared in "
-                                            "files.txt",
-                                            logical->as_str())));
+            return Err(
+                failure(ExitCode::Plugin,
+                        rstd::format("{}: error[plugin-files]: translation is not declared in "
+                                     "files.txt",
+                                     logical->as_str())));
         }
-        catalogs.insert(String::make(locale), rstd::move(logical).unwrap_unchecked());
+        translations.insert(String::make(locale), rstd::move(logical).unwrap_unchecked());
     }
-    if (catalogs.is_empty()) {
+    if (translations.is_empty()) {
         return Err(failure(ExitCode::Plugin,
-                           rstd::format("{}: error[plugin-files]: no catalogs to check",
-                                        project.catalog_directory.as_str())));
+                           rstd::format("{}: error[plugin-files]: no translations to check",
+                                        project.translation_directory.as_str())));
     }
-    return Ok(rstd::move(catalogs));
-}
-
-auto check_catalog_policy(const luato::i18n::Catalog& catalog, ref<str> logical)
-    -> ToolResult<empty> {
-    for (auto item : catalog.messages.iter()) {
-        auto [id, entry] = item;
-        if (entry->translation.is_empty()) {
-            return Err(failure(ExitCode::Catalog,
-                               rstd::format("{}: error[catalog-incomplete]: message '{}' has no "
-                                            "translation",
-                                            logical,
-                                            id->as_str())));
-        }
-        if (entry->needs_review) {
-            return Err(failure(ExitCode::Catalog,
-                               rstd::format("{}: error[catalog-review]: message '{}' needs review",
-                                            logical,
-                                            id->as_str())));
-        }
-    }
-    if (! catalog.obsolete.is_empty()) {
-        return Err(failure(
-            ExitCode::Catalog,
-            rstd::format("{}: error[catalog-obsolete]: obsolete messages remain", logical)));
-    }
-    return Ok(empty {});
+    return Ok(rstd::move(translations));
 }
 
 auto check(const Project& project, const Vec<String>& locales,
            const luato::i18n::Extraction& extraction) -> ExitCode {
-    auto directory = catalog_directory(project, false);
+    auto directory = translation_directory_path(project, false);
     if (directory.is_err()) return emit(rstd::move(directory).unwrap_err_unchecked());
-    auto catalogs = requested_catalogs(project, locales, directory->as_path());
-    if (catalogs.is_err()) return emit(rstd::move(catalogs).unwrap_err_unchecked());
+    auto translations = requested_translations(project, locales, directory->as_path());
+    if (translations.is_err()) return emit(rstd::move(translations).unwrap_err_unchecked());
 
-    for (auto item : catalogs->iter()) {
+    auto messages = po_messages(extraction);
+    for (auto item : translations->iter()) {
         auto [locale, logical] = item;
-        auto document = read_existing_catalog(project, logical->as_str(), directory->as_path());
+        auto document = read_existing_translation(project, logical->as_str(), directory->as_path());
         if (document.is_err()) return emit(rstd::move(document).unwrap_err_unchecked());
         if (document->is_none()) {
-            return emit(failure(ExitCode::Catalog,
-                                rstd::format("{}: error[catalog-missing]: catalog does not exist",
-                                             logical->as_str())));
+            return emit(
+                failure(ExitCode::Translation,
+                        rstd::format("{}: error[translation-missing]: translation does not exist",
+                                     logical->as_str())));
         }
-        auto text         = document->as_ref().unwrap().as_str();
-        auto synchronized = luato::i18n::check_catalog(
-            rstd::parse::SourceId(logical->clone()), locale->as_str(), text, extraction);
-        if (synchronized.is_err()) {
-            emit_diagnostic(synchronized.unwrap_err());
-            return ExitCode::Catalog;
-        }
-        auto parsed = luato::i18n::parse_catalog(
-            rstd::parse::SourceId(logical->clone()), locale->as_str(), text);
+        auto text   = document->as_ref().unwrap().as_str();
+        auto parsed = po::parse(text);
         if (parsed.is_err()) {
-            emit_diagnostic(parsed.unwrap_err());
-            return ExitCode::Catalog;
+            emit_po_error(logical->as_str(), parsed.unwrap_err());
+            return ExitCode::Translation;
         }
-        auto policy = check_catalog_policy(*parsed, logical->as_str());
-        if (policy.is_err()) return emit(rstd::move(policy).unwrap_err_unchecked());
+        auto synchronized = po::check(locale->as_str(), *parsed, messages.as_slice());
+        if (synchronized.is_err()) {
+            emit_po_error(logical->as_str(), synchronized.unwrap_err());
+            return ExitCode::Translation;
+        }
     }
 
-    auto summary =
-        rstd::format("{}: {} catalog(s) synchronized\n", project.id.as_str(), catalogs->len());
+    auto summary = rstd::format(
+        "{}: {} translation(s) synchronized\n", project.id.as_str(), translations->len());
     write_text(stdout, summary.as_str());
     return ExitCode::Success;
 }
@@ -531,9 +660,13 @@ auto execute(const Request& request) -> ExitCode {
     if (sources.is_err()) return emit(rstd::move(sources).unwrap_err_unchecked());
     auto extraction = extract_sources(*sources);
     if (extraction.is_err()) return extraction.unwrap_err().code;
+    auto manifest = extract_manifest(*project);
+    if (manifest.is_err()) return emit(rstd::move(manifest).unwrap_err_unchecked());
+    auto merged = merge_project_extractions(rstd::move(extraction).unwrap_unchecked(),
+                                            rstd::move(manifest).unwrap_unchecked());
 
-    if (request.mode == Mode::Update) return update(*project, request.locales, *extraction);
-    return check(*project, request.locales, *extraction);
+    if (request.mode == Mode::Update) return update(*project, request.locales, merged);
+    return check(*project, request.locales, merged);
 }
 
 } // namespace waywallen::i18n

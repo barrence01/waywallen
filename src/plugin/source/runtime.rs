@@ -1,11 +1,18 @@
 use super::parsing::{parse_lua_string_map, redact_secrets};
 use super::*;
+use crate::plugin::i18n::LocalizedText;
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(transparent)]
+struct LuaLocalizedText(LocalizedText);
+
+impl LuaUserData for LuaLocalizedText {}
 
 #[derive(Debug, Clone)]
 pub(super) struct SourceCapability {
     pub(super) types: Vec<WallpaperType>,
-    pub(super) library_label: String,
-    pub(super) library_hint: String,
+    pub(super) library_label: LocalizedText,
+    pub(super) library_hint: LocalizedText,
     pub(super) auto_detect: bool,
 }
 
@@ -16,7 +23,7 @@ pub(super) struct DiscoverCapability {
     pub(super) supports_download: bool,
     pub(super) supports_resolve: bool,
     pub(super) remote: Option<RemoteCapability>,
-    pub(super) remote_hint: String,
+    pub(super) remote_hint: LocalizedText,
     pub(super) sorts: Vec<DiscoverSort>,
     pub(super) filters: Vec<DiscoverFilter>,
     /// The plugin exposes `discover.tags(ctx)`; the daemon calls it to refresh
@@ -56,7 +63,7 @@ pub(super) struct LoadedPluginInfo {
     pub(super) name: String,
     /// Human-readable display name from `info().display_name`; falls back to
     /// `name` when unset.
-    pub(super) display_name: String,
+    pub(super) display_name: LocalizedText,
     pub(super) plugin_id: String,
     pub(super) version: String,
     pub(super) capabilities: PluginCapabilities,
@@ -352,7 +359,7 @@ impl LuaPluginRuntime {
         self.by_type.clear();
     }
 
-    pub(super) fn plugin_lua_env(&self, root: &Path) -> Result<LuaTable> {
+    pub(super) fn plugin_lua_env(&self, root: &Path, plugin_id: &str) -> Result<LuaTable> {
         let root = root
             .canonicalize()
             .map_err(|e| Error::Internal(anyhow!("canonicalize {}: {e}", root.display())))?;
@@ -393,7 +400,119 @@ impl LuaPluginRuntime {
             lua.registry_value::<LuaValue>(cache.get(&path).expect("cached import"))
         })?;
         env.set("import", import_fn)?;
+
+        let plugin_id = plugin_id.to_owned();
+        let tr_fn = self
+            .lua
+            .create_function(move |lua, mut arguments: LuaMultiValue| {
+                if arguments.len() != 1 {
+                    return Err(LuaError::RuntimeError(
+                        "tr requires exactly one argument".to_string(),
+                    ));
+                }
+                let msgid = match arguments.pop_front().expect("argument count checked") {
+                    LuaValue::String(value) => value.to_str().map(|value| value.to_string()),
+                    other => Err(LuaError::RuntimeError(format!(
+                        "tr msgid must be a string, got {}",
+                        other.type_name()
+                    ))),
+                }?;
+                if msgid.is_empty() {
+                    return Err(LuaError::RuntimeError(
+                        "tr msgid must not be empty".to_string(),
+                    ));
+                }
+                lua.create_ser_userdata(LuaLocalizedText(LocalizedText::translated(
+                    plugin_id.clone(),
+                    msgid,
+                )))
+            })?;
+        env.set("tr", tr_fn)?;
         Ok(env)
+    }
+
+    fn localized_text(value: LuaValue, field: &str, context: &str) -> Result<LocalizedText> {
+        match value {
+            LuaValue::Nil => Ok(LocalizedText::default()),
+            LuaValue::String(value) => value
+                .to_str()
+                .map(|value| LocalizedText::raw(value.to_string()))
+                .map_err(|error| {
+                    Error::Internal(anyhow!("{context}.{field} invalid string: {error}"))
+                }),
+            LuaValue::UserData(value) => value
+                .borrow::<LuaLocalizedText>()
+                .map(|value| value.0.clone())
+                .map_err(|_| {
+                    Error::Internal(anyhow!("{context}.{field} must be a string or tr() result"))
+                }),
+            other => Err(Error::Internal(anyhow!(
+                "{context}.{field} must be a string or tr() result, got {}",
+                other.type_name()
+            ))),
+        }
+    }
+
+    fn require_localized_text(tbl: &LuaTable, key: &str, context: &str) -> Result<LocalizedText> {
+        let value = tbl
+            .get::<LuaValue>(key)
+            .map_err(|error| Error::Internal(anyhow!("{context}.{key} required: {error}")))?;
+        let value = Self::localized_text(value, key, context)?;
+        if value.text().is_empty() {
+            return Err(Error::Internal(anyhow!(
+                "{context}.{key} must not be empty"
+            )));
+        }
+        Ok(value)
+    }
+
+    fn optional_localized_text(tbl: &LuaTable, key: &str, context: &str) -> Result<LocalizedText> {
+        let value = tbl
+            .get::<LuaValue>(key)
+            .map_err(|error| Error::Internal(anyhow!("{context}.{key}: {error}")))?;
+        Self::localized_text(value, key, context)
+    }
+
+    fn normalize_localized_value(
+        lua: &Lua,
+        value: LuaValue,
+        visited: &mut HashSet<usize>,
+    ) -> LuaResult<LuaValue> {
+        let LuaValue::Table(table) = value else {
+            if let LuaValue::UserData(value) = &value {
+                if let Ok(value) = value.borrow::<LuaLocalizedText>() {
+                    return lua.to_value(&value.0);
+                }
+            }
+            return Ok(value);
+        };
+
+        let pointer = table.to_pointer() as usize;
+        if !visited.insert(pointer) {
+            return Err(LuaError::SerializeError(
+                "recursive property schema table".to_string(),
+            ));
+        }
+
+        let normalized = lua.create_table()?;
+        for pair in table.pairs::<LuaValue, LuaValue>() {
+            let (key, value) = pair?;
+            if let (LuaValue::String(field), LuaValue::UserData(localized)) = (&key, &value) {
+                if let Ok(localized) = localized.borrow::<LuaLocalizedText>() {
+                    normalized.raw_set(key.clone(), localized.0.text().to_string())?;
+                    let field = field.to_str()?;
+                    normalized
+                        .raw_set(format!("localized_{field}"), lua.to_value(&localized.0)?)?;
+                    continue;
+                }
+            }
+            normalized.raw_set(
+                Self::normalize_localized_value(lua, key, visited)?,
+                Self::normalize_localized_value(lua, value, visited)?,
+            )?;
+        }
+        visited.remove(&pointer);
+        Ok(LuaValue::Table(normalized))
     }
 
     fn require_string(tbl: &LuaTable, key: &str, context: &str) -> Result<String> {
@@ -466,8 +585,8 @@ impl LuaPluginRuntime {
             })?;
             let context = format!("info().capabilities.discover.sorts[{}]", idx + 1);
             let key = Self::require_string(&sort, "key", &context)?;
-            let label = Self::require_string(&sort, "label", &context)?;
-            if key.is_empty() || label.is_empty() {
+            let label = Self::require_localized_text(&sort, "label", &context)?;
+            if key.is_empty() {
                 return Err(Error::Internal(anyhow!(
                     "{context}.key and {context}.label must not be empty"
                 )));
@@ -483,11 +602,11 @@ impl LuaPluginRuntime {
         }
         vec![DiscoverFilter {
             id: "tags".to_string(),
-            title: "Tags".to_string(),
+            title: LocalizedText::raw("Tags"),
             ty: DiscoverFilterType::MultiSelect,
             values: tags,
-            description: String::new(),
-            confirmation: String::new(),
+            description: LocalizedText::default(),
+            confirmation: LocalizedText::default(),
         }]
     }
 
@@ -510,8 +629,8 @@ impl LuaPluginRuntime {
             })?;
             let context = format!("info().capabilities.discover.filters[{}]", idx + 1);
             let id = Self::require_string(&filter, "id", &context)?;
-            let title = Self::require_string(&filter, "title", &context)?;
-            if id.is_empty() || title.is_empty() {
+            let title = Self::require_localized_text(&filter, "title", &context)?;
+            if id.is_empty() {
                 return Err(Error::Internal(anyhow!(
                     "{context}.id and {context}.title must not be empty"
                 )));
@@ -557,9 +676,9 @@ impl LuaPluginRuntime {
                 }
             }
 
-            let description = Self::optional_string(&filter, "description", &context)?;
-            let confirmation = Self::optional_string(&filter, "confirmation", &context)?;
-            if !confirmation.is_empty() && ty != DiscoverFilterType::Toggle {
+            let description = Self::optional_localized_text(&filter, "description", &context)?;
+            let confirmation = Self::optional_localized_text(&filter, "confirmation", &context)?;
+            if !confirmation.text().is_empty() && ty != DiscoverFilterType::Toggle {
                 return Err(Error::Internal(anyhow!(
                     "{context}.confirmation is only supported for toggle filters"
                 )));
@@ -743,12 +862,12 @@ impl LuaPluginRuntime {
                 }
                 Some(SourceCapability {
                     types,
-                    library_label: Self::optional_string(
+                    library_label: Self::optional_localized_text(
                         &source_tbl,
                         "library_label",
                         "info().capabilities.source",
                     )?,
-                    library_hint: Self::optional_string(
+                    library_hint: Self::optional_localized_text(
                         &source_tbl,
                         "library_hint",
                         "info().capabilities.source",
@@ -887,7 +1006,7 @@ impl LuaPluginRuntime {
                     supports_download,
                     supports_resolve,
                     remote,
-                    remote_hint: Self::optional_string(
+                    remote_hint: Self::optional_localized_text(
                         &discover_tbl,
                         "remote_hint",
                         "info().capabilities.discover",
@@ -991,9 +1110,9 @@ impl LuaPluginRuntime {
             }
         }
         let display_name = {
-            let dn = Self::optional_string(&info_table, "display_name", "info()")?;
-            if dn.is_empty() {
-                name.clone()
+            let dn = Self::optional_localized_text(&info_table, "display_name", "info()")?;
+            if dn.text().is_empty() {
+                LocalizedText::raw(name.clone())
             } else {
                 dn
             }
@@ -1062,13 +1181,13 @@ impl LuaPluginRuntime {
                 }
                 fields.push(SourceActionField {
                     key,
-                    label: Self::optional_string(&field, "label", "info().actions.fields")?,
-                    description: Self::optional_string(
+                    label: Self::optional_localized_text(&field, "label", "info().actions.fields")?,
+                    description: Self::optional_localized_text(
                         &field,
                         "description",
                         "info().actions.fields",
                     )?,
-                    placeholder: Self::optional_string(
+                    placeholder: Self::optional_localized_text(
                         &field,
                         "placeholder",
                         "info().actions.fields",
@@ -1094,19 +1213,28 @@ impl LuaPluginRuntime {
             }
             out.push(SourceAction {
                 id,
-                label: Self::optional_string(&entry, "label", "info().actions")?,
-                description: Self::optional_string(&entry, "description", "info().actions")?,
-                browse_description: Self::optional_string(
+                label: Self::optional_localized_text(&entry, "label", "info().actions")?,
+                description: Self::optional_localized_text(
+                    &entry,
+                    "description",
+                    "info().actions",
+                )?,
+                browse_description: Self::optional_localized_text(
                     &entry,
                     "browse_description",
                     "info().actions",
                 )?,
-                browse_button_label: Self::optional_string(
+                browse_button_label: Self::optional_localized_text(
                     &entry,
                     "browse_button_label",
                     "info().actions",
                 )?,
                 group: Self::optional_string(&entry, "group", "info().actions")?,
+                group_label: Self::optional_localized_text(
+                    &entry,
+                    "group_label",
+                    "info().actions",
+                )?,
                 order: entry
                     .get::<Option<i32>>("order")
                     .unwrap_or(None)
@@ -1213,8 +1341,9 @@ impl LuaPluginRuntime {
             }
             out.push(SourceStatus {
                 id,
-                label: Self::optional_string(&entry, "label", "info().status")?,
+                label: Self::optional_localized_text(&entry, "label", "info().status")?,
                 group: Self::optional_string(&entry, "group", "info().status")?,
+                group_label: Self::optional_localized_text(&entry, "group_label", "info().status")?,
                 order: entry
                     .get::<Option<i32>>("order")
                     .unwrap_or(None)
@@ -1313,9 +1442,10 @@ impl LuaPluginRuntime {
                 key,
                 ty,
                 default,
-                label: Self::optional_string(&s, "label", "info().settings")?,
-                description: Self::optional_string(&s, "description", "info().settings")?,
+                label: Self::optional_localized_text(&s, "label", "info().settings")?,
+                description: Self::optional_localized_text(&s, "description", "info().settings")?,
                 group: Self::optional_string(&s, "group", "info().settings")?,
+                group_label: Self::optional_localized_text(&s, "group_label", "info().settings")?,
                 order,
                 choices,
             });
@@ -1340,7 +1470,7 @@ impl LuaPluginRuntime {
         let source = std::fs::read_to_string(path)
             .map_err(|e| Error::Internal(anyhow!("read {}: {e}", path.display())))?;
         let root = path.parent().unwrap_or_else(|| Path::new("."));
-        let env = self.plugin_lua_env(root)?;
+        let env = self.plugin_lua_env(root, plugin_id)?;
         let module: LuaTable = {
             let _deadline = self.arm_callback_deadline()?;
             self.lua
@@ -2103,7 +2233,11 @@ impl LuaPluginRuntime {
         let result = match result {
             mlua::Value::Nil => None,
             mlua::Value::String(s) => Some(s.to_str()?.to_string()),
-            other => mlua_extra::json::encode(&other),
+            other => {
+                let normalized =
+                    Self::normalize_localized_value(&self.lua, other, &mut HashSet::new())?;
+                mlua_extra::json::encode(&normalized)
+            }
         };
         self.persist_state(plugin_name)?;
         Ok(result)

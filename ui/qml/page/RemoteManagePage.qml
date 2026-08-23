@@ -6,7 +6,7 @@ import waywallen.ui as W
 
 MD.Page {
     id: root
-    title: qsTr("Manage %1").arg(displayName.length > 0 ? displayName : sourceId)
+    title: qsTr("Manage %1").arg(W.I18n.tr(displayNameText) || displayName || sourceId)
     showHeader: true
     showBackground: false
     padding: 0
@@ -14,6 +14,7 @@ MD.Page {
 
     required property string sourceId
     property string displayName: ""
+    property var displayNameText: ({})
     property var schemaList: []
     property var actionList: []
     property var statusList: []
@@ -28,9 +29,9 @@ MD.Page {
     readonly property bool hasContent: hasAccountControls || schemaList.length > 0
     readonly property string accountGroup: {
         if (statusList.length > 0 && statusList[0].group)
-            return statusList[0].group;
+            return W.I18n.tr(statusList[0].groupLabel) || statusList[0].group;
         if (actionList.length > 0 && actionList[0].group)
-            return actionList[0].group;
+            return W.I18n.tr(actionList[0].groupLabel) || actionList[0].group;
         return qsTr("Login");
     }
 
@@ -38,20 +39,26 @@ MD.Page {
         const buckets = {};
         for (let i = 0; i < schemaList.length; ++i) {
             const schema = schemaList[i];
-            const group = schema.group && schema.group.length > 0 ? schema.group : qsTr("General");
-            if (!buckets[group])
-                buckets[group] = [];
-            buckets[group].push(schema);
+            const localizedGroup = schema.group_label || ({});
+            const key = schema.group && schema.group.length > 0 ? schema.group : "";
+            if (!buckets[key]) {
+                buckets[key] = {
+                    label: W.I18n.tr(localizedGroup) || schema.group || qsTr("General"),
+                    items: []
+                };
+            }
+            buckets[key].items.push(schema);
         }
         const groups = Object.keys(buckets).sort();
         const flattened = [];
         for (let i = 0; i < groups.length; ++i) {
             const group = groups[i];
-            const items = buckets[group];
+            const bucket = buckets[group];
+            const items = bucket.items;
             items.sort((a, b) => (a.order || 0) - (b.order || 0));
             for (let j = 0; j < items.length; ++j) {
                 flattened.push({
-                    group: group,
+                    group: bucket.label,
                     schema: items[j],
                     first: j === 0,
                     last: j === items.length - 1
@@ -74,7 +81,8 @@ MD.Page {
         const source = sourceFromAvailability();
         if (!source)
             return;
-        displayName = source.displayName && source.displayName.length > 0 ? source.displayName : (source.name || sourceId);
+        displayName = source.displayName || source.name || sourceId;
+        displayNameText = source.displayNameText || ({});
         schemaList = source.settings || [];
         actionList = source.actions || [];
         statusList = source.status || [];
@@ -265,7 +273,7 @@ MD.Page {
                                 spacing: 12
 
                                 MD.Text {
-                                    text: statusRow.modelData.label
+                                    text: W.I18n.tr(statusRow.modelData.labelText)
                                     color: MD.Token.color.on_surface_variant
                                     typescale: MD.Token.typescale.body_medium
                                 }
@@ -311,15 +319,15 @@ MD.Page {
 
                                     MD.Text {
                                         Layout.fillWidth: true
-                                        visible: String(actionItem.modelData.description || "").length > 0
-                                        text: actionItem.modelData.description || ""
+                                        visible: text.length > 0
+                                        text: W.I18n.tr(actionItem.modelData.descriptionText)
                                         typescale: MD.Token.typescale.body_medium
                                         color: MD.Token.color.on_surface_variant
                                         wrapMode: Text.WordWrap
                                     }
 
                                     MD.Button {
-                                        text: actionItem.modelData.label
+                                        text: W.I18n.tr(actionItem.modelData.labelText)
                                         enabled: !actionQuery.querying
                                             && (actionItem.modelData.enabled === undefined
                                                 || actionItem.modelData.enabled)

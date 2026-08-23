@@ -37,6 +37,8 @@ sources = [
   "src/msg/store.cppm",
   "src/notify.cpp",
   "src/notify.cppm",
+  "src/plugin_translation.cpp",
+  "src/plugin_translation.cppm",
   "src/objmodel/display.cpp",
   "src/objmodel/display.cppm",
   "src/objmodel/gpu.cpp",
@@ -116,6 +118,10 @@ visibility = "private"
 
 [dependencies.rstd-cppstd]
 workspace = true
+visibility = "private"
+
+[dependencies.waywallen-plugin-i18n]
+path = "../tools/i18n/po"
 visibility = "private"
 
 [dependencies.ncrequest]

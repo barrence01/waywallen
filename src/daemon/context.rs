@@ -17,6 +17,8 @@ pub(crate) struct DaemonContext {
     pub(crate) plugin_update_check: tokio::sync::Mutex<()>,
     pub(crate) plugin_roots: Arc<Vec<plugin::renderer_registry::PluginRoot>>,
     pub(crate) source_plugins: Arc<tokio::sync::RwLock<Vec<plugin::source::SourcePluginInfo>>>,
+    pub(crate) plugin_translations:
+        Arc<tokio::sync::RwLock<plugin::i18n::PluginTranslationSnapshot>>,
     pub(crate) plugin_mutation: tokio::sync::Mutex<()>,
     pub(crate) autostart: system::autostart::AutostartService,
     pub(crate) router: Arc<routing::Router>,

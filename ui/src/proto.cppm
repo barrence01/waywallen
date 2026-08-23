@@ -15,6 +15,7 @@ using proto::DisplayRemoved;
 using proto::DisplaySnapshot;
 using proto::Empty;
 using proto::Event;
+using proto::PluginMessage;
 using proto::Request;
 using proto::Response;
 using proto::ServerFrame;
@@ -156,6 +157,9 @@ using proto::PluginInstallRequest;
 using proto::PluginInstallResponse;
 using proto::PluginListRequest;
 using proto::PluginListResponse;
+using proto::PluginTranslationDocument;
+using proto::PluginTranslationListRequest;
+using proto::PluginTranslationListResponse;
 using proto::PluginUpdateCheckRequest;
 using proto::PluginUpdateCheckResponse;
 using proto::PluginUpdateInfo;
@@ -244,6 +248,8 @@ using proto::WallpaperSortKeyGadget::WallpaperSortKey;
 export namespace waywallen
 {
 auto presentationTargetsFromVariant(const QVariantList& values) -> QList<proto::PresentationTarget>;
+auto pluginMessageFromPb(const proto::PluginMessage& message, const QString& fallback = {})
+    -> QVariant;
 auto runtimeConditionsFromPb(const QList<proto::RuntimeCondition>& conditions) -> QVariantList;
 auto runtimeTagsFromPb(const QList<proto::RendererRuntimeTag>& tags) -> QVariantList;
 } // namespace waywallen

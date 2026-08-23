@@ -5,10 +5,8 @@ import QtQuick.Layouts
 import Qcm.Material as MD
 import waywallen.ui as W
 
-// Renders one schema-driven control. The schema dict comes verbatim
-// from `RendererPluginListQuery.renderers[i].settings[j]`; we never
-// resolve `label_key`/`description_key` (no i18n yet) and fall back to
-// a snake_case → Title Case transform of `key`.
+// Renders one schema-driven control. The schema dict comes from
+// `RendererPluginListQuery.renderers[i].settings[j]`.
 ColumnLayout {
     id: root
 
@@ -30,6 +28,9 @@ ColumnLayout {
     readonly property int kI32: 5
 
     readonly property string label: {
+        const translated = W.I18n.tr(schema.label);
+        if (translated.length > 0)
+            return translated;
         const sk = schema.label_key || "";
         if (sk.length > 0)
             return sk;
@@ -41,7 +42,10 @@ ColumnLayout {
         }).join(" ");
     }
 
-    readonly property string description: schema.description_key || ""
+    readonly property string description: {
+        const translated = W.I18n.tr(schema.description);
+        return translated.length > 0 ? translated : (schema.description_key || "");
+    }
     // Bare http(s) URLs in the description become clickable links
     readonly property string descriptionHtml: {
         const c = String(MD.Token.color.primary);

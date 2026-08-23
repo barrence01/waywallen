@@ -822,17 +822,39 @@ pub(super) async fn dispatch_inner(
                     name: p.name,
                     types: p.types,
                     version: p.version,
-                    library_label: p.library_label,
-                    library_hint: p.library_hint,
+                    library_label: p.library_label.text().to_string(),
+                    library_hint: p.library_hint.text().to_string(),
                     plugin_id: p.plugin_id,
                     settings: p
                         .settings
                         .iter()
                         .map(crate::control_proto::source_setting_to_proto)
                         .collect(),
+                    library_label_text: crate::control_proto::plugin_message_to_proto(
+                        &p.library_label,
+                    ),
+                    library_hint_text: crate::control_proto::plugin_message_to_proto(
+                        &p.library_hint,
+                    ),
                 })
                 .collect();
             Res::SourceList(pb::SourceListResponse { sources })
+        }
+
+        Req::PluginTranslationList(_) => {
+            let translations = state.plugin_translations.read().await;
+            Res::PluginTranslationList(pb::PluginTranslationListResponse {
+                generation: translations.generation,
+                documents: translations
+                    .documents
+                    .iter()
+                    .map(|document| pb::PluginTranslationDocument {
+                        plugin_id: document.plugin_id.clone(),
+                        locale: document.locale.clone(),
+                        po: document.po.clone(),
+                    })
+                    .collect(),
+            })
         }
 
         Req::DisplayList(_) => {
@@ -1244,25 +1266,28 @@ pub(super) async fn dispatch_inner(
                                 .into_iter()
                                 .map(|sort| pb::RemoteSortOption {
                                     key: sort.key,
-                                    label: sort.label,
+                                    label: sort.label.text().to_string(),
+                                    label_text: crate::control_proto::plugin_message_to_proto(
+                                        &sort.label,
+                                    ),
                                 })
                                 .collect(),
                             tags,
                             content_dir,
                             owner_plugin_id: s.owner_plugin_id,
                             settings,
-                            display_name: s.display_name,
+                            display_name: s.display_name.text().to_string(),
                             actions,
                             status,
                             remote_capability: remote_capability as i32,
-                            remote_hint: s.remote_hint,
+                            remote_hint: s.remote_hint.text().to_string(),
                             avatar_url: s.avatar_url,
                             filters: s
                                 .filters
                                 .into_iter()
                                 .map(|filter| pb::RemoteFilterDef {
                                     id: filter.id,
-                                    title: filter.title,
+                                    title: filter.title.text().to_string(),
                                     r#type: match filter.ty {
                                         crate::plugin::source::DiscoverFilterType::Select => {
                                             pb::RemoteFilterType::Select as i32
@@ -1275,10 +1300,26 @@ pub(super) async fn dispatch_inner(
                                         }
                                     },
                                     values: filter.values,
-                                    description: filter.description,
-                                    confirmation: filter.confirmation,
+                                    description: filter.description.text().to_string(),
+                                    confirmation: filter.confirmation.text().to_string(),
+                                    title_text: crate::control_proto::plugin_message_to_proto(
+                                        &filter.title,
+                                    ),
+                                    description_text: crate::control_proto::plugin_message_to_proto(
+                                        &filter.description,
+                                    ),
+                                    confirmation_text:
+                                        crate::control_proto::plugin_message_to_proto(
+                                            &filter.confirmation,
+                                        ),
                                 })
                                 .collect(),
+                            display_name_text: crate::control_proto::plugin_message_to_proto(
+                                &s.display_name,
+                            ),
+                            remote_hint_text: crate::control_proto::plugin_message_to_proto(
+                                &s.remote_hint,
+                            ),
                         }
                     })
                     .collect(),

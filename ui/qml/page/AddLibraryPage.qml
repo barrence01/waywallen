@@ -105,8 +105,9 @@ MD.Page {
                     id: pathInput
                     Layout.fillWidth: true
                     mdState.size: MD.Enum.S
-                    placeholderText: (root.selectedSource && root.selectedSource.libraryLabel)
-                                     ? root.selectedSource.libraryLabel
+                    placeholderText: root.selectedSource
+                                     ? (W.I18n.tr(root.selectedSource.libraryLabelText)
+                                        || qsTr("Library Path"))
                                      : qsTr("Library Path")
                 }
 
@@ -119,9 +120,8 @@ MD.Page {
 
             MD.Text {
                 Layout.fillWidth: true
-                visible: root.selectedSource && root.selectedSource.libraryHint
-                         && root.selectedSource.libraryHint.length > 0
-                text: root.selectedSource ? (root.selectedSource.libraryHint || "") : ""
+                visible: text.length > 0
+                text: root.selectedSource ? W.I18n.tr(root.selectedSource.libraryHintText) : ""
                 wrapMode: Text.WordWrap
                 typescale: MD.Token.typescale.body_small
                 color: MD.Token.color.on_surface_variant

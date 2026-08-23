@@ -6,12 +6,15 @@ members = [
   "plugins/org.waywallen.image",
   "plugins/org.waywallen.video",
   "plugins/org.waywallen.wallhaven",
+  "tools/i18n",
+  "tools/i18n/po",
   "ui",
 ]
 default-members = [
   "plugins/org.waywallen.image",
   "plugins/org.waywallen.video",
   "plugins/org.waywallen.wallhaven",
+  "tools/i18n",
   "ui",
 ]
 
@@ -38,6 +41,12 @@ git = "https://github.com/litocpp/rstd.git"
 
 [workspace.dependencies.rstd-log]
 git = "https://github.com/litocpp/rstd.git"
+
+[workspace.dependencies.rstd-toml]
+git = "https://github.com/litocpp/rstd.git"
+
+[workspace.dependencies.luato]
+git = "https://github.com/litocpp/luato.git"
 
 [workspace.dependencies.vvk]
 git = "https://github.com/litocpp/vvk.git"

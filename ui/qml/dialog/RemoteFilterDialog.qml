@@ -122,7 +122,7 @@ MD.Dialog {
             setFilterValues(filter, []);
             return;
         }
-        const confirmation = String(filter.confirmation ?? "");
+        const confirmation = W.I18n.tr(filter.confirmationText);
         if (confirmation.length > 0) {
             confirmationFilter = filter;
             m_confirm.open();
@@ -138,7 +138,7 @@ MD.Dialog {
         id: valueDialogComponent
 
         W.TagPickerDialog {
-            dialogTitle: root.activeFilter ? String(root.activeFilter.title ?? "") : qsTr("Select values")
+            dialogTitle: root.activeFilter ? W.I18n.tr(root.activeFilter.titleText) : qsTr("Select values")
             allTags: root.filterValues(root.activeFilter)
             selected: root.selectedFor(root.activeFilter)
             onCommit: function (values) {
@@ -183,13 +183,13 @@ MD.Dialog {
                         visible: filterRow.filterType === 1
 
                         MD.Label {
-                            text: String(filterRow.modelData.title ?? "")
+                            text: W.I18n.tr(filterRow.modelData.titleText)
                             typescale: MD.Token.typescale.title_small
                         }
                         MD.Label {
                             Layout.fillWidth: true
                             visible: text.length > 0
-                            text: String(filterRow.modelData.description ?? "")
+                            text: W.I18n.tr(filterRow.modelData.descriptionText)
                             typescale: MD.Token.typescale.body_small
                             color: MD.Token.color.on_surface_variant
                             wrapMode: Text.WordWrap
@@ -216,7 +216,7 @@ MD.Dialog {
                             Layout.fillWidth: true
                             MD.Label {
                                 Layout.fillWidth: true
-                                text: String(filterRow.modelData.title ?? "")
+                                text: W.I18n.tr(filterRow.modelData.titleText)
                                 typescale: MD.Token.typescale.title_small
                             }
                             MD.IconButton {
@@ -228,7 +228,7 @@ MD.Dialog {
                         MD.Label {
                             Layout.fillWidth: true
                             visible: text.length > 0
-                            text: String(filterRow.modelData.description ?? "")
+                            text: W.I18n.tr(filterRow.modelData.descriptionText)
                             typescale: MD.Token.typescale.body_small
                             color: MD.Token.color.on_surface_variant
                             wrapMode: Text.WordWrap
@@ -273,13 +273,13 @@ MD.Dialog {
                             Layout.fillWidth: true
                             spacing: 2
                             MD.Label {
-                                text: String(filterRow.modelData.title ?? "")
+                                text: W.I18n.tr(filterRow.modelData.titleText)
                                 typescale: MD.Token.typescale.title_small
                             }
                             MD.Label {
                                 Layout.fillWidth: true
                                 visible: text.length > 0
-                                text: String(filterRow.modelData.description ?? "")
+                                text: W.I18n.tr(filterRow.modelData.descriptionText)
                                 typescale: MD.Token.typescale.body_small
                                 color: MD.Token.color.on_surface_variant
                                 wrapMode: Text.WordWrap
@@ -302,7 +302,7 @@ MD.Dialog {
 
     MD.Dialog {
         id: m_confirm
-        title: root.confirmationFilter ? String(root.confirmationFilter.title ?? "") : ""
+        title: root.confirmationFilter ? W.I18n.tr(root.confirmationFilter.titleText) : ""
         modal: true
         anchors.centerIn: T.Overlay.overlay
         standardButtons: T.Dialog.Cancel | T.Dialog.Ok
@@ -313,7 +313,7 @@ MD.Dialog {
         onRejected: root.confirmationFilter = null
 
         contentItem: MD.Label {
-            text: root.confirmationFilter ? String(root.confirmationFilter.confirmation ?? "") : ""
+            text: root.confirmationFilter ? W.I18n.tr(root.confirmationFilter.confirmationText) : ""
             wrapMode: Text.WordWrap
         }
     }

@@ -93,20 +93,22 @@ public:
 
 private:
     struct Entry {
-        QString     key;
-        QString     label;
-        QString     type;
-        QString     section;
-        QString     kind;
-        bool        supported { false };
-        double      min_val { 0.0 };
-        double      max_val { 1.0 };
-        double      step_val { 0.0 };
-        QString     value_suffix;
-        QString     default_wire;
-        QStringList option_labels;
-        QStringList option_values;
-        double      order { 0.0 };
+        QString      key;
+        QString      label;
+        QVariant     localized_label;
+        QString      type;
+        QString      section;
+        QString      kind;
+        bool         supported { false };
+        double       min_val { 0.0 };
+        double       max_val { 1.0 };
+        double       step_val { 0.0 };
+        QString      value_suffix;
+        QString      default_wire;
+        QStringList  option_labels;
+        QVariantList localized_option_labels;
+        QStringList  option_values;
+        double       order { 0.0 };
     };
 
     void    rebuildEntries_();

@@ -1,4 +1,5 @@
 pub mod display_registry;
+pub mod i18n;
 pub mod installer;
 pub(crate) mod qr_login;
 pub mod renderer_registry;

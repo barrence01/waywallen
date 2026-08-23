@@ -40,6 +40,9 @@ void SourceListQuery::reload() {
                 m[u"version"_s]      = s.version();
                 m[u"libraryLabel"_s] = s.libraryLabel();
                 m[u"libraryHint"_s]  = s.libraryHint();
+                m[u"libraryLabelText"_s] =
+                    pluginMessageFromPb(s.libraryLabelText(), s.libraryLabel());
+                m[u"libraryHintText"_s] = pluginMessageFromPb(s.libraryHintText(), s.libraryHint());
                 QStringList types;
                 for (const auto& t : s.types()) {
                     types.append(t);
@@ -56,9 +59,13 @@ void SourceListQuery::reload() {
                     sm[u"identity"_s]        = ss.identity();
                     sm[u"label_key"_s]       = ss.labelKey();
                     sm[u"description_key"_s] = ss.descriptionKey();
-                    sm[u"min"_s]             = ss.min();
-                    sm[u"max"_s]             = ss.max();
-                    sm[u"step"_s]            = ss.step();
+                    sm[u"label"_s]           = pluginMessageFromPb(ss.label(), ss.labelKey());
+                    sm[u"description"_s] =
+                        pluginMessageFromPb(ss.description(), ss.descriptionKey());
+                    sm[u"group_label"_s] = pluginMessageFromPb(ss.groupLabel(), ss.group());
+                    sm[u"min"_s]         = ss.min();
+                    sm[u"max"_s]         = ss.max();
+                    sm[u"step"_s]        = ss.step();
                     QStringList choices;
                     for (const auto& c : ss.choices()) {
                         choices.append(c);

@@ -1,0 +1,62 @@
+msgid ""
+msgstr "Project-Id-Version: org.waywallen.video 0.3.5\nLanguage: zh-CN\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+#: main.lua:15
+msgid "A directory containing video files. Subdirectories up to two levels deep are also scanned. Supported formats: MP4, MKV, WebM, MOV, AVI, and other common containers."
+msgstr "包含视频文件的目录。同时扫描最多两级子目录。支持格式：MP4、MKV、WebM、MOV、AVI 及其他常见容器格式。"
+
+#: plugin.toml
+msgid "Audio"
+msgstr "音频"
+
+#: plugin.toml
+msgid "Decoding"
+msgstr "解码"
+
+#: plugin.toml video/wallpaper.lua:11
+msgid "Enable audio"
+msgstr "启用音频"
+
+#: plugin.toml
+msgid "Frame rate"
+msgstr "帧率"
+
+#: plugin.toml
+msgid "Hardware decoding"
+msgstr "硬件解码"
+
+#: plugin.toml
+msgid "Loop playback"
+msgstr "循环播放"
+
+#: plugin.toml
+msgid "Playback"
+msgstr "播放"
+
+#: video/wallpaper.lua:16
+msgid "Playback speed"
+msgstr "播放速度"
+
+#: plugin.toml
+msgid "Render node"
+msgstr "渲染节点"
+
+#: plugin.toml
+msgid "Rendering"
+msgstr "渲染"
+
+#: plugin.toml
+msgid "Resolution"
+msgstr "分辨率"
+
+#: video/wallpaper.lua:6
+msgid "Scheme color"
+msgstr "配色"
+
+#: main.lua:14
+msgid "Video Folder"
+msgstr "视频文件夹"
+
+#: plugin.toml
+msgid "Volume"
+msgstr "音量"

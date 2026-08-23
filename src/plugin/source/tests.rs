@@ -465,6 +465,208 @@ return M
 }
 
 #[test]
+fn localized_text_keeps_owning_plugin_across_imports_and_properties() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("helpers")).unwrap();
+    std::fs::write(
+        dir.path().join("helpers/text.lua"),
+        r#"
+local M = {}
+function M.library_label()
+    return tr("Test Library")
+end
+return M
+"#,
+    )
+    .unwrap();
+    let plugin_path = dir.path().join("main.lua");
+    std::fs::write(
+        &plugin_path,
+        r#"
+local text = import("helpers.text")
+local M = {}
+function M.info()
+    return {
+        name = "localized",
+        settings = {
+            {
+                key = "enabled",
+                type = "bool",
+                default = true,
+                label = tr("Enabled"),
+                group = "general",
+                group_label = tr("General"),
+            },
+        },
+        capabilities = {
+            source = {
+                types = {"image"},
+                scan = true,
+                library_label = text.library_label(),
+                library_hint = "Choose a directory",
+            },
+            wallpaper = { properties = true },
+        },
+    }
+end
+M.source = {}
+function M.source.scan(ctx)
+    return {}
+end
+M.wallpaper = {}
+function M.wallpaper.properties()
+    return {
+        mode = {
+            text = tr("Mode"),
+            type = "combo",
+            value = "one",
+            options = {
+                { label = tr("One"), value = "one" },
+            },
+        },
+    }
+end
+return M
+"#,
+    )
+    .unwrap();
+
+    let manager = SourceManager::new().unwrap();
+    manager
+        .load_plugin(&plugin_path, "org.test.localized", "1.0", ENTRY_VERSION_V3)
+        .unwrap();
+
+    let plugins = manager.plugins().unwrap();
+    assert_eq!(plugins.len(), 1);
+    assert_eq!(plugins[0].library_label.text(), "Test Library");
+    assert_eq!(
+        plugins[0].library_label.message().unwrap().plugin_id,
+        "org.test.localized"
+    );
+    assert_eq!(plugins[0].library_hint.text(), "Choose a directory");
+    assert!(plugins[0].library_hint.message().is_none());
+    assert_eq!(plugins[0].settings[0].label.text(), "Enabled");
+    assert_eq!(
+        plugins[0].settings[0].label.message().unwrap().plugin_id,
+        "org.test.localized"
+    );
+    assert_eq!(plugins[0].settings[0].group, "general");
+    assert_eq!(plugins[0].settings[0].group_label.text(), "General");
+    assert_eq!(
+        plugins[0].settings[0]
+            .group_label
+            .message()
+            .unwrap()
+            .plugin_id,
+        "org.test.localized"
+    );
+
+    let entry: WallpaperEntry = serde_json::from_value(serde_json::json!({
+        "name": "Wallpaper",
+        "wp_type": "image",
+        "resource": "/tmp/wallpaper.png",
+        "preview": null
+    }))
+    .unwrap();
+    let json = block_value(async { manager.call_properties("localized", &entry).await })
+        .unwrap()
+        .unwrap();
+    let properties: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(properties["mode"]["text"], "Mode");
+    assert_eq!(
+        properties["mode"]["localized_text"]["pluginId"],
+        "org.test.localized"
+    );
+    assert_eq!(properties["mode"]["localized_text"]["msgid"], "Mode");
+    assert_eq!(properties["mode"]["options"][0]["label"], "One");
+    assert_eq!(
+        properties["mode"]["options"][0]["localized_label"]["msgid"],
+        "One"
+    );
+}
+
+#[test]
+fn tr_rejects_invalid_runtime_arguments() {
+    let dir = tempfile::tempdir().unwrap();
+    let plugin_path = dir.path().join("main.lua");
+    for expression in [
+        r#"tr("Message", "extra")"#,
+        r#"tr()"#,
+        r#"tr({})"#,
+        r#"tr("")"#,
+    ] {
+        std::fs::write(
+            &plugin_path,
+            format!(
+                r#"
+local M = {{}}
+function M.info()
+    return {{
+        name = "invalid_tr",
+        display_name = {expression},
+        capabilities = {{}},
+    }}
+end
+return M
+"#
+            ),
+        )
+        .unwrap();
+        assert!(SourceManager::new()
+            .unwrap()
+            .load_plugin(&plugin_path, "org.test.invalid-tr", "1.0", ENTRY_VERSION_V3,)
+            .is_err());
+    }
+}
+
+#[test]
+fn plugin_messages_are_namespaced_by_the_owning_vm() {
+    let dir = tempfile::tempdir().unwrap();
+    let manager = SourceManager::new().unwrap();
+    for (name, plugin_id) in [("first", "org.test.first"), ("second", "org.test.second")] {
+        let root = dir.path().join(name);
+        std::fs::create_dir(&root).unwrap();
+        let entry = root.join("main.lua");
+        std::fs::write(
+            &entry,
+            format!(
+                r#"
+local M = {{}}
+function M.info()
+    return {{
+        name = "{name}",
+        capabilities = {{
+            source = {{
+                types = {{"image"}},
+                scan = true,
+                library_label = tr("Status"),
+            }},
+        }},
+    }}
+end
+M.source = {{}}
+function M.source.scan(ctx) return {{}} end
+return M
+"#
+            ),
+        )
+        .unwrap();
+        manager
+            .load_plugin(&entry, plugin_id, "1.0", ENTRY_VERSION_V3)
+            .unwrap();
+    }
+
+    let mut plugins = manager.plugins().unwrap();
+    plugins.sort_by(|left, right| left.name.cmp(&right.name));
+    let first = plugins[0].library_label.message().unwrap();
+    let second = plugins[1].library_label.message().unwrap();
+    assert_eq!(first.msgid, "Status");
+    assert_eq!(second.msgid, "Status");
+    assert_eq!(first.plugin_id, "org.test.first");
+    assert_eq!(second.plugin_id, "org.test.second");
+}
+
+#[test]
 fn source_item_remove_works_without_scan_capability() {
     let dir = tempfile::tempdir().unwrap();
     let item_path = dir.path().join("wallpaper.png");
@@ -676,7 +878,7 @@ fn wallhaven_plugin_supports_optional_api_key_login() {
     let runtime = mgr.test_runtime("wallhaven");
     let runtime = runtime.blocking_lock();
     let env = runtime
-        .plugin_lua_env(plugin_path.parent().unwrap())
+        .plugin_lua_env(plugin_path.parent().unwrap(), "org.waywallen.test")
         .unwrap();
     let import: LuaFunction = env.get("import").unwrap();
     let api: LuaTable = import.call("wallhaven.api").unwrap();
@@ -1109,13 +1311,17 @@ return M
     let sources = block_value(async { manager.discover_sources_with_status().await }).unwrap();
     assert_eq!(sources[0].status[0].value, "migrated");
     assert_eq!(sources[0].avatar_url, "https://example.invalid/avatar.png");
-    assert_eq!(sources[0].actions[0].label, "Log in");
-    assert_eq!(sources[0].actions[0].description, "Open the account app");
-    assert_eq!(sources[0].actions[0].browse_button_label, "Continue");
+    assert_eq!(sources[0].actions[0].label.text(), "Log in");
     assert_eq!(
-        sources[0].actions[0].browse_description,
+        sources[0].actions[0].description.text(),
+        "Open the account app"
+    );
+    assert_eq!(sources[0].actions[0].browse_button_label.text(), "Continue");
+    assert_eq!(
+        sources[0].actions[0].browse_description.text(),
         "Log in to browse this source"
     );
+    assert!(sources[0].actions[0].label.message().is_none());
     assert!(sources[0].actions[0].visible);
     assert!(!sources[0].actions[1].visible);
     assert_eq!(sources[0].actions[2].fields[0].key, "alias");

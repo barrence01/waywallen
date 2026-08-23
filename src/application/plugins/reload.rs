@@ -123,11 +123,20 @@ pub(super) async fn apply_scan(
 ) -> Result<Vec<PluginPackageMeta>> {
     let registry = registry_from_scan(&scan);
     let packages = scan.packages();
+    let translation_documents = scan.translation_documents().map_err(|error| {
+        Error::PluginInstallFailed(format!("load plugin translations: {error}"))
+    })?;
 
+    reload_source_entries(app, scan.entries, installed_plugin_id).await?;
     app.renderer_manager.replace_registry(registry.clone());
     *app.plugins.write().await = packages.clone();
     *app.inactive_system.write().await = scan.inactive_system.clone();
     *app.inactive_user.write().await = scan.inactive_user.clone();
+    {
+        let mut translations = app.plugin_translations.write().await;
+        translations.generation = translations.generation.saturating_add(1);
+        translations.documents = translation_documents;
+    }
     app.plugin_updates.write().await.remove(installed_plugin_id);
 
     if app.settings.reconcile(&registry) {
@@ -136,7 +145,6 @@ pub(super) async fn apply_scan(
         app.settings.flush_now().await;
     }
 
-    reload_source_entries(app, scan.entries, installed_plugin_id).await?;
     app.events.publish(GlobalEvent::PluginChanged);
     Ok(packages)
 }

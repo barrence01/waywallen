@@ -52,7 +52,7 @@ MD.Page {
 
     function sourceName(id) {
         const s = sourceInfo(id);
-        return s ? (s.displayName && s.displayName.length > 0 ? s.displayName : s.name) : "";
+        return s ? (W.I18n.tr(s.displayNameText) || s.name) : "";
     }
 
     function sourceFilters(id) {
@@ -67,7 +67,7 @@ MD.Page {
 
     function sourceRemoteHint(id) {
         const s = sourceInfo(id);
-        return s ? String(s.remoteHint ?? "") : "";
+        return s ? W.I18n.tr(s.remoteHintText) : "";
     }
 
     function sameList(a, b) {
@@ -100,7 +100,7 @@ MD.Page {
     function sortLabel() {
         if (sortOptions.length === 0)
             return qsTr("Sort");
-        return sortOptions[Math.max(0, Math.min(sortIndex, sortOptions.length - 1))].label;
+        return W.I18n.tr(sortOptions[Math.max(0, Math.min(sortIndex, sortOptions.length - 1))].labelText);
     }
 
     function tweakSettingsCategory(id) {
@@ -331,7 +331,7 @@ MD.Page {
             source: 'waywallen.ui/RemoteManagePage',
             props: {
                 sourceId: c.id,
-                displayName: (c.displayName && c.displayName.length > 0) ? c.displayName : (c.name || c.id)
+                displayName: W.I18n.tr(c.displayNameText) || c.name || c.id
             }
         });
     }
@@ -457,7 +457,7 @@ MD.Page {
                             model: availabilityQuery.sources
                             contentDelegate: MD.MenuItem {
                                 required property var modelData
-                                text: modelData.displayName && modelData.displayName.length > 0 ? modelData.displayName : modelData.name
+                                text: W.I18n.tr(modelData.displayNameText) || modelData.name
                                 icon.name: modelData.id === root.sourceId ? MD.Token.icon.check : ' '
                                 onClicked: {
                                     root.setSource(modelData.id);
@@ -483,7 +483,7 @@ MD.Page {
                             contentDelegate: MD.MenuItem {
                                 required property var modelData
                                 required property int index
-                                text: modelData.label
+                                text: W.I18n.tr(modelData.labelText)
                                 icon.name: index === root.sortIndex ? MD.Token.icon.check : ' '
                                 onClicked: {
                                     root.pickSort(index);
@@ -579,18 +579,18 @@ MD.Page {
                         readonly property var loginAction: root.currentSourceLoginAction()
                         readonly property bool needsLogin: loginAction !== null
                         readonly property string loginLabel: {
-                            const label = loginAction ? String(loginAction.label ?? "").trim() : "";
+                            const label = loginAction ? W.I18n.tr(loginAction.labelText).trim() : "";
                             return label.length > 0 ? label : qsTr("Log in to %1").arg(root.sourceName(root.sourceId));
                         }
                         readonly property string loginDescription: {
-                            const browseDescription = loginAction ? String(loginAction.browseDescription ?? "").trim() : "";
+                            const browseDescription = loginAction ? W.I18n.tr(loginAction.browseDescriptionText).trim() : "";
                             if (browseDescription.length > 0)
                                 return browseDescription;
-                            const description = loginAction ? String(loginAction.description ?? "").trim() : "";
+                            const description = loginAction ? W.I18n.tr(loginAction.descriptionText).trim() : "";
                             return description.length > 0 ? description : qsTr("Log in to start browsing.");
                         }
                         readonly property string loginButtonLabel: {
-                            const label = loginAction ? String(loginAction.browseButtonLabel ?? "").trim() : "";
+                            const label = loginAction ? W.I18n.tr(loginAction.browseButtonLabelText).trim() : "";
                             return label.length > 0 ? label : qsTr("Log in");
                         }
 

@@ -45,8 +45,9 @@ void RemoteAvailabilityQuery::reload() {
                 sorts.reserve(src.sorts().size());
                 for (const auto& sort : src.sorts()) {
                     QVariantMap sm;
-                    sm[u"key"_s]   = sort.key();
-                    sm[u"label"_s] = sort.label();
+                    sm[u"key"_s]       = sort.key();
+                    sm[u"label"_s]     = sort.label();
+                    sm[u"labelText"_s] = pluginMessageFromPb(sort.labelText(), sort.label());
                     sorts.push_back(sm);
                 }
                 QStringList tags;
@@ -63,6 +64,11 @@ void RemoteAvailabilityQuery::reload() {
                     fm[u"values"_s]       = values;
                     fm[u"description"_s]  = filter.description();
                     fm[u"confirmation"_s] = filter.confirmation();
+                    fm[u"titleText"_s]    = pluginMessageFromPb(filter.titleText(), filter.title());
+                    fm[u"descriptionText"_s] =
+                        pluginMessageFromPb(filter.descriptionText(), filter.description());
+                    fm[u"confirmationText"_s] =
+                        pluginMessageFromPb(filter.confirmationText(), filter.confirmation());
                     filters.push_back(fm);
                 }
                 QVariantMap m;
@@ -78,6 +84,10 @@ void RemoteAvailabilityQuery::reload() {
                 m[u"remoteCapability"_s] = static_cast<int>(src.remoteCapability());
                 m[u"remoteHint"_s]       = src.remoteHint();
                 m[u"avatarUrl"_s]        = src.avatarUrl();
+                m[u"displayNameText"_s] =
+                    pluginMessageFromPb(src.displayNameText(), src.displayName());
+                m[u"remoteHintText"_s] =
+                    pluginMessageFromPb(src.remoteHintText(), src.remoteHint());
 
                 QVariantList settings;
                 for (const auto& ss : src.settings()) {
@@ -88,9 +98,13 @@ void RemoteAvailabilityQuery::reload() {
                     sm[u"identity"_s]        = ss.identity();
                     sm[u"label_key"_s]       = ss.labelKey();
                     sm[u"description_key"_s] = ss.descriptionKey();
-                    sm[u"min"_s]             = ss.min();
-                    sm[u"max"_s]             = ss.max();
-                    sm[u"step"_s]            = ss.step();
+                    sm[u"label"_s]           = pluginMessageFromPb(ss.label(), ss.labelKey());
+                    sm[u"description"_s] =
+                        pluginMessageFromPb(ss.description(), ss.descriptionKey());
+                    sm[u"group_label"_s] = pluginMessageFromPb(ss.groupLabel(), ss.group());
+                    sm[u"min"_s]         = ss.min();
+                    sm[u"max"_s]         = ss.max();
+                    sm[u"step"_s]        = ss.step();
                     QStringList choices;
                     for (const auto& c : ss.choices()) {
                         choices.append(c);
@@ -111,10 +125,18 @@ void RemoteAvailabilityQuery::reload() {
                     am[u"browseDescription"_s] = a.browseDescription();
                     am[u"browseButtonLabel"_s] = a.browseButtonLabel();
                     am[u"group"_s]             = a.group();
-                    am[u"order"_s]             = static_cast<int>(a.order());
-                    am[u"kind"_s]              = static_cast<int>(a.kind());
-                    am[u"visible"_s]           = a.visible();
-                    am[u"enabled"_s]           = a.enabled();
+                    am[u"labelText"_s]         = pluginMessageFromPb(a.labelText(), a.label());
+                    am[u"descriptionText"_s] =
+                        pluginMessageFromPb(a.descriptionText(), a.description());
+                    am[u"browseDescriptionText"_s] =
+                        pluginMessageFromPb(a.browseDescriptionText(), a.browseDescription());
+                    am[u"browseButtonLabelText"_s] =
+                        pluginMessageFromPb(a.browseButtonLabelText(), a.browseButtonLabel());
+                    am[u"groupLabel"_s] = pluginMessageFromPb(a.groupLabel(), a.group());
+                    am[u"order"_s]      = static_cast<int>(a.order());
+                    am[u"kind"_s]       = static_cast<int>(a.kind());
+                    am[u"visible"_s]    = a.visible();
+                    am[u"enabled"_s]    = a.enabled();
                     QVariantList fields;
                     for (const auto& field : a.fields()) {
                         QVariantMap fm;
@@ -122,8 +144,13 @@ void RemoteAvailabilityQuery::reload() {
                         fm[u"label"_s]       = field.label();
                         fm[u"description"_s] = field.description();
                         fm[u"placeholder"_s] = field.placeholder();
-                        fm[u"secret"_s]      = field.secret();
-                        fm[u"required"_s]    = field.required();
+                        fm[u"labelText"_s] = pluginMessageFromPb(field.labelText(), field.label());
+                        fm[u"descriptionText"_s] =
+                            pluginMessageFromPb(field.descriptionText(), field.description());
+                        fm[u"placeholderText"_s] =
+                            pluginMessageFromPb(field.placeholderText(), field.placeholder());
+                        fm[u"secret"_s]   = field.secret();
+                        fm[u"required"_s] = field.required();
                         fields.append(fm);
                     }
                     am[u"fields"_s]              = fields;
@@ -135,11 +162,13 @@ void RemoteAvailabilityQuery::reload() {
                 QVariantList statusRows;
                 for (const auto& st : src.status()) {
                     QVariantMap sm;
-                    sm[u"id"_s]    = st.id_proto();
-                    sm[u"label"_s] = st.label();
-                    sm[u"group"_s] = st.group();
-                    sm[u"order"_s] = static_cast<int>(st.order());
-                    sm[u"value"_s] = st.value();
+                    sm[u"id"_s]         = st.id_proto();
+                    sm[u"label"_s]      = st.label();
+                    sm[u"labelText"_s]  = pluginMessageFromPb(st.labelText(), st.label());
+                    sm[u"groupLabel"_s] = pluginMessageFromPb(st.groupLabel(), st.group());
+                    sm[u"group"_s]      = st.group();
+                    sm[u"order"_s]      = static_cast<int>(st.order());
+                    sm[u"value"_s]      = st.value();
                     statusRows.append(sm);
                 }
                 m[u"status"_s] = statusRows;

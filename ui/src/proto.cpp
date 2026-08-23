@@ -5,6 +5,14 @@ using namespace Qt::Literals::StringLiterals;
 
 namespace waywallen
 {
+auto pluginMessageFromPb(const proto::PluginMessage& message, const QString& fallback) -> QVariant {
+    if (message.pluginId().isEmpty() || message.msgid().isEmpty()) return fallback;
+    QVariantMap value;
+    value[u"pluginId"_s] = message.pluginId();
+    value[u"msgid"_s]    = message.msgid();
+    return value;
+}
+
 auto presentationTargetsFromVariant(const QVariantList& values)
     -> QList<proto::PresentationTarget> {
     QList<proto::PresentationTarget> targets;

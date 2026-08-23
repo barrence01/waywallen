@@ -5,31 +5,37 @@ local wallpaper = import("wallhaven.wallpaper")
 local session = import("wallhaven.session")
 
 local M = {}
+local account_group = tr("Wallhaven account")
 
 function M.info()
     return {
         name = "wallhaven",
         display_name = "Wallhaven",
         status = {
-            { id = "wallhaven_account", label = "Status", group = "Wallhaven account", order = 10 },
+            {
+                id = "wallhaven_account",
+                label = tr("Status"),
+                group = "account",
+                group_label = account_group,
+                order = 10,
+            },
         },
         actions = {
             {
                 id = "wallhaven_sign_in",
                 kind = "form",
-                label = "Log in to Wallhaven",
-                description =
-                    "Optional. Use an API key from your Wallhaven account settings. " ..
-                    "Do not enter your Wallhaven password.",
-                group = "Wallhaven account",
+                label = tr("Log in to Wallhaven"),
+                description = tr([[Optional. Use an API key from your Wallhaven account settings. Do not enter your Wallhaven password.]]),
+                group = "account",
+                group_label = account_group,
                 order = 20,
                 required_for_browsing = false,
                 fields = {
                     {
                         key = "api_key",
-                        label = "API key",
-                        description = "Copy the API key from Wallhaven Account Settings.",
-                        placeholder = "Wallhaven API key",
+                        label = tr("API key"),
+                        description = tr("Copy the API key from Wallhaven Account Settings."),
+                        placeholder = tr("Wallhaven API key"),
                         secret = true,
                         required = true,
                     },
@@ -38,8 +44,9 @@ function M.info()
             {
                 id = "wallhaven_sign_out",
                 kind = "invoke",
-                label = "Remove API key",
-                group = "Wallhaven account",
+                label = tr("Remove API key"),
+                group = "account",
+                group_label = account_group,
                 order = 21,
             },
         },
@@ -49,9 +56,9 @@ function M.info()
                 details = true,
                 download = true,
                 sorts = {
-                    { key = "trend", label = "Trending" },
-                    { key = "recent", label = "Recent" },
-                    { key = "popular", label = "Popular" },
+                    { key = "trend", label = tr("Trending") },
+                    { key = "recent", label = tr("Recent") },
+                    { key = "popular", label = tr("Popular") },
                 },
                 filters = api.filters,
             },

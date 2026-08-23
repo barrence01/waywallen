@@ -84,17 +84,17 @@ auto make_request(Mode mode, const Matches& matches, const CommandArguments& arg
 auto run(int argc, char** argv) -> int {
     auto [update_command, update_arguments] =
         command_arguments("update"_str,
-                          "Extract Lua messages and atomically update one locale catalog"_str,
+                          "Extract Lua messages and atomically update one locale translation"_str,
                           "Locale to update; exactly one is required"_str,
                           true);
     auto [check_command, check_arguments] =
         command_arguments("check"_str,
-                          "Validate Lua sources and synchronized locale catalogs"_str,
+                          "Validate Lua sources and synchronized locale translations"_str,
                           "Locale to check; repeat to select several, or omit to check all"_str,
                           false);
 
     auto command = Command::make("waywallen-i18n"_str);
-    command.about("Maintain static Lua translation catalogs for a Waywallen plugin"_str);
+    command.about("Maintain static translations for a Waywallen plugin"_str);
     command.version("0.3.5"_str);
     command.require_subcommand();
     command.add_subcommand(rstd::move(update_command));

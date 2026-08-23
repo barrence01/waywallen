@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Templates as T
 import Qcm.Material as MD
+import waywallen.ui as W
 
 MD.Dialog {
     id: root
@@ -21,7 +22,7 @@ MD.Dialog {
         return true;
     }
 
-    title: action.label || qsTr("Continue")
+    title: W.I18n.tr(action.labelText) || qsTr("Continue")
     parent: T.Overlay.overlay
     modal: true
     horizontalPadding: 24
@@ -44,7 +45,7 @@ MD.Dialog {
     onAboutToShow: {
         const accept = standardButton(T.Dialog.Ok);
         if (accept) {
-            accept.text = action.label || qsTr("Continue");
+            accept.text = W.I18n.tr(action.labelText) || qsTr("Continue");
             accept.enabled = Qt.binding(function() { return root.complete; });
         }
     }
@@ -55,8 +56,8 @@ MD.Dialog {
 
         MD.Text {
             Layout.fillWidth: true
-            visible: String(root.action.description || "").length > 0
-            text: root.action.description || ""
+            visible: text.length > 0
+            text: W.I18n.tr(root.action.descriptionText)
             typescale: MD.Token.typescale.body_medium
             color: MD.Token.color.on_surface_variant
             wrapMode: Text.WordWrap
@@ -72,7 +73,7 @@ MD.Dialog {
 
                 MD.Text {
                     Layout.fillWidth: true
-                    text: fieldItem.modelData.label || fieldItem.modelData.key
+                    text: W.I18n.tr(fieldItem.modelData.labelText) || fieldItem.modelData.key
                     typescale: MD.Token.typescale.label_large
                     color: MD.Token.color.on_surface
                 }
@@ -81,7 +82,7 @@ MD.Dialog {
                     id: input
                     Layout.fillWidth: true
                     mdState.size: MD.Enum.S
-                    placeholderText: fieldItem.modelData.placeholder || ""
+                    placeholderText: W.I18n.tr(fieldItem.modelData.placeholderText)
                     echoMode: fieldItem.modelData.secret ? TextInput.Password : TextInput.Normal
                     inputMethodHints: fieldItem.modelData.secret
                         ? Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
@@ -98,8 +99,8 @@ MD.Dialog {
 
                 MD.Text {
                     Layout.fillWidth: true
-                    visible: String(fieldItem.modelData.description || "").length > 0
-                    text: fieldItem.modelData.description || ""
+                    visible: text.length > 0
+                    text: W.I18n.tr(fieldItem.modelData.descriptionText)
                     typescale: MD.Token.typescale.body_small
                     color: MD.Token.color.on_surface_variant
                     wrapMode: Text.WordWrap

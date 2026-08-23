@@ -1,0 +1,20 @@
+[package]
+name = "waywallen-plugin-i18n"
+version.workspace = true
+
+[lib]
+name = "waywallen-plugin-i18n"
+module = "waywallen.i18n.po"
+archive = "waywallen.plugin_i18n"
+sources = [
+  "po.cppm",
+  "po.cpp",
+]
+
+[[test]]
+name = "waywallen-plugin-i18n-contract"
+sources = ["tests/po.cpp"]
+
+[dependencies.rstd-std]
+workspace = true
+visibility = "private"

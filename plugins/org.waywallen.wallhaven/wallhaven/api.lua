@@ -53,9 +53,9 @@ local QUERY_TAGS = {
 M.filters = {
     {
         id = "purity",
-        title = "Purity",
+        title = tr("Purity"),
         type = "multi_select",
-        description = "NSFW wallpapers require a Wallhaven API key.",
+        description = tr("NSFW wallpapers require a Wallhaven API key."),
         values = {
             "SFW",
             "Sketchy",
@@ -64,7 +64,7 @@ M.filters = {
     },
     {
         id = "topics",
-        title = "Topics",
+        title = tr("Topics"),
         type = "multi_select",
         values = {
             "Abstract",
@@ -94,7 +94,7 @@ M.filters = {
     },
     {
         id = "resolution",
-        title = "Resolution",
+        title = tr("Resolution"),
         type = "multi_select",
         values = {
             "1280 x 720",

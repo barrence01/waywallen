@@ -3,6 +3,7 @@ module;
 
 module waywallen;
 import :model.user_property;
+import :plugin_translation;
 
 namespace waywallen::model
 {
@@ -67,7 +68,15 @@ QString coerceDefaultWireString(const QJsonValue& def, const QString& type) {
 
 } // namespace
 
-UserPropertyListModel::UserPropertyListModel(QObject* parent): QAbstractListModel(parent) {}
+UserPropertyListModel::UserPropertyListModel(QObject* parent): QAbstractListModel(parent) {
+    connect(
+        PluginTranslationStore::instance(), &PluginTranslationStore::revisionChanged, this, [this] {
+            if (m_entries.isEmpty()) return;
+            Q_EMIT dataChanged(index(0),
+                               index(static_cast<int>(m_entries.size()) - 1),
+                               { LabelRole, OptionLabelsRole });
+        });
+}
 
 UserPropertyListModel::~UserPropertyListModel() = default;
 
@@ -102,7 +111,10 @@ QVariant UserPropertyListModel::data(const QModelIndex& index, int role) const {
     const auto& e = m_entries.at(row);
     switch (role) {
     case KeyRole: return e.key;
-    case LabelRole: return e.label;
+    case LabelRole: {
+        const auto translated = PluginTranslationStore::instance()->translate(e.localized_label);
+        return translated.isEmpty() ? e.label : translated;
+    }
     case TypeRole: return e.type;
     case SupportedRole: return e.supported;
     case MinValRole: return e.min_val;
@@ -110,7 +122,15 @@ QVariant UserPropertyListModel::data(const QModelIndex& index, int role) const {
     case StepValRole: return e.step_val;
     case ValueSuffixRole: return e.value_suffix;
     case CurrentValueRole: return currentValueFor_(row);
-    case OptionLabelsRole: return e.option_labels;
+    case OptionLabelsRole: {
+        auto labels = e.option_labels;
+        for (qsizetype i = 0; i < labels.size() && i < e.localized_option_labels.size(); ++i) {
+            const auto translated =
+                PluginTranslationStore::instance()->translate(e.localized_option_labels.at(i));
+            if (! translated.isEmpty()) labels[i] = translated;
+        }
+        return labels;
+    }
     case OptionValuesRole: return e.option_values;
     case HasAlphaRole: {
         const QString                   cv = currentValueFor_(row);
@@ -196,10 +216,11 @@ void UserPropertyListModel::rebuildEntries_() {
             if (isPredefinedKey(it.key())) continue;
             const auto v = it.value().toObject();
             Entry      e;
-            e.key     = it.key();
-            e.label   = v.value(QStringLiteral("text")).toString();
-            e.section = userPropertiesSection();
-            e.kind    = userKind();
+            e.key             = it.key();
+            e.label           = v.value(QStringLiteral("text")).toString();
+            e.localized_label = v.value(QStringLiteral("localized_text")).toObject().toVariantMap();
+            e.section         = userPropertiesSection();
+            e.kind            = userKind();
             if (e.label.isEmpty()) e.label = e.key;
             e.type = v.value(QStringLiteral("type")).toString().toLower();
             if (v.value(QStringLiteral("options")).isArray()) {
@@ -210,9 +231,12 @@ void UserPropertyListModel::rebuildEntries_() {
                     const auto opt   = opt_value.toObject();
                     QString    value = jsonValueToWireString(opt.value(QStringLiteral("value")));
                     QString    label = opt.value(QStringLiteral("label")).toString();
+                    const auto localized_label =
+                        opt.value(QStringLiteral("localized_label")).toObject().toVariantMap();
                     if (label.isEmpty()) label = value;
                     e.option_values.append(std::move(value));
                     e.option_labels.append(std::move(label));
+                    e.localized_option_labels.append(localized_label);
                 }
             }
             e.supported    = isSupported(e.type, ! e.option_values.isEmpty());
@@ -241,11 +265,12 @@ void UserPropertyListModel::appendPredefinedEntries_(const QJsonObject& schema) 
                    QString            type,
                    QString            default_wire) {
         Entry e;
-        e.key     = std::move(key);
-        e.label   = value.value(QStringLiteral("text")).toString();
-        e.type    = value.value(QStringLiteral("type")).toString().toLower();
-        e.section = propertiesSection();
-        e.kind    = builtinKind();
+        e.key             = std::move(key);
+        e.label           = value.value(QStringLiteral("text")).toString();
+        e.localized_label = value.value(QStringLiteral("localized_text")).toObject().toVariantMap();
+        e.type            = value.value(QStringLiteral("type")).toString().toLower();
+        e.section         = propertiesSection();
+        e.kind            = builtinKind();
         if (e.label.isEmpty()) e.label = std::move(label);
         if (e.type.isEmpty()) e.type = std::move(type);
         e.supported    = isSupported(e.type, false);

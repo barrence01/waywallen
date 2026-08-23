@@ -96,6 +96,9 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
         ));
     }
     let mut plugin_scan = plugin::renderer_registry::scan_plugin_roots(&plugin_roots);
+    let plugin_translations = plugin_scan
+        .translation_documents()
+        .map_err(|error| anyhow::anyhow!("load plugin translations: {error}"))?;
     // Installable-plugin (package) list for the UI's plugin-centric view.
     // Computed before `entries` is taken so entry presence is accurate.
     let plugin_packages = Arc::new(tokio::sync::RwLock::new(plugin_scan.packages()));
@@ -194,6 +197,12 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
     let (rotation_handle, rotation_rx) = playback::rotation::make_handle();
 
     let source_plugins = Arc::new(tokio::sync::RwLock::new(Vec::new()));
+    let plugin_translations = Arc::new(tokio::sync::RwLock::new(
+        plugin::i18n::PluginTranslationSnapshot {
+            generation: 1,
+            documents: plugin_translations,
+        },
+    ));
 
     let audio_service = system::audio::AudioService::start(
         renderer_mgr.clone(),
@@ -215,6 +224,7 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
         plugin_update_check: tokio::sync::Mutex::new(()),
         plugin_roots,
         source_plugins,
+        plugin_translations,
         plugin_mutation: tokio::sync::Mutex::new(()),
         autostart: system::autostart::AutostartService::default(),
         router: router.clone(),

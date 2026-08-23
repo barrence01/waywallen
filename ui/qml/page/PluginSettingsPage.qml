@@ -138,16 +138,22 @@ MD.Page {
         const buckets = {};
         for (let i = 0; i < schemaList.length; ++i) {
             const s = schemaList[i];
-            const g = (s.group && s.group.length > 0) ? s.group : qsTr("General");
-            if (!buckets[g])
-                buckets[g] = [];
-            buckets[g].push(s);
+            const localizedGroup = s.group_label || ({});
+            const key = (s.group && s.group.length > 0) ? s.group : "";
+            if (!buckets[key]) {
+                buckets[key] = {
+                    label: W.I18n.tr(localizedGroup) || s.group || qsTr("General"),
+                    items: []
+                };
+            }
+            buckets[key].items.push(s);
         }
         const keys = Object.keys(buckets).sort();
         const out = [];
         for (let i = 0; i < keys.length; ++i) {
             const k = keys[i];
-            const items = buckets[k];
+            const bucket = buckets[k];
+            const items = bucket.items;
             items.sort(function (a, b) {
                 return (a.order || 0) - (b.order || 0);
             });
@@ -162,7 +168,7 @@ MD.Page {
                 else
                     pos = "middle";
                 out.push({
-                    "group": k,
+                    "group": bucket.label,
                     "schema": items[j],
                     "position": pos
                 });
@@ -234,9 +240,9 @@ MD.Page {
 
             readonly property string sectionLabel: {
                 if (root.statusList.length > 0 && root.statusList[0].group)
-                    return root.statusList[0].group;
+                    return W.I18n.tr(root.statusList[0].groupLabel) || root.statusList[0].group;
                 if (root.actionList.length > 0 && root.actionList[0].group)
-                    return root.actionList[0].group;
+                    return W.I18n.tr(root.actionList[0].groupLabel) || root.actionList[0].group;
                 return "";
             }
 
@@ -259,7 +265,7 @@ MD.Page {
                     Layout.leftMargin: 4
                     Layout.rightMargin: 4
                     MD.Text {
-                        text: modelData.label
+                        text: W.I18n.tr(modelData.labelText)
                         color: MD.Token.color.on_surface_variant
                         typescale: MD.Token.typescale.body_medium
                     }
@@ -285,7 +291,7 @@ MD.Page {
                     model: root.actionList
                     delegate: MD.Button {
                         required property var modelData
-                        text: modelData.label
+                        text: W.I18n.tr(modelData.labelText)
                         visible: modelData.visible === undefined || modelData.visible
                         enabled: modelData.enabled === undefined || modelData.enabled
                         mdState.type: MD.Enum.BtFilledTonal

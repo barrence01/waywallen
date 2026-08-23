@@ -7,12 +7,12 @@ export namespace waywallen::i18n
 
 enum class ExitCode : int
 {
-    Success = 0,
-    Usage   = 2,
-    Plugin  = 3,
-    Source  = 4,
-    Catalog = 5,
-    Io      = 6,
+    Success     = 0,
+    Usage       = 2,
+    Plugin      = 3,
+    Source      = 4,
+    Translation = 5,
+    Io          = 6,
 };
 
 enum class Mode

@@ -1,0 +1,62 @@
+msgid ""
+msgstr "Project-Id-Version: org.waywallen.wallhaven 0.1.0\nLanguage: zh-CN\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+#: main.lua:36
+msgid "API key"
+msgstr "API 密钥"
+
+#: main.lua:37
+msgid "Copy the API key from Wallhaven Account Settings."
+msgstr "从 Wallhaven 账户设置中复制 API 密钥。"
+
+#: main.lua:27
+msgid "Log in to Wallhaven"
+msgstr "登录 Wallhaven"
+
+#: wallhaven/api.lua:58
+msgid "NSFW wallpapers require a Wallhaven API key."
+msgstr "NSFW 壁纸需要 Wallhaven API 密钥。"
+
+#: main.lua:28
+msgid "Optional. Use an API key from your Wallhaven account settings. Do not enter your Wallhaven password."
+msgstr "可选。使用 Wallhaven 账户设置中的 API 密钥。请勿输入 Wallhaven 密码。"
+
+#: main.lua:61
+msgid "Popular"
+msgstr "热门"
+
+#: wallhaven/api.lua:56
+msgid "Purity"
+msgstr "内容分级"
+
+#: main.lua:60
+msgid "Recent"
+msgstr "最新"
+
+#: main.lua:47
+msgid "Remove API key"
+msgstr "移除 API 密钥"
+
+#: wallhaven/api.lua:97
+msgid "Resolution"
+msgstr "分辨率"
+
+#: main.lua:17
+msgid "Status"
+msgstr "状态"
+
+#: wallhaven/api.lua:67
+msgid "Topics"
+msgstr "主题"
+
+#: main.lua:59
+msgid "Trending"
+msgstr "趋势"
+
+#: main.lua:38
+msgid "Wallhaven API key"
+msgstr "Wallhaven API 密钥"
+
+#: main.lua:8
+msgid "Wallhaven account"
+msgstr "Wallhaven 账户"
