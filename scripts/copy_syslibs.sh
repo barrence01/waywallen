@@ -13,6 +13,8 @@
 #     fontconfig is rooted at the conda prefix and finds no user fonts.
 #   - libpulse: wavsen's default audio backend (libpulse>=14.0); conda-forge
 #     has no client-only package and the host .so is glibc-only.
+#   - GBM: Lito resolves it through pkg-config and needs the host development
+#     library and public header in the conda prefix.
 #
 # Each lib has its own pkg-config stamp; only missing ones are refreshed.
 # FORCE=1 reinstalls everything. Prerequisites on the host:
@@ -49,6 +51,16 @@ copy_headers() {
     cp -a "$host_incdir/$subdir" "$CONDA_PREFIX/include/"
 }
 
+# copy_header <host_includedir> <filename>
+#   $CONDA_PREFIX/include/<filename> <- <host_includedir>/<filename>
+copy_header() {
+    local host_incdir="$1" filename="$2"
+    [[ -f "$host_incdir/$filename" ]] \
+        || fail "host header missing: $host_incdir/$filename (install -devel package)"
+    rm -f "$CONDA_PREFIX/include/$filename"
+    cp -a "$host_incdir/$filename" "$CONDA_PREFIX/include/"
+}
+
 # copy_libs <host_libdir> <basename>
 #   matches lib<basename>.so* (so + SONAME + symlinks), copies into
 #   $CONDA_PREFIX/lib, preserving symlinks.
@@ -75,6 +87,39 @@ copy_dir_if_present() {
 }
 
 mkdir -p "$CONDA_PREFIX/include" "$CONDA_PREFIX/lib" "$CONDA_PREFIX/lib/pkgconfig"
+
+# GBM
+install_gbm() {
+    local stamp="$CONDA_PREFIX/lib/pkgconfig/gbm.pc"
+    if [[ -f "$stamp" && -f "$CONDA_PREFIX/include/gbm.h" \
+        && -e "$CONDA_PREFIX/lib/libgbm.so" && -z "${FORCE:-}" ]]; then
+        step "GBM already installed in \$CONDA_PREFIX (set FORCE=1 to refresh)"
+        return 0
+    fi
+
+    host_pkgconf --exists gbm \
+        || fail "host has no gbm.pc; install mesa-libgbm-devel / libgbm-dev"
+
+    local gbm_ver gbm_libdir gbm_incdir gbm_pcdir
+    gbm_ver="$(host_pkgconf --modversion gbm)"
+    gbm_libdir="$(host_pkgconf --variable=libdir gbm)"
+    gbm_incdir="$(host_pkgconf --variable=includedir gbm)"
+    gbm_pcdir="$(host_pkgconf --variable=pcfiledir gbm)"
+    [[ -f "$gbm_pcdir/gbm.pc" ]] || fail "host gbm.pc missing: $gbm_pcdir/gbm.pc"
+
+    step "Copying GBM $gbm_ver from host"
+
+    copy_header "$gbm_incdir" gbm.h
+    copy_libs "$gbm_libdir" gbm
+    cp -a "$gbm_pcdir/gbm.pc" "$stamp"
+    sed -i \
+        -e "s|^prefix=.*|prefix=$CONDA_PREFIX|" \
+        -e 's|^includedir=.*|includedir=${prefix}/include|' \
+        -e 's|^libdir=.*|libdir=${prefix}/lib|' \
+        "$stamp"
+
+    step "GBM installed -> $stamp"
+}
 
 # pipewire (libpipewire-0.3 + libspa-0.2)
 install_pipewire() {
@@ -229,6 +274,7 @@ EOF
     step "libpulse installed -> $stamp"
 }
 
+install_gbm
 install_pipewire
 install_fontconfig
 install_pulse

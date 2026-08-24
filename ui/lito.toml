@@ -102,7 +102,6 @@ private-include-directories = [
 ]
 private-definitions = [
   "APP_ID=\"org.waywallen.waywallen\"",
-  "APP_VERSION=\"0.3.5\"",
   "APP_AUTHOR=\"hypengw\"",
   "APP_NAME=\"waywallen\"",
   "APP_SUMMARY=\"Wallpaper Manager for Linux\"",

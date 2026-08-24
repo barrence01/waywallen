@@ -1,3 +1,25 @@
+<release version="0.3.6" date="2026-08-24">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>Lua plugin translations.</li>
+      <li>Optional single-instance UI. #191 by @barrence01</li>
+      <li>Per-plugin Lua VM memory limits. #224 by @15daksh-2003</li>
+    </ul>
+    <p>Fixes:</p>
+    <ul>
+      <li>Display handshake refusals are reported to clients. #207 by @wehrwolfmann</li>
+      <li>Displays reconnect reliably after daemon startup. #212 by @barrence01</li>
+      <li>Bridge ancillary and signed values are initialized. #223 by @15daksh-2003</li>
+      <li>Long combo boxes scroll instead of overflowing. #208 by @barrence01</li>
+    </ul>
+    <p>Improved:</p>
+    <ul>
+      <li>Reset and restore actions require confirmation. #216 by @lawrenceshi</li>
+      <li>Daemon shutdown behavior can be configured from the UI.</li>
+    </ul>
+  </description>
+</release>
 <release version="0.3.5" date="2026-08-16">
   <description>
     <p>Added:</p>

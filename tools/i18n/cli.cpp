@@ -95,7 +95,9 @@ auto run(int argc, char** argv) -> int {
 
     auto command = Command::make("waywallen-i18n"_str);
     command.about("Maintain static translations for a Waywallen plugin"_str);
-    command.version("0.3.5"_str);
+    command.version(
+        ref<str>::from_raw_parts_unchecked(reinterpret_cast<const byte*>(LITO_PKG_VERSION),
+                                           usize(sizeof(LITO_PKG_VERSION) - sizeof(char))));
     command.require_subcommand();
     command.add_subcommand(rstd::move(update_command));
     command.add_subcommand(rstd::move(check_command));

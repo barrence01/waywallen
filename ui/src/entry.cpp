@@ -27,7 +27,7 @@ int run(int argc, char** argv) {
     gui_app.setOrganizationName("waywallen");
     gui_app.setOrganizationDomain("waywallen.org");
     gui_app.setApplicationName(APP_NAME);
-    gui_app.setApplicationVersion(APP_VERSION);
+    gui_app.setApplicationVersion(LITO_PKG_VERSION);
 
     QCommandLineParser parser;
     parser.addHelpOption();

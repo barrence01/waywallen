@@ -1,39 +1,56 @@
 # Building Waywallen
 
-Lito is the only supported project build entry. CMake is still required as a host tool because
-Lito uses CMake providers for Qt and source dependencies, but this repository is not configured or
-built with CMake directly.
+## System dependencies
 
-## Requirements
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| [Lito](https://github.com/litocpp/lito) | latest | Project build entry |
+| Rust | stable | |
+| Clang | 22+ | [LLVM-22.1.8-Linux-X64](https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-X64.tar.xz) |
+| CMake | 3.28+ | Host tool used by Lito source dependency providers |
+| Ninja | - | Build tool used by Lito source dependency providers |
+| Vulkan loader | ≥ 1.1 | runtime: `vulkan-icd-loader` (Arch) · `libvulkan1` (Debian/Ubuntu) · `vulkan-loader` (Fedora) |
+| Vulkan headers | ≥ 1.1 | **build-time**, provides `vulkan/vulkan.h`: `vulkan-headers` (Arch/Fedora) · `libvulkan-dev` (Debian/Ubuntu) |
+| Qt6 | ≥ 6.10 | Quick, DBus, Protobuf, ProtobufQuick, QuickControls2, WebSockets |
+| GBM | - | Development package |
+| ffmpeg | - | Development packages used by the renderer plugins |
 
-- Lito
-- Clang 22 or newer
-- Rust and Cargo
-- CMake and Ninja for Lito external dependencies
-- Qt 6 with Quick, DBus, Protobuf, ProtobufQuick, QuickControls2, and WebSockets
-- Vulkan headers and loader
-- GBM and the FFmpeg development packages used by the renderer plugins
-
-## Build and install
-
-From the repository root:
+## Build, install, run
 
 ```bash
-lito build --profile debug
-lito install --prefix install --profile debug
+lito build --profile release
+lito install --prefix install --profile release
 ```
 
-Use `--profile release` for release artifacts. The default workspace members install the daemon,
-UI, renderer plugins, bridge library, public bridge headers, and pkg-config metadata into the same
-prefix.
+This produces under `install/`:
 
-The bridge tests are Lito targets:
+```
+install/bin/
+    waywallen                          # daemon (Rust)
+    waywallen-ui                       # Qt/QML UI
+install/lib/
+    libwaywallen-bridge.so             # renderer bridge library
+    pkgconfig/waywallen-bridge.pc      # pkg-config metadata
+install/share/waywallen/plugins/
+    org.waywallen.image/{plugin.toml, files.txt, main.lua, image/..., bin/waywallen-image-renderer}
+    org.waywallen.video/{plugin.toml, files.txt, main.lua, video/..., bin/waywallen-video-renderer}
+    org.waywallen.wallhaven/{plugin.toml, files.txt, main.lua, wallhaven/...}
+install/share/{applications,metainfo,icons/...}/
+```
+
+Use `--profile debug` for development artifacts. To build or test a single package, select it
+with `-p`:
 
 ```bash
+lito build -p waywallen-ui --profile debug
 lito test -p waywallen-bridge --profile debug
 ```
 
-## Run from a prefix
+`waywallen-layer-shell` lives in the `waywallen-display` Cargo package. It is not built or
+installed by the normal Lito flow; packaging that bundles the display backend builds it from the
+`waywallen-display` repository.
+
+## Launching
 
 ```bash
 cd install
@@ -42,5 +59,18 @@ export LD_LIBRARY_PATH="$PWD/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ./bin/waywallen --ui ./bin/waywallen-ui --plugin ./share/waywallen
 ```
 
-Packaging should consume the tree produced by `lito install`; there is no CMake or CPack project
-interface.
+## Packaging
+
+Build release artifacts and stage them into the package root with Lito:
+
+```bash
+lito build --profile release
+lito install --prefix package-root/usr --profile release
+```
+
+Packages should consume the staged install tree. Lito is the public project build interface; CMake
+is only used internally by source dependency providers.
+
+The protocol XMLs (`protocol/*.xml`) and `proto/control.proto` / `proto/filter.proto` are build-time
+codegen inputs and are not shipped in the package. Read them from the source tree if you need to
+implement a third-party client.
