@@ -1,0 +1,265 @@
+version = 1
+
+[[packages]]
+name = "lito-qt"
+version = "0.1.0"
+
+[[packages]]
+name = "luato"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/luato.git#61dd40dca1e9aeda69eed208ddf0d10b34f59db7"
+dependencies = [
+  "luato-lua",
+  "rstd-parse",
+  "rstd-std",
+]
+
+[[packages]]
+name = "luato-lua"
+version = "5.5.1"
+
+[[packages.externals]]
+name = "lua"
+source = "archive+https://www.lua.org/ftp/lua-5.5.1.tar.gz"
+checksum = "sha256:1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce"
+
+[[packages]]
+name = "ncrequest"
+version = "0.1.0"
+source = "git+https://github.com/hypengw/ncrequest.git#fbf353f079ea7bc5bcf967c3cb04cbf3f6835139"
+dependencies = [
+  "rstd-cppstd",
+  "rstd-std",
+]
+
+[[packages]]
+name = "qextra"
+version = "0.1.0"
+source = "git+https://github.com/hypengw/QExtra.git#98cec17a8576c27fbc39e6d2788926cf676cf1b7"
+dependencies = [
+  "lito-qt",
+  "ncrequest",
+  "rstd-cppstd",
+  "rstd-std",
+]
+
+[[packages]]
+name = "rstd-alloc"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-core",
+  "rstd-runtime",
+]
+
+[[packages]]
+name = "rstd-argparse"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-std",
+]
+
+[[packages]]
+name = "rstd-basic"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+
+[[packages]]
+name = "rstd-core"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-basic",
+  "rstd-runtime",
+]
+
+[[packages]]
+name = "rstd-cppstd"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-std",
+]
+
+[[packages]]
+name = "rstd-dlopn"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-std",
+]
+
+[[packages]]
+name = "rstd-json"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-core",
+  "rstd-parse",
+  "rstd-serde",
+  "rstd-std",
+]
+
+[[packages]]
+name = "rstd-log"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-core",
+  "rstd-std",
+]
+
+[[packages]]
+name = "rstd-parse"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-alloc",
+  "rstd-core",
+]
+
+[[packages]]
+name = "rstd-runtime"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-basic",
+]
+
+[[packages]]
+name = "rstd-serde"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-alloc",
+]
+
+[[packages]]
+name = "rstd-std"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-alloc",
+  "rstd-core",
+]
+
+[[packages]]
+name = "rstd-toml"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/rstd.git#1b17c8ae1a332d5a7c6ba96699377f4f271fcbe2"
+dependencies = [
+  "rstd-alloc",
+  "rstd-core",
+  "rstd-parse",
+  "rstd-serde",
+]
+
+[[packages]]
+name = "vvk"
+version = "0.1.0"
+source = "git+https://github.com/litocpp/vvk.git#f53d60cc70938d0485802750deeb15d18ba033ea"
+dependencies = [
+  "rstd-cppstd",
+  "rstd-log",
+  "rstd-std",
+]
+
+[[packages.externals]]
+name = "vma"
+source = "git+https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git#3aa921224c154a0d2c43912bc88e1c42ce1f7607"
+
+[[packages]]
+name = "wavsen"
+version = "0.1.0"
+source = "git+https://github.com/hypengw/wavsen.git#c07711f73253b0e3c53329c9930f2024193f8641"
+dependencies = [
+  "rstd-core",
+  "rstd-cppstd",
+  "rstd-dlopn",
+  "rstd-log",
+  "rstd-std",
+  "vvk",
+]
+
+[[packages]]
+name = "waywallen-bridge"
+version = "0.3.5"
+
+[[packages]]
+name = "waywallen-i18n"
+version = "0.3.5"
+dependencies = [
+  "luato",
+  "rstd-argparse",
+  "rstd-std",
+  "rstd-toml",
+  "waywallen-plugin-i18n",
+]
+
+[[packages]]
+name = "waywallen-image-plugin"
+version = "0.3.5"
+dependencies = [
+  "rstd-argparse",
+  "rstd-cppstd",
+  "rstd-json",
+  "rstd-log",
+  "wavsen",
+  "waywallen-plugin-common",
+]
+runtime-dependencies = [
+  "waywallen-bridge",
+]
+
+[[packages]]
+name = "waywallen-plugin-common"
+version = "0.3.5"
+dependencies = [
+  "rstd-cppstd",
+  "vvk",
+  "waywallen-bridge",
+]
+
+[[packages]]
+name = "waywallen-plugin-i18n"
+version = "0.3.5"
+dependencies = [
+  "rstd-std",
+]
+
+[[packages]]
+name = "waywallen-ui"
+version = "0.3.5"
+dependencies = [
+  "lito-qt",
+  "ncrequest",
+  "qextra",
+  "rstd-cppstd",
+  "rstd-std",
+  "wavsen",
+  "waywallen-plugin-i18n",
+]
+
+[[packages.externals]]
+name = "qml-material"
+source = "git+https://github.com/hypengw/QmlMaterial.git#a32dbc712baa041f4782f14482dab99cb3aeaa39"
+
+[[packages]]
+name = "waywallen-video-plugin"
+version = "0.3.5"
+dependencies = [
+  "rstd-argparse",
+  "rstd-cppstd",
+  "rstd-json",
+  "rstd-log",
+  "wavsen",
+  "waywallen-plugin-common",
+]
+runtime-dependencies = [
+  "waywallen-bridge",
+]
+
+[[packages]]
+name = "waywallen-wallhaven-plugin"
+version = "0.3.5"
