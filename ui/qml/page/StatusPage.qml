@@ -213,19 +213,27 @@ MD.Page {
                 contentItem: ColumnLayout {
                     spacing: 8
 
-                    RowLayout {
+                    Item {
                         Layout.fillWidth: true
-                        spacing: 8
+                        implicitHeight: daemonTitle.implicitHeight
 
                         SectionTitle {
-                            text: qsTr("Daemon")
-                        }
+                            id: daemonTitle
 
-                        Item {
-                            Layout.fillWidth: true
+                            anchors.left: parent.left
+                            anchors.right: daemonActions.left
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("Daemon")
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
                         }
 
                         MD.ActionToolBar {
+                            id: daemonActions
+
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
                             actions: [exitAction]
                         }
                     }
