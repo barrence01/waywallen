@@ -20,7 +20,6 @@ Item {
 
     readonly property var wp: (wallpaperGetQuery.wallpaper?.id_proto ?? "") !== "" ? wallpaperGetQuery.wallpaper : root.fallbackWallpaper
 
-    property var applyTargetKeys: []
     property int rendererIndex: 0
     readonly property var kFillModeValues: [1, 2, 3, 7]
     readonly property var kFillModeLabels: [qsTr("Stretch"), qsTr("Fit"), qsTr("Crop"), qsTr("Center")]
@@ -35,30 +34,6 @@ Item {
             locationSet: true
         })
 
-    function isTargetAll() {
-        return root.applyTargetKeys.length === 0;
-    }
-    function displayTargetKey(id) {
-        return "display:" + id;
-    }
-    function canvasTargetKey(id) {
-        return "canvas:" + id;
-    }
-    function selectedTargets() {
-        const targets = [];
-        for (const key of root.applyTargetKeys) {
-            if (key.indexOf("canvas:") === 0)
-                targets.push({ canvasId: key.slice(7) });
-            else if (key.indexOf("display:") === 0)
-                targets.push({ displayId: Number(key.slice(8)) });
-        }
-        return targets;
-    }
-    function hasSelectableTarget() {
-        const standalone = (W.App.displayManager.displays || []).some(display => display.selectableTarget);
-        const liveCanvas = (W.App.displayManager.canvases || []).some(canvas => canvas.hasLiveDisplays);
-        return standalone || liveCanvas;
-    }
     function fillmodeIndex(value) {
         const i = root.kFillModeValues.indexOf(value);
         return i < 0 ? 2 : i;
@@ -83,15 +58,6 @@ Item {
         layoutSetQuery.wallpaperId = root.wallpaperId;
         layoutSetQuery.clear = true;
         layoutSetQuery.reload();
-    }
-    function toggleTarget(key) {
-        const next = root.applyTargetKeys.slice();
-        const i = next.indexOf(key);
-        if (i >= 0)
-            next.splice(i, 1);
-        else
-            next.push(key);
-        root.applyTargetKeys = next;
     }
     function displayLabelForId(id) {
         const display = W.App.displayManager.get(id);
@@ -162,6 +128,10 @@ Item {
     W.WallpaperGetQuery {
         id: wallpaperGetQuery
         wallpaperId: root.wallpaperId
+    }
+
+    W.PresentationTargetState {
+        id: applyTargetState
     }
 
     W.WallpaperListQuery {
@@ -333,14 +303,14 @@ Item {
         id: applyAction
         text: qsTr("Apply")
         busy: applyQuery.querying
-        enabled: root.hasSelectableTarget()
+        enabled: applyTargetState.hasSelection
         onTriggered: {
             if (busy)
                 return;
             if (!root.wp)
                 return;
             applyQuery.wallpaper = root.wp;
-            applyQuery.targets = root.selectedTargets();
+            applyQuery.targets = applyTargetState.wireTargets;
             if (root.rendererCandidates.length >= 2) {
                 const pick = root.rendererCandidates[root.rendererIndex];
                 applyQuery.rendererName = pick ? (pick.name || "") : "";
@@ -1000,7 +970,7 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 4
-                visible: root.hasSelectableTarget()
+                visible: applyTargetState.hasTargets
 
                 MD.Text {
                     text: qsTr("Apply to")
@@ -1008,50 +978,10 @@ Item {
                     color: MD.Token.color.on_surface_variant
                 }
 
-                Flow {
+                W.PresentationTargetFlow {
                     Layout.fillWidth: true
-                    spacing: 6
-
-                    MD.FilterChip {
-                        text: qsTr("All")
-                        checked: root.isTargetAll()
-                        onClicked: root.applyTargetKeys = []
-                    }
-
-                    Repeater {
-                        model: W.App.displayManager.canvases
-                        MD.FilterChip {
-                            required property var modelData
-                            visible: !!modelData?.hasLiveDisplays
-                            width: visible ? Math.min(implicitWidth, 240) : 0
-                            text: modelData?.name || qsTr("Unnamed canvas")
-                            icon.name: MD.Token.icon.dashboard
-                            checked: root.applyTargetKeys.indexOf(root.canvasTargetKey(modelData?.id || "")) >= 0
-                            MD.ToolTip.visible: hovered
-                            MD.ToolTip.text: qsTr("%1 of %2 members online").arg(modelData?.onlineCount || 0).arg(modelData?.memberCount || 0)
-                            onClicked: root.toggleTarget(root.canvasTargetKey(modelData?.id || ""))
-                        }
-                    }
-
-                    Repeater {
-                        model: W.App.displayManager.displays
-                        MD.FilterChip {
-                            required property var modelData
-                            visible: !!modelData?.selectableTarget
-                            width: visible ? Math.min(implicitWidth, 220) : 0
-                            text: {
-                                const alias = modelData?.alias || "";
-                                const name = (modelData?.name || "").replace(/^waywallen-[a-z]+-[a-z]+-/, "");
-                                const base = alias.length > 0 ? alias : name;
-                                if (!base.length)
-                                    return qsTr("Display #%1").arg(modelData?.id);
-                                return base + " (#" + modelData?.id + ")";
-                            }
-                            icon.name: MD.Token.icon.monitor
-                            checked: root.applyTargetKeys.indexOf(root.displayTargetKey(modelData?.id)) >= 0
-                            onClicked: root.toggleTarget(root.displayTargetKey(modelData?.id))
-                        }
-                    }
+                    enabled: !applyQuery.querying
+                    targetState: applyTargetState
                 }
             }
 

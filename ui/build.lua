@@ -54,6 +54,8 @@ qt.qml_module({
     "qml/component/SearchChip.qml",
     "qml/component/ValueSlider.qml",
     "qml/component/DetailActionBar.qml",
+    "qml/component/PresentationTargetState.qml",
+    "qml/component/PresentationTargetFlow.qml",
     "qml/component/filter/StringFilter.qml",
     "qml/component/filter/IntFilter.qml",
     "qml/component/filter/WpTypeFilter.qml",

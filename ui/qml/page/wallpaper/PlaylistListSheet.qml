@@ -31,14 +31,20 @@ MD.BottomSheet {
         width: control.sheetWidth
         spacing: 0
 
-        RowLayout {
+        Item {
             Layout.fillWidth: true
             Layout.leftMargin: 16
             Layout.rightMargin: 16
             Layout.bottomMargin: 8
+            implicitHeight: titleText.implicitHeight
 
             MD.Text {
-                Layout.fillWidth: true
+                id: titleText
+
+                anchors.left: parent.left
+                anchors.right: titleActions.left
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Playlists")
                 typescale: MD.Token.typescale.title_medium
                 color: MD.Token.color.on_surface
@@ -46,63 +52,26 @@ MD.BottomSheet {
                 maximumLineCount: 1
             }
 
-            MD.Text {
-                text: qsTr("Shared")
-                typescale: MD.Token.typescale.body_medium
-                color: MD.Token.color.on_surface_variant
-            }
-
-            MD.Switch {
-                id: sharedSwitch
-                checked: control.sheetState.shareAllDisplays
-                onToggled: control.sheetState.setShareAllDisplays(checked)
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            Layout.bottomMargin: 8
-            spacing: 8
-
-            MD.EmbedChip {
-                id: playlistDisplayChip
-
-                Layout.maximumWidth: 280
-                text: control.sheetState.selectedDisplay ? control.sheetState.displayLabel(control.sheetState.selectedDisplay) : qsTr("No displays")
-                enabled: control.sheetState.playDisplays.length > 0 && !control.sheetState.shareAllDisplays
-                icon.name: control.sheetState.selectedDisplay?.targetIcon || MD.Token.icon.monitor
-                trailingIconName: MD.Token.icon.expand_more
-                mdState.borderWidth: 1
-                onClicked: playlistDisplayMenu.open()
-
-                MD.Menu {
-                    id: playlistDisplayMenu
-                    parent: playlistDisplayChip
-                    width: 280
-                    x: parent.width - width
-                    y: -height
-                    model: control.sheetState.playDisplays
-                    contentDelegate: MD.MenuItem {
-                        required property var modelData
-                        text: control.sheetState.displayLabel(modelData)
-                        icon.name: String(modelData.targetId) === String(control.sheetState.selectedDisplayId) ? MD.Token.icon.check : " "
-                        onClicked: {
-                            control.sheetState.selectDisplay(modelData);
-                            playlistDisplayMenu.close();
-                        }
-                    }
-                }
-            }
-
             MD.ActionToolBar {
-                Layout.fillWidth: true
+                id: titleActions
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
                 actions: [createPlaylistAction]
                 iconDelegate: MD.BusyIconButton {
                     action: MD.ToolBarLayout.action
                 }
             }
+        }
+
+        W.PresentationTargetFlow {
+            Layout.fillWidth: true
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
+            Layout.bottomMargin: 8
+            enabled: !control.sheetState.playbackQuerying
+            targetState: control.sheetState.targetState
+            allToolTip: qsTr("Includes displays connected later")
         }
 
         MD.LinearIndicator {
@@ -149,7 +118,7 @@ MD.BottomSheet {
                 text: modelData.name || qsTr("Untitled")
                 supportText: qsTr("%n wallpaper(s)", "", (modelData.entryIds || []).length)
                 heightMode: playingDisplayLabels.length > 0 ? MD.Enum.ListItemThreeLine : MD.Enum.ListItemTwoLine
-                readonly property bool playingOnSelectedDisplay: control.sheetState.playlistIsPlayingOnSelectedDisplay(modelData)
+                readonly property bool playingOnSelectedTargets: control.sheetState.playlistIsPlayingOnSelectedTargets(modelData)
                 readonly property var playingDisplayLabels: control.sheetState.playlistDisplayLabels(modelData)
                 mdState.backgroundColor: control.sheetState.isEditingPlaylist(modelData) ? MD.Token.color.primary_container : MD.Token.color.surface_container
 
@@ -184,10 +153,10 @@ MD.BottomSheet {
                     MD.BusyIconButton {
                         enabled: control.sheetState.hasPlayTarget && !control.sheetState.playlistPlaybackMutation.querying
                         busy: control.sheetState.playlistPlaybackMutation.querying
-                        icon.name: playlistSheetItem.playingOnSelectedDisplay ? MD.Token.icon.pause : MD.Token.icon.play_arrow
+                        icon.name: playlistSheetItem.playingOnSelectedTargets ? MD.Token.icon.pause : MD.Token.icon.play_arrow
                         onClicked: control.sheetState.togglePlayback(playlistSheetItem.modelData)
-                        MD.ToolTip.visible: hovered && !enabled
-                        MD.ToolTip.text: qsTr("No displays")
+                        MD.ToolTip.visible: hovered && !control.sheetState.playbackQuerying
+                        MD.ToolTip.text: !control.sheetState.hasPlayTarget ? qsTr("No displays") : playlistSheetItem.playingOnSelectedTargets ? qsTr("Pause playlist") : qsTr("Play playlist")
                     }
 
                     MD.IconButton {

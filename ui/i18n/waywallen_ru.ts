@@ -96,10 +96,6 @@
 <context>
     <name>CanvasDisplayList</name>
     <message>
-        <source>Canvas display update failed</source>
-        <translation>Не удалось обновить монитор холста</translation>
-    </message>
-    <message>
         <source>Displays</source>
         <translation>Мониторы</translation>
     </message>
@@ -643,16 +639,16 @@
         <translation>Плейлисты</translation>
     </message>
     <message>
-        <source>Shared</source>
-        <translation>Общий</translation>
-    </message>
-    <message>
         <source>No displays</source>
         <translation>Нет мониторов</translation>
     </message>
     <message>
         <source>No playlists found</source>
         <translation>Плейлисты не найдены</translation>
+    </message>
+    <message>
+        <source>Includes displays connected later</source>
+        <translation>Включая мониторы, подключённые позже</translation>
     </message>
     <message>
         <source>Untitled</source>
@@ -665,6 +661,14 @@
             <numerusform>Обоев: %n</numerusform>
             <numerusform>Обоев: %n</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Pause playlist</source>
+        <translation>Приостановить плейлист</translation>
+    </message>
+    <message>
+        <source>Play playlist</source>
+        <translation>Воспроизвести плейлист</translation>
     </message>
     <message>
         <source>Edit selection</source>
@@ -866,6 +870,28 @@
     <message>
         <source>Apply</source>
         <translation>Применить</translation>
+    </message>
+</context>
+<context>
+    <name>PresentationTargetFlow</name>
+    <message>
+        <source>All</source>
+        <translation>Ко всем</translation>
+    </message>
+</context>
+<context>
+    <name>PresentationTargetState</name>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>Безымянный холст</translation>
+    </message>
+    <message>
+        <source>%1 of %2 members online</source>
+        <translation>Участников в сети: %1 из %2</translation>
+    </message>
+    <message>
+        <source>Display #%1</source>
+        <translation>Монитор #%1</translation>
     </message>
 </context>
 <context>
@@ -1828,18 +1854,6 @@ Unsaved frame state may be lost.</source>
         <translation>Применить к</translation>
     </message>
     <message>
-        <source>All</source>
-        <translation>Ко всем</translation>
-    </message>
-    <message>
-        <source>Unnamed canvas</source>
-        <translation>Безымянный холст</translation>
-    </message>
-    <message>
-        <source>%1 of %2 members online</source>
-        <translation>Участников в сети: %1 из %2</translation>
-    </message>
-    <message>
         <source>Renderer</source>
         <translation>Рендерер</translation>
     </message>
@@ -2078,18 +2092,6 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Last modified</source>
         <translation>Дата изменения</translation>
-    </message>
-    <message>
-        <source>Unnamed canvas</source>
-        <translation>Безымянный холст</translation>
-    </message>
-    <message>
-        <source>Display</source>
-        <translation>Монитор</translation>
-    </message>
-    <message>
-        <source>Display #%1</source>
-        <translation>Монитор #%1</translation>
     </message>
     <message>
         <source>Added to playlist</source>

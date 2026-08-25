@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtCore
 import QtQml
+import waywallen.ui as W
 
 QtObject {
     id: root
@@ -11,59 +12,75 @@ QtObject {
     required property var playlistCreateMutation
     required property var playlistPlaybackMutation
 
-    property bool shareAllDisplays: false
+    readonly property bool playbackQuerying: playlistPlaybackMutation.querying
 
     readonly property Settings settings: Settings {
+        id: playlistSheetSettings
         category: "PlaylistListSheet"
-        property alias shareAllDisplays: root.shareAllDisplays
+        property alias allTargets: playTargets.allTargets
+        property bool shareAllDisplays: false
+        property bool targetScopeMigrated: false
+    }
+
+    readonly property W.PresentationTargetState targetState: W.PresentationTargetState {
+        id: playTargets
+        allTargets: false
+        fallbackToFirst: true
     }
 
     readonly property bool listLoading: page.playlistListLoading
     readonly property bool mutationQuerying: playlistMutation.querying || playlistCreateMutation.querying
     readonly property bool createQuerying: playlistCreateMutation.querying
     readonly property var playlists: playlistListQuery.playlists || []
-    readonly property var playDisplays: page.playlistPlayDisplays || []
-    readonly property var selectedDisplay: {
-        const displays = playDisplays;
-        if (displays.length === 0)
-            return null;
+    readonly property bool hasPlayTarget: targetState.hasSelection
 
-        const key = String(page.playlistPlayDisplayId);
-        for (let i = 0; i < displays.length; ++i) {
-            if (String(displays[i].targetId) === key)
-                return displays[i];
+    Component.onCompleted: {
+        if (!playlistSheetSettings.targetScopeMigrated) {
+            if (playlistSheetSettings.shareAllDisplays)
+                targetState.allTargets = true;
+            playlistSheetSettings.targetScopeMigrated = true;
         }
-        return displays[0];
-    }
-    readonly property var selectedDisplayId: selectedDisplay ? selectedDisplay.targetId : null
-    readonly property bool hasPlayTarget: shareAllDisplays ? playDisplays.length > 0 : selectedDisplay !== null
-
-    function displayLabel(display) {
-        return page.displayLabel(display);
-    }
-
-    function selectDisplay(display) {
-        page.playlistPlayDisplayId = display.targetId;
-    }
-
-    function setShareAllDisplays(shared) {
-        root.shareAllDisplays = !!shared;
+        targetState.reconcileSelection();
     }
 
     function isEditingPlaylist(playlist) {
         return page.isEditingPlaylist(playlist);
     }
 
-    function playlistIsPlayingOnSelectedDisplay(playlist) {
-        return root.shareAllDisplays ? page.playlistIsSharedActive(playlist) : page.playlistIsPlayingOnSelectedDisplay(playlist);
+    function playlistIsPlayingOnSelectedTargets(playlist) {
+        if (!playlist || !root.hasPlayTarget)
+            return false;
+        const playlistId = String(playlist.id);
+        return targetState.selectedDisplayIds.every(displayId => {
+            const display = W.App.displayManager.get(displayId);
+            return display && String(display.activePlaylistId) === playlistId;
+        });
     }
 
     function playlistDisplayLabels(playlist) {
-        return page.playlistDisplayLabels(playlist);
+        if (!playlist)
+            return [];
+        const playlistId = String(playlist.id);
+        const out = [];
+        for (const target of targetState.targets) {
+            const active = (target.displayIds || []).some(displayId => {
+                const display = W.App.displayManager.get(displayId);
+                return display && String(display.activePlaylistId) === playlistId;
+            });
+            if (active)
+                out.push(target.label);
+        }
+        return out;
     }
 
     function togglePlayback(playlist) {
-        page.togglePlaylistPlayback(playlist, root.shareAllDisplays);
+        if (!playlist || root.playbackQuerying || !root.hasPlayTarget)
+            return;
+        if (root.playlistIsPlayingOnSelectedTargets(playlist)) {
+            playlistPlaybackMutation.deactivate(targetState.wireTargets, targetState.allTargets ? playlist.id : 0);
+            return;
+        }
+        playlistPlaybackMutation.activate(playlist.id, targetState.wireTargets, targetState.allTargets);
     }
 
     function editSelection(playlist) {

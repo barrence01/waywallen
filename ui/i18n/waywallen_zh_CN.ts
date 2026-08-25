@@ -94,10 +94,6 @@
 <context>
     <name>CanvasDisplayList</name>
     <message>
-        <source>Canvas display update failed</source>
-        <translation>画布显示器更新失败</translation>
-    </message>
-    <message>
         <source>Displays</source>
         <translation>显示器</translation>
     </message>
@@ -641,16 +637,16 @@
         <translation>播放列表</translation>
     </message>
     <message>
-        <source>Shared</source>
-        <translation>共享</translation>
-    </message>
-    <message>
         <source>No displays</source>
         <translation>没有显示器</translation>
     </message>
     <message>
         <source>No playlists found</source>
         <translation>未找到播放列表</translation>
+    </message>
+    <message>
+        <source>Includes displays connected later</source>
+        <translation>包括之后连接的显示器</translation>
     </message>
     <message>
         <source>Untitled</source>
@@ -661,6 +657,14 @@
         <translation>
             <numerusform>%n 个壁纸</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Pause playlist</source>
+        <translation>暂停此列表</translation>
+    </message>
+    <message>
+        <source>Play playlist</source>
+        <translation>播放此列表</translation>
     </message>
     <message>
         <source>Edit selection</source>
@@ -862,6 +866,28 @@
     <message>
         <source>Apply</source>
         <translation>应用</translation>
+    </message>
+</context>
+<context>
+    <name>PresentationTargetFlow</name>
+    <message>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
+</context>
+<context>
+    <name>PresentationTargetState</name>
+    <message>
+        <source>Unnamed canvas</source>
+        <translation>未命名画布</translation>
+    </message>
+    <message>
+        <source>%1 of %2 members online</source>
+        <translation>%1/%2 个成员在线</translation>
+    </message>
+    <message>
+        <source>Display #%1</source>
+        <translation>显示器 #%1</translation>
     </message>
 </context>
 <context>
@@ -1822,18 +1848,6 @@ Unsaved frame state may be lost.</source>
         <translation>应用到</translation>
     </message>
     <message>
-        <source>All</source>
-        <translation>全部</translation>
-    </message>
-    <message>
-        <source>Unnamed canvas</source>
-        <translation>未命名画布</translation>
-    </message>
-    <message>
-        <source>%1 of %2 members online</source>
-        <translation>%1/%2 个成员在线</translation>
-    </message>
-    <message>
         <source>Renderer</source>
         <translation>渲染器</translation>
     </message>
@@ -2070,18 +2084,6 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Last modified</source>
         <translation>最后修改时间</translation>
-    </message>
-    <message>
-        <source>Unnamed canvas</source>
-        <translation>未命名画布</translation>
-    </message>
-    <message>
-        <source>Display</source>
-        <translation>显示器</translation>
-    </message>
-    <message>
-        <source>Display #%1</source>
-        <translation>显示器 #%1</translation>
     </message>
     <message>
         <source>Added to playlist</source>
