@@ -73,7 +73,7 @@ qt.qml_module({
     "qml/dialog/DisplayEditDialog.qml",
     "qml/dialog/CanvasDialog.qml",
     "qml/page/WallpaperPage.qml",
-    "qml/page/PlaylistDetailPanel.qml",
+    "qml/page/PlaylistEditPage.qml",
     "qml/page/WallpaperDetailPanel.qml",
     "qml/page/DiscoverState.qml",
     "qml/page/RemoteDetailPanel.qml",

@@ -20,40 +20,6 @@ WallpaperSelectStorage::WallpaperSelectStorage(QObject* parent): SelectStorage(p
 
 WallpaperSelectStorage::~WallpaperSelectStorage() = default;
 
-auto WallpaperSelectStorage::playlistEditTarget() const -> const QVariant& {
-    return m_playlist_edit_target;
-}
-
-void WallpaperSelectStorage::setPlaylistEditTarget(const QVariant& playlist) {
-    const auto nextId = playlistId(playlist);
-    if (m_playlist_edit_target == playlist && m_playlist_edit_target_id == nextId) return;
-
-    m_playlist_edit_target    = playlist;
-    m_playlist_edit_target_id = nextId;
-    Q_EMIT playlistEditTargetChanged();
-    notifyActiveChanged();
-}
-
-auto WallpaperSelectStorage::playlistEditTargetId() const -> qint64 {
-    return m_playlist_edit_target_id;
-}
-
-auto WallpaperSelectStorage::hasPlaylistEditTarget() const -> bool {
-    return m_playlist_edit_target_id > 0;
-}
-
-auto WallpaperSelectStorage::isEditingPlaylist(const QVariant& playlist) const -> bool {
-    const auto id = playlistId(playlist);
-    return id > 0 && id == m_playlist_edit_target_id;
-}
-
-void WallpaperSelectStorage::editPlaylistSelection(const QVariant& playlist) {
-    setPlaylistEditTarget(playlist);
-    setSelectedKeys(playlistEntryIds(playlist));
-    setSelectionMode(true);
-    setAnchorIndex(-1);
-}
-
 auto WallpaperSelectStorage::selectedWallpaperIds() const -> QVariantList {
     QVariantList out;
     const auto   keys = selectedKeys();
@@ -79,25 +45,106 @@ auto WallpaperSelectStorage::removableSelectedCount() const -> qint32 {
     return static_cast<qint32>(removableSelectedWallpaperIds().size());
 }
 
-void WallpaperSelectStorage::clear() {
-    if (hasPlaylistEditTarget()) {
-        m_playlist_edit_target    = {};
-        m_playlist_edit_target_id = 0;
-        Q_EMIT playlistEditTargetChanged();
+PlaylistItemSelectStorage::PlaylistItemSelectStorage(QObject* parent)
+    : WallpaperSelectStorage(parent) {
+    connect(this,
+            &SelectStorage::selectedCountChanged,
+            this,
+            &PlaylistItemSelectStorage::syncNewEntryOrder);
+}
+
+PlaylistItemSelectStorage::~PlaylistItemSelectStorage() = default;
+
+auto PlaylistItemSelectStorage::playlistId() const -> qint64 { return m_playlist_id; }
+auto PlaylistItemSelectStorage::revision() const -> qint64 { return m_revision; }
+auto PlaylistItemSelectStorage::initialEntryIds() const -> const QStringList& {
+    return m_initial_entry_ids;
+}
+
+void PlaylistItemSelectStorage::beginPlaylistItems(qint64 playlistId, qint64 revision,
+                                                   const QStringList& entryIds) {
+    SelectStorage::clear();
+    m_playlist_id = playlistId;
+    m_revision    = revision;
+    m_initial_entry_ids.clear();
+    m_new_entry_ids.clear();
+    QSet<QString> seen;
+    seen.reserve(entryIds.size());
+    for (const auto& entry_id : entryIds) {
+        if (entry_id.isEmpty() || seen.contains(entry_id)) continue;
+        seen.insert(entry_id);
+        m_initial_entry_ids.append(entry_id);
     }
+    Q_EMIT playlistChanged();
+    setSelectedKeys(m_initial_entry_ids);
+    setSelectionMode(true);
+    setAnchorIndex(-1);
+    notifyActiveChanged();
+}
+
+auto PlaylistItemSelectStorage::orderedWallpaperIds() const -> QVariantList {
+    const auto    selected_keys = selectedKeys();
+    QSet<QString> selected;
+    selected.reserve(selected_keys.size());
+    for (const auto& entry_id : selected_keys) selected.insert(entry_id);
+
+    QVariantList result;
+    result.reserve(selected.size());
+    QSet<QString> emitted;
+    emitted.reserve(selected.size());
+    for (const auto& entry_id : m_initial_entry_ids) {
+        if (! selected.contains(entry_id) || emitted.contains(entry_id)) continue;
+        result.append(entry_id);
+        emitted.insert(entry_id);
+    }
+    for (const auto& entry_id : m_new_entry_ids) {
+        if (entry_id.isEmpty() || emitted.contains(entry_id)) continue;
+        if (! selected.contains(entry_id)) continue;
+        result.append(entry_id);
+        emitted.insert(entry_id);
+    }
+    for (const auto& entry_id : selected_keys) {
+        if (entry_id.isEmpty() || emitted.contains(entry_id)) continue;
+        result.append(entry_id);
+        emitted.insert(entry_id);
+    }
+    return result;
+}
+
+void PlaylistItemSelectStorage::syncNewEntryOrder() {
+    const auto    selected_keys = selectedKeys();
+    QSet<QString> selected;
+    selected.reserve(selected_keys.size());
+    for (const auto& entry_id : selected_keys) selected.insert(entry_id);
+
+    m_new_entry_ids.removeIf([&selected](const QString& entry_id) {
+        return ! selected.contains(entry_id);
+    });
+
+    QSet<QString> known;
+    known.reserve(m_initial_entry_ids.size() + m_new_entry_ids.size());
+    for (const auto& entry_id : m_initial_entry_ids) known.insert(entry_id);
+    for (const auto& entry_id : m_new_entry_ids) known.insert(entry_id);
+    for (const auto& entry_id : selected_keys) {
+        if (entry_id.isEmpty() || known.contains(entry_id)) continue;
+        m_new_entry_ids.append(entry_id);
+        known.insert(entry_id);
+    }
+}
+
+void PlaylistItemSelectStorage::clear() {
+    const bool had_playlist =
+        m_playlist_id > 0 || m_revision > 0 || ! m_initial_entry_ids.isEmpty();
+    m_playlist_id = 0;
+    m_revision    = 0;
+    m_initial_entry_ids.clear();
+    m_new_entry_ids.clear();
+    if (had_playlist) Q_EMIT playlistChanged();
     SelectStorage::clear();
 }
 
-auto WallpaperSelectStorage::keepActiveWithoutSelection() const -> bool {
-    return hasPlaylistEditTarget();
-}
-
-auto WallpaperSelectStorage::playlistId(const QVariant& playlist) -> qint64 {
-    return playlist.toMap().value(QStringLiteral("id")).toLongLong();
-}
-
-auto WallpaperSelectStorage::playlistEntryIds(const QVariant& playlist) -> QStringList {
-    return playlist.toMap().value(QStringLiteral("entryIds")).toStringList();
+auto PlaylistItemSelectStorage::keepActiveWithoutSelection() const -> bool {
+    return m_playlist_id > 0;
 }
 
 } // namespace waywallen::model

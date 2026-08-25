@@ -21,10 +21,10 @@ MD.Page {
         property list<MD.Action> actions: [removeSelectionAction, createPlaylistFromSelectionAction, addToPlaylistAction]
     }
 
-    W.WallpaperSelectStorage {
+    W.PlaylistItemSelectStorage {
         id: playlistWallpaperSelect
         model: wallpaperQuery.data
-        property list<MD.Action> actions: [applyPlaylistSelectionAction, createPlaylistFromSelectionAction, addToPlaylistAction]
+        property list<MD.Action> actions: [applyPlaylistSelectionAction]
     }
 
     W.WallpaperScanQuery {
@@ -86,13 +86,6 @@ MD.Page {
     }
 
     W.PlaylistMutationQuery {
-        id: playlistDetailMutation
-        onDone: {
-            playlistListQuery.reload();
-        }
-    }
-
-    W.PlaylistMutationQuery {
         id: playlistSheetCreateMutation
         forwardError: false
         onDone: {
@@ -109,6 +102,19 @@ MD.Page {
         onDone: {
             if (playlistPlaybackMutation.status === 3)
                 W.Action.toast(qsTr("Playlist playback failed"));
+        }
+    }
+
+    W.PlaylistMutationQuery {
+        id: playlistItemsMutation
+        forwardError: false
+        onDone: {
+            if (playlistItemsMutation.status === 3) {
+                W.Action.toast(playlistItemsMutation.error || qsTr("Playlist update failed"), 6000, 1, null);
+                return;
+            }
+            W.Action.toast(qsTr("Playlist updated"));
+            root.finishPlaylistItemSelection();
         }
     }
 
@@ -252,8 +258,8 @@ MD.Page {
         id: applyPlaylistSelectionAction
         text: qsTr("Apply")
         icon.name: MD.Token.icon.check
-        busy: playlistMutation.querying
-        enabled: playlistWallpaperSelect.playlistEditTargetId > 0 && !playlistMutation.querying
+        busy: playlistItemsMutation.querying
+        enabled: playlistWallpaperSelect.playlistId > 0 && !playlistItemsMutation.querying
         onTriggered: root.applyPlaylistSelection()
     }
 
@@ -520,8 +526,15 @@ MD.Page {
     property var wallpaperSelectSheet: null
     property var wallpaperTweakSheet: null
     property var playlistListSheet: null
+    property var playlistEditorPresentation: null
+    property double playlistEditorId: 0
+    property bool playlistEditorReturnsToList: true
     property var filterPresentation: null
-    Component.onDestruction: root.filterPresentation?.cancel()
+    Component.onDestruction: {
+        root.filterPresentation?.cancel();
+        root.playlistEditorReturnsToList = false;
+        root.playlistEditorPresentation?.cancel();
+    }
     readonly property int selectionSheetReserve: wallpaperSelectSheetRelay.currentComponent ? 360 : 160
     readonly property int selectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.selectedCount : 0
     readonly property int removableSelectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.removableSelectedCount : 0
@@ -624,8 +637,6 @@ MD.Page {
     }
 
     function syncWallpaperSelectSheet() {
-        root.configureWallpaperSelectSheetDefault();
-
         if (root.selectionActionSheetActive) {
             root.ensureWallpaperSelectSheet();
             return;
@@ -644,12 +655,7 @@ MD.Page {
             root.currentWallpaperSelect = storage;
             wallpaperSelectSheetRelay.reset();
         }
-        root.configureWallpaperSelectSheetDefault();
         root.syncWallpaperSelectSheet();
-    }
-
-    function configureWallpaperSelectSheetDefault() {
-        wallpaperSelectSheetRelay.defaultComponent = root.currentWallpaperSelect === playlistWallpaperSelect ? playlistSelectDetailComponent : null;
     }
 
     function enterWallpaperSelect(storage) {
@@ -700,6 +706,45 @@ MD.Page {
         root.ensurePlaylistListSheet();
     }
 
+    function releasePlaylistEditor(presentation) {
+        if (root.playlistEditorPresentation !== presentation)
+            return;
+        const returnToList = root.playlistEditorReturnsToList;
+        root.playlistEditorPresentation = null;
+        root.playlistEditorId = 0;
+        root.playlistEditorReturnsToList = true;
+        if (returnToList)
+            root.showPlaylistListSheet();
+    }
+
+    function openPlaylistEditor(playlist) {
+        const playlistId = Number(typeof playlist === "object" ? playlist?.id ?? 0 : playlist ?? 0);
+        if (!(playlistId > 0))
+            return;
+        if (root.playlistEditorPresentation?.active && root.playlistEditorId === playlistId)
+            return;
+        if (root.playlistEditorPresentation?.active) {
+            root.playlistEditorReturnsToList = false;
+            root.playlistEditorPresentation.cancel();
+        }
+        if (root.playlistListSheet?.active)
+            root.playlistListSheet.close();
+
+        const presentation = root.Window.window.presentPopup('waywallen.ui/PagePopup', {
+            source: 'waywallen.ui/PlaylistEditPage',
+            props: {
+                playlistId: playlistId
+            }
+        });
+        root.playlistEditorPresentation = presentation;
+        root.playlistEditorId = playlistId;
+        root.playlistEditorReturnsToList = true;
+        presentation.activeChanged.connect(presentation, function () {
+            if (!presentation.active)
+                root.releasePlaylistEditor(presentation);
+        });
+    }
+
     function toggleWallpaperTweakSheet() {
         if (root.wallpaperTweakSheet?.active) {
             root.wallpaperTweakSheet.close();
@@ -710,34 +755,50 @@ MD.Page {
         root.ensureWallpaperTweakSheet();
     }
 
-    function isEditingPlaylist(playlist) {
-        return playlistWallpaperSelect.isEditingPlaylist(playlist);
-    }
-
-    function editPlaylistSelection(playlist) {
-        if (!playlist)
+    function beginPlaylistItemSelection(playlistId, revision, entryIds) {
+        if (!(Number(playlistId) > 0))
             return;
-
+        if (root.playlistEditorPresentation?.active) {
+            root.playlistEditorReturnsToList = false;
+            root.playlistEditorPresentation.cancel();
+        }
+        if (root.playlistListSheet?.active)
+            root.playlistListSheet.close();
         root.enterWallpaperSelect(playlistWallpaperSelect);
-        playlistWallpaperSelect.editPlaylistSelection(playlist);
+        playlistWallpaperSelect.beginPlaylistItems(playlistId, revision, entryIds);
         root.selectedWallpaper = null;
         if (m_grid_view)
             m_grid_view.currentIndex = -1;
-        if (root.isSheetActive(root.playlistListSheet))
-            root.playlistListSheet.close();
         if (m_grid_view)
             m_grid_view.forceActiveFocus();
         root.syncWallpaperSelectSheet();
     }
 
-    function confirmPlaylistSelection(playlist) {
-        if (!root.isEditingPlaylist(playlist) || playlistMutation.querying)
+    function showPlaylistListSheet() {
+        playlistListQuery.reload();
+        Qt.callLater(function () {
+            if (!root.selectionActive && !root.playlistEditorPresentation?.active)
+                root.ensurePlaylistListSheet();
+        });
+    }
+
+    function finishPlaylistItemSelection() {
+        root.clearWallpaperSelection();
+        root.showPlaylistListSheet();
+    }
+
+    function cancelWallpaperSelection() {
+        if (root.currentWallpaperSelect === playlistWallpaperSelect) {
+            root.finishPlaylistItemSelection();
             return;
-        playlistMutation.setItems(playlist.id, playlistWallpaperSelect.selectedWallpaperIds());
+        }
+        root.clearWallpaperSelection();
     }
 
     function applyPlaylistSelection() {
-        root.confirmPlaylistSelection(playlistWallpaperSelect.playlistEditTarget);
+        if (playlistWallpaperSelect.playlistId <= 0 || playlistItemsMutation.querying)
+            return;
+        playlistItemsMutation.setItems(playlistWallpaperSelect.playlistId, playlistWallpaperSelect.orderedWallpaperIds(), playlistWallpaperSelect.revision);
     }
 
     function handleWallpaperClick(index, modifiers) {
@@ -785,14 +846,14 @@ MD.Page {
             return;
 
         const title = String(name || "").trim();
-        playlistMutation.create(title.length > 0 ? title : qsTr("New playlist"), WC.PlaylistMode.SEQUENTIAL, root.defaultPlaylistIntervalSecs, ids);
+        playlistMutation.create(title.length > 0 ? title : qsTr("New playlist"), WC.PlaylistMode.SEQUENTIAL, root.defaultPlaylistIntervalSecs, true, ids);
     }
 
     function createEmptyPlaylist() {
         if (playlistSheetCreateMutation.querying)
             return;
 
-        playlistSheetCreateMutation.create(qsTr("New playlist"), WC.PlaylistMode.SEQUENTIAL, root.defaultPlaylistIntervalSecs, []);
+        playlistSheetCreateMutation.create(qsTr("New playlist"), WC.PlaylistMode.SEQUENTIAL, root.defaultPlaylistIntervalSecs, true, []);
     }
 
     function addSelectionToPlaylist(playlist) {
@@ -812,7 +873,7 @@ MD.Page {
             }
         }
         root.playlistMutationSuccessMessage = qsTr("Added to playlist");
-        playlistMutation.setItems(playlist.id, merged);
+        playlistMutation.setItems(playlist.id, merged, Number(playlist.revision || 0));
     }
 
     function removeSelectedWallpapers() {
@@ -961,7 +1022,7 @@ MD.Page {
 
                         Keys.onEscapePressed: event => {
                             if (root.selectionActive) {
-                                root.clearWallpaperSelection();
+                                root.cancelWallpaperSelection();
                                 event.accepted = true;
                             }
                         }
@@ -998,7 +1059,7 @@ MD.Page {
                         text: String(root.selectedWallpaperCount)
                         icon.name: MD.Token.icon.close
                         mdState.type: MD.Enum.BtElevated
-                        onClicked: root.clearWallpaperSelection()
+                        onClicked: root.cancelWallpaperSelection()
                     }
 
                     MD.Loader {
@@ -1108,16 +1169,6 @@ MD.Page {
         W.PlaylistListSheet {
             popupParent: root
             sheetState: playlistListSheetState
-        }
-    }
-
-    Component {
-        id: playlistSelectDetailComponent
-
-        PlaylistDetailPanel {
-            width: parent ? parent.width : implicitWidth
-            playlist: playlistWallpaperSelect.playlistEditTarget
-            mutation: playlistDetailMutation
         }
     }
 

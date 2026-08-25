@@ -129,33 +129,6 @@ pub async fn apply_wallpaper_to_displays_with_first_frame_timeout(
     .await
 }
 
-pub async fn apply_wallpaper_shared_to_displays(
-    app: &Arc<DaemonContext>,
-    id: &str,
-    target: &[DisplayId],
-    first_frame_timeout: Option<Duration>,
-    source: ApplySource,
-) -> Result<ApplyResult> {
-    if target.is_empty() {
-        return Err(Error::Internal(anyhow!(
-            "apply_wallpaper_shared_to_displays: empty target"
-        )));
-    }
-    apply_wallpaper(
-        app,
-        id,
-        ApplyRequest {
-            source,
-            targets: Some(apply_targets_for_displays(app, target).await?),
-            renderer_name: None,
-            first_frame_timeout,
-            require_display: false,
-            sharing: RendererSharingPolicy::Shared,
-        },
-    )
-    .await
-}
-
 pub async fn apply_wallpaper_to_canvas(
     app: &Arc<DaemonContext>,
     id: &str,

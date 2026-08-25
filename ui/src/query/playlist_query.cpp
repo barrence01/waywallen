@@ -6,6 +6,7 @@ module;
 module waywallen;
 import :query.playlist;
 import :app;
+import :msg.store;
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -14,6 +15,22 @@ using namespace qextra::prelude;
 
 namespace waywallen
 {
+
+static auto playlist_to_map(const proto::PlaylistSummary& playlist) -> QVariantMap {
+    QVariantMap map;
+    map[u"id"_s]                    = static_cast<qint64>(playlist.id_proto());
+    map[u"name"_s]                  = playlist.name();
+    map[u"mode"_s]                  = static_cast<int>(playlist.mode());
+    map[u"intervalSecs"_s]          = playlist.intervalSecs();
+    map[u"synchronizedSelection"_s] = playlist.synchronizedSelection();
+    map[u"itemCount"_s]             = playlist.itemCount();
+    map[u"revision"_s]              = static_cast<qint64>(playlist.revision());
+    QStringList entry_ids;
+    entry_ids.reserve(playlist.entryIds().size());
+    for (const auto& entry_id : playlist.entryIds()) entry_ids.append(entry_id);
+    map[u"entryIds"_s] = entry_ids;
+    return map;
+}
 
 PlaylistListQuery::PlaylistListQuery(QObject* parent): Query(parent) {}
 auto PlaylistListQuery::playlists() const -> const QVariantList& { return m_playlists; }
@@ -31,19 +48,75 @@ void PlaylistListQuery::reload() {
         self->inspect_set(result, [self](const proto::Response& rsp) {
             QVariantList out;
             for (const auto& p : rsp.playlistList().playlists()) {
-                QVariantMap m;
-                m[u"id"_s]           = static_cast<qint64>(p.id_proto());
-                m[u"name"_s]         = p.name();
-                m[u"mode"_s]         = static_cast<int>(p.mode());
-                m[u"intervalSecs"_s] = p.intervalSecs();
-                m[u"itemCount"_s]    = p.itemCount();
-                QStringList eids;
-                for (const auto& e : p.entryIds()) eids.append(e);
-                m[u"entryIds"_s] = eids;
-                out.append(m);
+                out.append(playlist_to_map(p));
             }
             self->m_playlists = std::move(out);
             Q_EMIT self->playlistsChanged();
+        });
+        co_return;
+    });
+}
+
+PlaylistDetailQuery::PlaylistDetailQuery(QObject* parent): QueryList(parent) {
+    setLimit(0);
+    tdata()->set_store(tdata(), AppStore::instance()->wallpapers);
+}
+
+auto PlaylistDetailQuery::playlistId() const -> qint64 { return m_playlist_id; }
+
+void PlaylistDetailQuery::setPlaylistId(qint64 id) {
+    if (m_playlist_id == id) return;
+    m_playlist_id = id;
+    Q_EMIT playlistIdChanged();
+}
+
+auto PlaylistDetailQuery::playlist() const -> const QVariantMap& { return m_playlist; }
+auto PlaylistDetailQuery::revision() const -> qint64 { return m_revision; }
+auto PlaylistDetailQuery::entryIds() const -> const QStringList& { return m_entry_ids; }
+
+void PlaylistDetailQuery::classBegin() {}
+
+void PlaylistDetailQuery::componentComplete() {
+    connect_requet_reload(&PlaylistDetailQuery::playlistIdChanged, this);
+    reload();
+}
+
+void PlaylistDetailQuery::reload() {
+    if (m_playlist_id <= 0) {
+        setError(u"playlist id is required"_s);
+        setStatus(Status::Error);
+        return;
+    }
+
+    setStatus(Status::Querying);
+    auto backend = App::instance()->backend();
+    auto detail  = proto::PlaylistGetRequest {};
+    detail.setId_proto(m_playlist_id);
+    auto req = proto::Request {};
+    req.setPlaylistGet(std::move(detail));
+
+    auto self = QWatcher { this };
+    spawn([self, backend, req = std::move(req)]() mutable -> task<void> {
+        auto result = co_await backend->send(std::move(req));
+        if (! co_await QAsyncResult::qexecutor()) co_return;
+        if (! self) co_return;
+        self->inspect_set(result, [self](const proto::Response& rsp) {
+            const auto&                   detail   = rsp.playlistGet();
+            const auto&                   summary  = detail.playlist();
+            auto                          playlist = playlist_to_map(summary);
+            std::vector<model::Wallpaper> wallpapers;
+            wallpapers.reserve(detail.wallpapers().size());
+            for (const auto& wallpaper : detail.wallpapers()) wallpapers.push_back(wallpaper);
+            auto data = self->tdata();
+            data->setHasMore(false);
+            data->sync(wallpapers);
+
+            self->m_playlist = std::move(playlist);
+            self->m_revision = static_cast<qint64>(summary.revision());
+            self->m_entry_ids.clear();
+            self->m_entry_ids.reserve(summary.entryIds().size());
+            for (const auto& entry_id : summary.entryIds()) self->m_entry_ids.append(entry_id);
+            Q_EMIT self->playlistChanged();
         });
         co_return;
     });
@@ -77,11 +150,12 @@ void PlaylistMutationQuery::send(proto::Request req, bool captureCreate) {
 }
 
 void PlaylistMutationQuery::create(const QString& name, int mode, int intervalSecs,
-                                   const QVariantList& itemIds) {
+                                   bool synchronizedSelection, const QVariantList& itemIds) {
     proto::PlaylistCreateRequest r;
     r.setName(name);
     r.setMode(static_cast<proto::PlaylistMode>(mode));
     r.setIntervalSecs(static_cast<QtProtobuf::uint32>(intervalSecs));
+    r.setSynchronizedSelection(synchronizedSelection);
     r.setEntryIds(toStr(itemIds));
     proto::Request req;
     req.setPlaylistCreate(std::move(r));
@@ -96,6 +170,22 @@ void PlaylistMutationQuery::remove(qint64 id) {
     send(std::move(req), false);
 }
 
+void PlaylistMutationQuery::update(qint64 id, const QString& name, int mode, int intervalSecs,
+                                   bool synchronizedSelection, const QVariantList& itemIds,
+                                   qint64 expectedRevision) {
+    proto::PlaylistUpdateRequest r;
+    r.setId_proto(id);
+    r.setName(name);
+    r.setMode(static_cast<proto::PlaylistMode>(mode));
+    r.setIntervalSecs(static_cast<QtProtobuf::uint32>(intervalSecs));
+    r.setSynchronizedSelection(synchronizedSelection);
+    r.setEntryIds(toStr(itemIds));
+    r.setExpectedRevision(expectedRevision);
+    proto::Request req;
+    req.setPlaylistUpdate(std::move(r));
+    send(std::move(req), false);
+}
+
 void PlaylistMutationQuery::rename(qint64 id, const QString& name) {
     proto::PlaylistRenameRequest r;
     r.setId_proto(id);
@@ -105,10 +195,12 @@ void PlaylistMutationQuery::rename(qint64 id, const QString& name) {
     send(std::move(req), false);
 }
 
-void PlaylistMutationQuery::setItems(qint64 id, const QVariantList& itemIds) {
+void PlaylistMutationQuery::setItems(qint64 id, const QVariantList& itemIds,
+                                     qint64 expectedRevision) {
     proto::PlaylistSetItemsRequest r;
     r.setId_proto(id);
     r.setEntryIds(toStr(itemIds));
+    r.setExpectedRevision(expectedRevision);
     proto::Request req;
     req.setPlaylistSetItems(std::move(r));
     send(std::move(req), false);

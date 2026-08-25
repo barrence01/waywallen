@@ -39,6 +39,7 @@ pub struct Model {
     pub name: String,
     pub mode: PlaylistMode,
     pub interval_secs: i64,
+    pub synchronized_selection: bool,
     pub created_at: i64,
     pub updated_at: i64,
 }

@@ -6,8 +6,8 @@ use crate::application::ApplySource;
 use crate::error::{Error, Result};
 use crate::model::repo::playlists as repository;
 use crate::playback::playlist::{
-    Activation, ApplyPort, ApplyRequest, ApplySharing, ApplySource as PlaylistApplySource,
-    Definition,
+    Activation, ApplyPort, ApplyRequest, ApplySource as PlaylistApplySource, Definition, Target,
+    TargetId,
 };
 use crate::playback::Mode;
 use crate::wallframe::scheduler::DisplayId;
@@ -39,42 +39,82 @@ fn apply_port(app: &Arc<DaemonContext>, activation_source: ApplySource) -> Apply
         let app = app.clone();
         async move {
             let source = apply_source(request.source, activation_source);
-            match request.sharing {
-                ApplySharing::Independent => match request.first_frame_timeout {
-                    Some(timeout) => {
-                        super::apply_wallpaper_to_displays_with_first_frame_timeout(
-                            &app,
-                            &request.entry_id,
-                            &request.display_ids,
-                            timeout,
-                            source,
-                        )
-                        .await?;
-                    }
-                    None => {
-                        super::apply_wallpaper_to_displays(
-                            &app,
-                            &request.entry_id,
-                            &request.display_ids,
-                            source,
-                        )
-                        .await?;
-                    }
-                },
-                ApplySharing::Shared => {
-                    super::apply_wallpaper_shared_to_displays(
+            let calls = request.assignments.into_iter().map(|assignment| {
+                let app = app.clone();
+                let entry_id = assignment.entry_id;
+                let target_count = assignment.targets.len();
+                async move {
+                    let targets = assignment
+                        .targets
+                        .into_iter()
+                        .map(|target| match target {
+                            TargetId::Display(display_id) => {
+                                crate::application::ApplyTarget::Display(display_id)
+                            }
+                            TargetId::Canvas(canvas_id) => {
+                                crate::application::ApplyTarget::Canvas(canvas_id)
+                            }
+                        })
+                        .collect();
+                    super::apply_wallpaper(
                         &app,
-                        &request.entry_id,
-                        &request.display_ids,
-                        request.first_frame_timeout,
-                        source,
+                        &entry_id,
+                        crate::application::ApplyRequest {
+                            source,
+                            targets: Some(targets),
+                            renderer_name: None,
+                            first_frame_timeout: request.first_frame_timeout,
+                            require_display: false,
+                            sharing: crate::application::RendererSharingPolicy::UseSettings,
+                        },
                     )
-                    .await?;
+                    .await
+                    .map(|_| ())
+                    .map_err(|error| (entry_id, target_count, error))
+                }
+            });
+            let mut first_error = None;
+            for result in futures_util::future::join_all(calls).await {
+                if let Err((entry_id, target_count, error)) = result {
+                    log::warn!(
+                        "playlist apply entry={entry_id} targets={target_count} failed: {error:#}"
+                    );
+                    if first_error.is_none() {
+                        first_error = Some(error);
+                    }
                 }
             }
-            Ok(())
+            first_error.map_or(Ok(()), Err)
         }
     })
+}
+
+async fn playlist_targets(
+    app: &Arc<DaemonContext>,
+    display_ids: &[DisplayId],
+) -> Result<Vec<Target>> {
+    let target_ids = app.router.config_targets_for_displays(display_ids).await?;
+    Ok(app
+        .router
+        .resolve_config_targets(Some(&target_ids))
+        .await?
+        .into_iter()
+        .map(|target| Target {
+            id: match target.id {
+                crate::wallframe::routing::ConfigTargetId::Display(display_id) => {
+                    TargetId::Display(display_id)
+                }
+                crate::wallframe::routing::ConfigTargetId::Canvas(canvas_id) => {
+                    TargetId::Canvas(canvas_id)
+                }
+            },
+            display_ids: target
+                .members
+                .into_iter()
+                .map(|member| member.display_id)
+                .collect(),
+        })
+        .collect())
 }
 
 async fn definition(app: &Arc<DaemonContext>, playlist_id: i64) -> Result<Definition> {
@@ -85,6 +125,7 @@ async fn definition(app: &Arc<DaemonContext>, playlist_id: i64) -> Result<Defini
         id: playlist.id,
         mode: playlist.mode,
         interval_secs: playlist.interval_secs,
+        synchronized_selection: playlist.synchronized_selection,
         items: resolve::resolve(app, playlist_id).await?,
     })
 }
@@ -216,7 +257,11 @@ async fn activate_inner(
     } else {
         display_ids.to_vec()
     };
-    let targets = app.router.expand_display_config_members(&targets).await?;
+    let playlist_targets = playlist_targets(app, &targets).await?;
+    let targets = playlist_targets
+        .iter()
+        .flat_map(|target| target.display_ids.iter().copied())
+        .collect::<Vec<_>>();
     let resume_by_display = if resume {
         resume_ids(app, &definition, &targets).await
     } else {
@@ -226,7 +271,7 @@ async fn activate_inner(
         .activate(
             Activation {
                 definition,
-                display_ids: targets.clone(),
+                targets: playlist_targets,
                 resume_by_display,
                 first_frame_timeout,
             },
@@ -239,16 +284,24 @@ async fn activate_inner(
     Ok(())
 }
 
-pub async fn attach_shared(
+pub async fn attach(
     app: &Arc<DaemonContext>,
     display_id: DisplayId,
     playlist_id: i64,
 ) -> Result<bool> {
+    let targets = playlist_targets(app, &[display_id]).await?;
+    let Some(target) = targets.into_iter().next() else {
+        return Ok(false);
+    };
+    let definition = definition(app, playlist_id).await?;
+    let resume_by_display = resume_ids(app, &definition, &target.display_ids).await;
+    let target_display_ids = target.display_ids.clone();
     let attached = app
         .playlists
-        .attach_shared(
-            display_id,
+        .attach(
+            target,
             playlist_id,
+            resume_by_display,
             crate::application::APPLY_FIRST_FRAME_TIMEOUT,
             apply_port(app, ApplySource::UserPlaylistActivation),
         )
@@ -256,7 +309,7 @@ pub async fn attach_shared(
     if attached {
         persist_assignments(
             app,
-            &[display_id],
+            &target_display_ids,
             Some(playlist_id),
             AutoAttachUpdate::Inherit,
         )

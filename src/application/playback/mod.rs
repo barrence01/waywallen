@@ -12,8 +12,8 @@ pub use lifecycle::{
 };
 pub(crate) use playlist::activate_resuming_with_first_frame_timeout;
 pub use playlist::{
-    activate as activate_playlist, attach_shared as attach_shared_playlist,
-    deactivate as deactivate_playlist, deactivate_for_playlist, jump_to as jump_to_playlist,
-    rebuild_for_playlist, set_interval_for_playlist,
+    activate as activate_playlist, attach as attach_playlist, deactivate as deactivate_playlist,
+    deactivate_for_playlist, jump_to as jump_to_playlist, rebuild_for_playlist,
+    set_interval_for_playlist,
 };
 pub use queue::*;

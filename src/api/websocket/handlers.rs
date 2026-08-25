@@ -2075,17 +2075,69 @@ pub(super) async fn dispatch_inner(
                     .into_iter()
                     .map(|e| e.to_string())
                     .collect();
-                playlists.push(pb::PlaylistSummary {
-                    id: s.id,
-                    name: s.name,
-                    source_kind: "curated".into(),
-                    mode: queue_mode_to_pb_playlist(s.mode),
-                    interval_secs: s.interval_secs,
-                    item_count: s.item_count,
-                    entry_ids,
-                });
+                playlists.push(playlist_summary_to_pb(s, entry_ids));
             }
             Res::PlaylistList(pb::PlaylistListResponse { playlists })
+        }
+
+        Req::PlaylistGet(r) => {
+            let detail = crate::model::repo::playlists::detail(&state.db, r.id).await?;
+            let entry_ids = detail
+                .entries
+                .iter()
+                .map(|entry| entry.item_id.to_string())
+                .collect();
+            let playlist = playlist_summary_to_pb(detail.summary, entry_ids);
+            let wallpapers = detail
+                .entries
+                .iter()
+                .map(|entry| {
+                    entry_to_pb(
+                        entry,
+                        entry.tags.clone(),
+                        String::new(),
+                        String::new(),
+                        None,
+                        state
+                            .source_manager
+                            .supports_item_remove(&entry.plugin_name),
+                        state.source_manager.supports_item_unsubscribe(entry),
+                    )
+                })
+                .collect();
+            Res::PlaylistGet(pb::PlaylistGetResponse {
+                playlist: Some(playlist),
+                wallpapers,
+            })
+        }
+
+        Req::PlaylistUpdate(r) => {
+            let mode = pb_playlist_mode_to_queue(r.mode);
+            let entry_ids = parse_entry_ids(&r.entry_ids);
+            let changes = crate::model::repo::playlists::update(
+                &state.db,
+                r.id,
+                &r.name,
+                mode,
+                r.interval_secs,
+                r.synchronized_selection,
+                &entry_ids,
+                (r.expected_revision > 0).then_some(r.expected_revision),
+                tasks::now_ms(),
+            )
+            .await?;
+            if changes.mode_changed
+                || changes.items_changed
+                || changes.synchronized_selection_changed
+            {
+                application::rebuild_for_playlist(&state, r.id).await;
+            } else if changes.interval_changed {
+                application::set_interval_for_playlist(&state, r.id, r.interval_secs).await;
+            }
+            if changes != crate::model::repo::playlists::UpdateChanges::default() {
+                state.events.publish(GlobalEvent::PlaylistChanged);
+            }
+            Res::PlaylistUpdate(pb::Empty {})
         }
 
         Req::PlaylistCreate(r) => {
@@ -2095,6 +2147,7 @@ pub(super) async fn dispatch_inner(
                 &r.name,
                 mode,
                 r.interval_secs,
+                r.synchronized_selection,
                 tasks::now_ms(),
                 &parse_entry_ids(&r.entry_ids),
             )
@@ -2122,6 +2175,7 @@ pub(super) async fn dispatch_inner(
                 &state.db,
                 r.id,
                 &parse_entry_ids(&r.entry_ids),
+                (r.expected_revision > 0).then_some(r.expected_revision),
                 tasks::now_ms(),
             )
             .await?;
@@ -2195,6 +2249,23 @@ pub(super) async fn dispatch_inner(
             Res::PlaylistJumpTo(pb::Empty {})
         }
     })
+}
+
+fn playlist_summary_to_pb(
+    summary: crate::model::repo::playlists::Summary,
+    entry_ids: Vec<String>,
+) -> pb::PlaylistSummary {
+    pb::PlaylistSummary {
+        id: summary.id,
+        name: summary.name,
+        source_kind: "curated".into(),
+        mode: queue_mode_to_pb_playlist(summary.mode),
+        interval_secs: summary.interval_secs,
+        synchronized_selection: summary.synchronized_selection,
+        item_count: summary.item_count,
+        entry_ids,
+        revision: summary.revision,
+    }
 }
 
 pub(super) fn parse_entry_ids(v: &[String]) -> Vec<i64> {

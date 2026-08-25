@@ -169,6 +169,9 @@ pub enum Error {
     #[error("playlist invalid: {0}")]
     PlaylistInvalid(String),
 
+    #[error("playlist revision changed: expected {expected}, current {current}")]
+    PlaylistRevisionConflict { expected: i64, current: i64 },
+
     #[error("display {0} is not registered")]
     DisplayNotFound(u64),
 
@@ -260,6 +263,7 @@ impl Error {
             Self::LibraryNotFound(_) => E::LibraryNotFound,
             Self::PlaylistNotFound(_) => E::PlaylistNotFound,
             Self::PlaylistInvalid(_) => E::PlaylistInvalid,
+            Self::PlaylistRevisionConflict { .. } => E::PlaylistRevisionConflict,
             Self::DisplayNotFound(_) => E::DisplayNotFound,
             Self::CanvasNotFound(_) => E::CanvasNotFound,
             Self::CanvasInvalid(_) => E::CanvasInvalid,
@@ -293,6 +297,7 @@ impl Error {
             | E::CanvasMemberConflict
             | E::DisplayBelongsToCanvas
             | E::CanvasHasNoLiveDisplay
+            | E::PlaylistRevisionConflict
             | E::CanvasRevisionConflict => S::FailedPrecondition,
             E::WallpaperNotFound
             | E::RendererNotFound

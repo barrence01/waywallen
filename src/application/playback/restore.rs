@@ -162,16 +162,16 @@ pub async fn watch_hotplug(app: Arc<DaemonContext>) {
                     Ok(RouterEvent::DisplayUpsert(s)) => {
                         let key = s.instance_id.clone().unwrap_or_else(|| s.name.clone());
                         let is_new = known.insert(s.id);
-                        if app.playlists.is_owned(s.id).await {
-                            continue;
-                        }
-                        let pid = if is_new {
+                        let owner = app.playlists.owner_playlist(s.id).await;
+                        let pid = if let Some(pid) = owner {
+                            Some(pid)
+                        } else if is_new {
                             resolve_pid(&app, &key)
                         } else {
                             app.settings.display_prefs(&key).and_then(|p| p.active_playlist_id)
                         };
                         let Some(pid) = pid else { continue };
-                        match super::attach_shared_playlist(&app, s.id, pid).await {
+                        match super::attach_playlist(&app, s.id, pid).await {
                             Ok(true) => {}
                             Ok(false) => queue_pending(&mut pending, pid, s.id, SETTLE),
                             Err(e) => {

@@ -5,6 +5,7 @@ mod m20260523_000001_user_property_overrides;
 mod m20260601_000001_playlists;
 mod m20260614_000001_wallpaper_layout_override;
 mod m20260816_000001_item_web_url;
+mod m20260825_000001_playlist_synchronized_selection;
 
 pub struct Migrator;
 
@@ -17,6 +18,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260601_000001_playlists::Migration),
             Box::new(m20260614_000001_wallpaper_layout_override::Migration),
             Box::new(m20260816_000001_item_web_url::Migration),
+            Box::new(m20260825_000001_playlist_synchronized_selection::Migration),
         ]
     }
 }
@@ -62,5 +64,17 @@ mod tests {
         db.execute(stmt)
             .await
             .unwrap_or_else(|e| panic!("item.web_url missing: {e}"));
+    }
+
+    #[tokio::test]
+    async fn playlist_synchronized_selection_column_exists_after_migration() {
+        let db = crate::model::connect_url("sqlite::memory:").await.unwrap();
+        let stmt = Statement::from_string(
+            db.get_database_backend(),
+            "SELECT synchronized_selection FROM playlist LIMIT 0".to_string(),
+        );
+        db.execute(stmt)
+            .await
+            .unwrap_or_else(|e| panic!("playlist.synchronized_selection missing: {e}"));
     }
 }

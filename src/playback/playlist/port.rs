@@ -6,10 +6,16 @@ use std::time::Duration;
 use crate::error::Result;
 use crate::wallframe::scheduler::DisplayId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ApplySharing {
-    Independent,
-    Shared,
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum TargetId {
+    Display(DisplayId),
+    Canvas(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Target {
+    pub id: TargetId,
+    pub display_ids: Vec<DisplayId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,12 +27,16 @@ pub enum ApplySource {
     Attach,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApplyAssignment {
+    pub entry_id: String,
+    pub targets: Vec<TargetId>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ApplyRequest {
     pub source: ApplySource,
-    pub entry_id: String,
-    pub display_ids: Vec<DisplayId>,
-    pub sharing: ApplySharing,
+    pub assignments: Vec<ApplyAssignment>,
     pub first_frame_timeout: Option<Duration>,
 }
 

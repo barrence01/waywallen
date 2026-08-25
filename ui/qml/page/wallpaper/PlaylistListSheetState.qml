@@ -43,10 +43,6 @@ QtObject {
         targetState.reconcileSelection();
     }
 
-    function isEditingPlaylist(playlist) {
-        return page.isEditingPlaylist(playlist);
-    }
-
     function playlistIsPlayingOnSelectedTargets(playlist) {
         if (!playlist || !root.hasPlayTarget)
             return false;
@@ -83,8 +79,14 @@ QtObject {
         playlistPlaybackMutation.activate(playlist.id, targetState.wireTargets, targetState.allTargets);
     }
 
-    function editSelection(playlist) {
-        page.editPlaylistSelection(playlist);
+    function editPlaylist(playlist) {
+        page.openPlaylistEditor(playlist);
+    }
+
+    function editPlaylistItems(playlist) {
+        if (!playlist)
+            return;
+        page.beginPlaylistItemSelection(playlist.id, playlist.revision, playlist.entryIds || []);
     }
 
     function deletePlaylist(playlist) {

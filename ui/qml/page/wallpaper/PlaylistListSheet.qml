@@ -120,7 +120,7 @@ MD.BottomSheet {
                 heightMode: playingDisplayLabels.length > 0 ? MD.Enum.ListItemThreeLine : MD.Enum.ListItemTwoLine
                 readonly property bool playingOnSelectedTargets: control.sheetState.playlistIsPlayingOnSelectedTargets(modelData)
                 readonly property var playingDisplayLabels: control.sheetState.playlistDisplayLabels(modelData)
-                mdState.backgroundColor: control.sheetState.isEditingPlaylist(modelData) ? MD.Token.color.primary_container : MD.Token.color.surface_container
+                mdState.backgroundColor: MD.Token.color.surface_container
 
                 below: Item {
                     implicitHeight: tagFlow.visible ? tagFlow.implicitHeight + 6 : 0
@@ -162,9 +162,17 @@ MD.BottomSheet {
                     MD.IconButton {
                         enabled: !control.sheetState.mutationQuerying
                         icon.name: MD.Token.icon.edit
-                        onClicked: control.sheetState.editSelection(playlistSheetItem.modelData)
+                        onClicked: control.sheetState.editPlaylist(playlistSheetItem.modelData)
                         MD.ToolTip.visible: hovered
-                        MD.ToolTip.text: qsTr("Edit selection")
+                        MD.ToolTip.text: qsTr("Edit playlist")
+                    }
+
+                    MD.IconButton {
+                        enabled: !control.sheetState.mutationQuerying
+                        icon.name: MD.Token.icon.edit_note
+                        onClicked: control.sheetState.editPlaylistItems(playlistSheetItem.modelData)
+                        MD.ToolTip.visible: hovered
+                        MD.ToolTip.text: qsTr("Edit wallpapers")
                     }
 
                     MD.IconButton {

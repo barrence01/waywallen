@@ -206,6 +206,64 @@ pub async fn get_entry(
     Ok(Some(entry))
 }
 
+pub async fn get_entries_ordered<C: ConnectionTrait>(
+    conn: &C,
+    item_ids: &[i64],
+) -> Result<Vec<crate::catalog::entry::WallpaperEntry>> {
+    if item_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let rows: Vec<(item::Model, Option<library::Model>)> = item::Entity::find()
+        .filter(item::Column::Id.is_in(item_ids.iter().copied()))
+        .find_also_related(library::Entity)
+        .all(conn)
+        .await
+        .context("select ordered items")?;
+    let plugin_ids: HashSet<i64> = rows.iter().map(|(item, _)| item.plugin_id).collect();
+    let plugin_names: HashMap<i64, String> = source_plugin::Entity::find()
+        .filter(source_plugin::Column::Id.is_in(plugin_ids))
+        .all(conn)
+        .await
+        .context("select ordered item plugins")?
+        .into_iter()
+        .map(|plugin| (plugin.id, plugin.name))
+        .collect();
+    let tag_rows: Vec<(item_tag::Model, Option<tag::Model>)> = item_tag::Entity::find()
+        .find_also_related(tag::Entity)
+        .filter(item_tag::Column::ItemId.is_in(item_ids.iter().copied()))
+        .order_by_asc(tag::Column::Name)
+        .all(conn)
+        .await
+        .context("select ordered item tags")?;
+    let mut tags_by_item: HashMap<i64, Vec<String>> = HashMap::new();
+    for (item_tag, tag) in tag_rows {
+        if let Some(tag) = tag {
+            tags_by_item
+                .entry(item_tag.item_id)
+                .or_default()
+                .push(tag.name);
+        }
+    }
+
+    let mut by_id = HashMap::with_capacity(rows.len());
+    for (item, library) in rows {
+        let Some(library) = library else {
+            continue;
+        };
+        let plugin_name = plugin_names
+            .get(&item.plugin_id)
+            .cloned()
+            .unwrap_or_default();
+        let item_id = item.id;
+        let mut entry = entry_from_item(item, &library.path, &plugin_name);
+        entry.tags = tags_by_item.remove(&item_id).unwrap_or_default();
+        by_id.insert(item_id, entry);
+    }
+
+    Ok(item_ids.iter().filter_map(|id| by_id.remove(id)).collect())
+}
+
 pub async fn list_item_keys_by_wallpaper_filters(
     db: &DatabaseConnection,
     filters: &[crate::catalog::FilterRule],

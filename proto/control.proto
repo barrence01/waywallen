@@ -100,6 +100,8 @@ message Request {
     CanvasLayoutSetRequest      canvas_layout_set = 83;
     CanvasMemberConfigureRequest canvas_member_configure = 84;
     PluginTranslationListRequest     plugin_translation_list = 85;
+    PlaylistGetRequest          playlist_get = 86;
+    PlaylistUpdateRequest       playlist_update = 87;
   }
 }
 
@@ -187,6 +189,8 @@ message Response {
     CanvasLayoutSetResponse     canvas_layout_set = 83;
     CanvasMemberConfigureResponse canvas_member_configure = 84;
     PluginTranslationListResponse      plugin_translation_list = 85;
+    PlaylistGetResponse          playlist_get = 86;
+    Empty                        playlist_update = 87;
   }
 }
 
@@ -246,6 +250,7 @@ enum ErrorCode {
   // Playlists
   ERROR_CODE_PLAYLIST_NOT_FOUND = 500;
   ERROR_CODE_PLAYLIST_INVALID = 501;
+  ERROR_CODE_PLAYLIST_REVISION_CONFLICT = 502;
 
   // Displays
   ERROR_CODE_DISPLAY_NOT_FOUND = 600;
@@ -1661,6 +1666,8 @@ message PlaylistSummary {
   uint32 interval_secs = 5;
   uint32 item_count = 6;
   repeated string entry_ids = 7;
+  int64 revision = 8;
+  bool synchronized_selection = 9;
 }
 
 message PlaylistListRequest {}
@@ -1668,11 +1675,30 @@ message PlaylistListResponse {
   repeated PlaylistSummary playlists = 1;
 }
 
+message PlaylistGetRequest {
+  int64 id = 1;
+}
+message PlaylistGetResponse {
+  PlaylistSummary playlist = 1;
+  repeated WallpaperEntry wallpapers = 2;
+}
+
+message PlaylistUpdateRequest {
+  int64 id = 1;
+  string name = 2;
+  PlaylistMode mode = 3;
+  uint32 interval_secs = 4;
+  int64 expected_revision = 5;
+  repeated string entry_ids = 6;
+  bool synchronized_selection = 7;
+}
+
 message PlaylistCreateRequest {
   string         name = 1;
   PlaylistMode   mode = 2;
   uint32         interval_secs = 3;
   repeated string entry_ids = 4;
+  bool synchronized_selection = 5;
 }
 message PlaylistCreateResponse {
   int64 id = 1;
@@ -1688,6 +1714,7 @@ message PlaylistRenameRequest {
 message PlaylistSetItemsRequest {
   int64           id = 1;
   repeated string entry_ids = 2;
+  int64 expected_revision = 3;
 }
 
 message PlaylistSetModeRequest {

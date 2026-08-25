@@ -6,4 +6,5 @@ pub struct Playlist {
     pub name: String,
     pub mode: Mode,
     pub interval_secs: u32,
+    pub synchronized_selection: bool,
 }
