@@ -1,3 +1,16 @@
+<release version="0.3.7" date="2026-08-25">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>New playlist editor.</li>
+      <li>Optional synchronized selection for randomized playlists.</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Display size changes now correctly mark the canvas as modified.</li>
+    </ul>
+  </description>
+</release>
 <release version="0.3.6" date="2026-08-24">
   <description>
     <p>Added:</p>
