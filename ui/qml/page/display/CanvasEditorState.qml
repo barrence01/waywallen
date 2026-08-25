@@ -62,6 +62,62 @@ QtObject {
         dirty = serializedDraft() !== baseline;
     }
 
+    function minimumSize(member) {
+        const minimum = member.minimumScaleTo || ({});
+        const width = Number(minimum.width || 0);
+        const height = Number(minimum.height || 0);
+        if (width <= 0 || height <= 0) {
+            return {
+                width: Math.max(1, Number(member.width || 1)),
+                height: Math.max(1, Number(member.height || 1))
+            };
+        }
+        return {
+            width: width,
+            height: height
+        };
+    }
+
+    function sizeFromWidth(member, requestedWidth) {
+        const minimum = minimumSize(member);
+        const width = Math.max(minimum.width, Math.round(Number(requestedWidth || 0)));
+        if (member.aspectLocked ?? true) {
+            return {
+                width: width,
+                height: Math.max(1, Math.round(width * minimum.height / minimum.width))
+            };
+        }
+        return {
+            width: width,
+            height: Math.max(minimum.height, Math.round(Number(member.height || 1)))
+        };
+    }
+
+    function sizeFromHeight(member, requestedHeight) {
+        const minimum = minimumSize(member);
+        const height = Math.max(minimum.height, Math.round(Number(requestedHeight || 0)));
+        if (member.aspectLocked ?? true) {
+            return {
+                width: Math.max(1, Math.round(height * minimum.width / minimum.height)),
+                height: height
+            };
+        }
+        return {
+            width: Math.max(minimum.width, Math.round(Number(member.width || 1))),
+            height: height
+        };
+    }
+
+    function constrainedMember(member) {
+        const size = (member.aspectLocked ?? true)
+            ? sizeFromWidth(member, member.width)
+            : {
+                width: Math.max(minimumSize(member).width, Math.round(Number(member.width || 1))),
+                height: Math.max(minimumSize(member).height, Math.round(Number(member.height || 1)))
+            };
+        return Object.assign({}, member, size);
+    }
+
     function begin(canvas) {
         canvasObject = canvas;
         baseRevision = canvas?.revision || 0;
@@ -78,23 +134,26 @@ QtObject {
         baseRevision = canvas.revision || baseRevision;
         const currentRows = (canvas.members || []).map(member => rowForMember(member));
         const currentByKey = new Map(currentRows.map(member => [member.settingsKey, member]));
-        const mergeConfig = rows => rows.map(member => {
+        const mergeDraft = rows => rows.map(member => {
                 const current = currentByKey.get(member.settingsKey);
                 if (!current)
                     return member;
-                return Object.assign({}, member, {
+                return constrainedMember(Object.assign({}, member, {
                     label: current.label,
-                    width: current.width,
-                    height: current.height,
                     minimumScaleTo: current.minimumScaleTo,
-                    onlineCount: current.onlineCount,
-                    aspectLocked: current.aspectLocked
-                });
+                    onlineCount: current.onlineCount
+                }));
             });
-        members = mergeConfig(members);
+        const mergeBaseline = rows => rows.map(member => {
+                const current = currentByKey.get(member.settingsKey);
+                if (!current)
+                    return member;
+                return Object.assign({}, member, current);
+            });
+        members = mergeDraft(members);
         if (baseline.length) {
             const saved = JSON.parse(baseline);
-            baseline = serializedState(saved.name, mergeConfig(saved.members || []));
+            baseline = serializedState(saved.name, mergeBaseline(saved.members || []));
         }
         refreshDirty();
     }
@@ -198,6 +257,45 @@ QtObject {
         next[index] = Object.assign({}, next[index], values);
         members = next;
         refreshDirty();
+    }
+
+    function setMemberWidth(index, value) {
+        const member = members[index];
+        if (!member)
+            return;
+        replaceAt(index, sizeFromWidth(member, value));
+    }
+
+    function setMemberHeight(index, value) {
+        const member = members[index];
+        if (!member)
+            return;
+        replaceAt(index, sizeFromHeight(member, value));
+    }
+
+    function setMemberAspectLocked(index, locked) {
+        const member = members[index];
+        if (!member)
+            return;
+        const next = Object.assign({}, member, {
+            aspectLocked: locked
+        });
+        replaceAt(index, locked ? constrainedMember(next) : next);
+    }
+
+    function resetMemberSize(index) {
+        const member = members[index];
+        if (!member)
+            return;
+        const minimum = member.minimumScaleTo || ({});
+        const width = Number(minimum.width || 0);
+        const height = Number(minimum.height || 0);
+        if (width <= 0 || height <= 0)
+            return;
+        replaceAt(index, {
+            width: width,
+            height: height
+        });
     }
 
     function snappedMemberPosition(index, x, y, threshold) {

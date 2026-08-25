@@ -8,25 +8,22 @@ ColumnLayout {
     id: control
 
     required property var editor
+    property bool busy: false
 
     spacing: 8
 
-    function isPersisted(settingsKey) {
-        return (editor.canvasObject?.members || []).some(member => String(member.settingsKey || "") === settingsKey);
+    function configureWidth(index, current, text) {
+        const value = Math.round(Number(text));
+        if (control.busy || !Number.isFinite(value) || value <= 0 || value === current)
+            return;
+        editor.setMemberWidth(index, value);
     }
 
-    function configureWidth(settingsKey, current, text) {
+    function configureHeight(index, current, text) {
         const value = Math.round(Number(text));
-        if (memberConfigureQuery.querying || !Number.isFinite(value) || value <= 0 || value === current)
+        if (control.busy || !Number.isFinite(value) || value <= 0 || value === current)
             return;
-        memberConfigureQuery.configureWidth(editor.canvasObject.id, editor.baseRevision, settingsKey, value);
-    }
-
-    function configureHeight(settingsKey, current, text) {
-        const value = Math.round(Number(text));
-        if (memberConfigureQuery.querying || !Number.isFinite(value) || value <= 0 || value === current)
-            return;
-        memberConfigureQuery.configureHeight(editor.canvasObject.id, editor.baseRevision, settingsKey, value);
+        editor.setMemberHeight(index, value);
     }
 
     function syncDisplays() {
@@ -51,8 +48,7 @@ ColumnLayout {
                     scaleHeight: Math.max(1, Number(member.height || 1)),
                     minimumWidth: Number(minimum.width || 0),
                     minimumHeight: Number(minimum.height || 0),
-                    aspectLocked: member.aspectLocked ?? true,
-                    configurable: isPersisted(String(member.settingsKey || ""))
+                    aspectLocked: member.aspectLocked ?? true
                 });
             }
             return;
@@ -66,8 +62,7 @@ ColumnLayout {
                 scaleHeight: Math.max(1, Number(member.height || 1)),
                 minimumWidth: Number(minimum.width || 0),
                 minimumHeight: Number(minimum.height || 0),
-                aspectLocked: member.aspectLocked ?? true,
-                configurable: isPersisted(String(member.settingsKey || ""))
+                aspectLocked: member.aspectLocked ?? true
             });
         }
     }
@@ -84,19 +79,6 @@ ColumnLayout {
     ListModel {
         id: displayModel
         dynamicRoles: true
-    }
-
-    W.CanvasMemberConfigureQuery {
-        id: memberConfigureQuery
-    }
-
-    Connections {
-        target: memberConfigureQuery
-
-        function onStatusChanged() {
-            if (memberConfigureQuery.status === 3)
-                W.Global.toastError(memberConfigureQuery.error || qsTr("Canvas display update failed"));
-        }
     }
 
     MD.Divider {
@@ -133,7 +115,6 @@ ColumnLayout {
                 required property real minimumWidth
                 required property real minimumHeight
                 required property bool aspectLocked
-                required property bool configurable
 
                 width: displayFlow.width > 0 ? Math.min(implicitWidth, displayFlow.width) : implicitWidth
                 padding: 12
@@ -175,7 +156,7 @@ ColumnLayout {
 
                             property string draftText: String(displayPanel.scaleWidth)
 
-                            enabled: displayPanel.configurable && !memberConfigureQuery.querying
+                            enabled: !control.busy
                             mdState.size: MD.Enum.XS
                             placeholderText: qsTr("Width")
                             horizontalAlignment: TextInput.AlignHCenter
@@ -193,7 +174,7 @@ ColumnLayout {
                             onTextEdited: {
                                 draftText = text;
                             }
-                            onEditingFinished: control.configureWidth(displayPanel.settingsKey, displayPanel.scaleWidth, draftText)
+                            onEditingFinished: control.configureWidth(displayPanel.index, displayPanel.scaleWidth, draftText)
                         }
 
                         MD.Text {
@@ -209,7 +190,7 @@ ColumnLayout {
 
                             property string draftText: String(displayPanel.scaleHeight)
 
-                            enabled: displayPanel.configurable && !memberConfigureQuery.querying
+                            enabled: !control.busy
                             mdState.size: MD.Enum.XS
                             placeholderText: qsTr("Height")
                             horizontalAlignment: TextInput.AlignHCenter
@@ -227,31 +208,31 @@ ColumnLayout {
                             onTextEdited: {
                                 draftText = text;
                             }
-                            onEditingFinished: control.configureHeight(displayPanel.settingsKey, displayPanel.scaleHeight, draftText)
+                            onEditingFinished: control.configureHeight(displayPanel.index, displayPanel.scaleHeight, draftText)
                         }
 
                         MD.IconButton {
                             id: lockButton
 
-                            enabled: displayPanel.configurable && !memberConfigureQuery.querying
+                            enabled: !control.busy
                             checkable: true
                             checked: displayPanel.aspectLocked
                             mdState.size: MD.Enum.XS
                             icon.name: displayPanel.aspectLocked ? MD.Token.icon.lock : MD.Token.icon.lock_open
                             MD.ToolTip.visible: hovered
                             MD.ToolTip.text: displayPanel.aspectLocked ? qsTr("Unlock aspect ratio") : qsTr("Lock aspect ratio")
-                            onClicked: memberConfigureQuery.configureAspectLocked(control.editor.canvasObject.id, control.editor.baseRevision, displayPanel.settingsKey, !displayPanel.aspectLocked)
+                            onClicked: control.editor.setMemberAspectLocked(displayPanel.index, !displayPanel.aspectLocked)
                         }
 
                         MD.IconButton {
                             id: resetButton
 
-                            enabled: displayPanel.configurable && !memberConfigureQuery.querying && displayPanel.minimumWidth > 0 && displayPanel.minimumHeight > 0 && (displayPanel.scaleWidth !== displayPanel.minimumWidth || displayPanel.scaleHeight !== displayPanel.minimumHeight)
+                            enabled: !control.busy && displayPanel.minimumWidth > 0 && displayPanel.minimumHeight > 0 && (displayPanel.scaleWidth !== displayPanel.minimumWidth || displayPanel.scaleHeight !== displayPanel.minimumHeight)
                             mdState.size: MD.Enum.XS
                             icon.name: MD.Token.icon.settings_backup_restore
                             MD.ToolTip.visible: hovered
                             MD.ToolTip.text: qsTr("Reset to original size")
-                            onClicked: memberConfigureQuery.resetSize(control.editor.canvasObject.id, control.editor.baseRevision, displayPanel.settingsKey)
+                            onClicked: control.editor.resetMemberSize(displayPanel.index)
                         }
                     }
                 }

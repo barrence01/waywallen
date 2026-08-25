@@ -1237,6 +1237,7 @@ MD.Page {
                             Layout.fillWidth: true
                             visible: root.selectedKind === "canvas" && canvasEditor.members.length > 0
                             editor: canvasEditor
+                            busy: canvasMutationQuery.querying
                         }
 
                     }
