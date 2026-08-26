@@ -120,7 +120,8 @@ auto global_to_map(const proto::GlobalSettings& g) -> QVariantMap {
         ! has_renderer || ! g.renderer().hasEnableAudio() || g.renderer().enableAudio();
     m[u"renderer.volume"_s] =
         has_renderer && g.renderer().hasVolume() ? g.renderer().volume() : 100;
-    m[u"hideTrayIcon"_s] = g.hideTrayIcon();
+    m[u"hideTrayIcon"_s]        = g.hideTrayIcon();
+    m[u"debugLoggingEnabled"_s] = g.debugLoggingEnabled();
     QStringList wallpaper_skip_types;
     for (const auto& t : g.wallpaperSkipTypes()) {
         wallpaper_skip_types.append(t);
@@ -216,6 +217,9 @@ auto map_to_global(const QVariantMap& m) -> proto::GlobalSettings {
     if (m.contains(u"hideTrayIcon"_s)) {
         g.setHideTrayIcon(m.value(u"hideTrayIcon"_s).toBool());
     }
+    if (m.contains(u"debugLoggingEnabled"_s)) {
+        g.setDebugLoggingEnabled(m.value(u"debugLoggingEnabled"_s).toBool());
+    }
     if (m.contains(u"wallpaperSkipTypes"_s)) {
         QStringList skip;
         for (const auto& v : m.value(u"wallpaperSkipTypes"_s).toList()) {
@@ -265,6 +269,8 @@ SettingsGetQuery::SettingsGetQuery(QObject* parent): Query(parent) {}
 
 auto SettingsGetQuery::global() const -> const QVariantMap& { return m_global; }
 auto SettingsGetQuery::plugins() const -> const QVariantMap& { return m_plugins; }
+auto SettingsGetQuery::logDir() const -> const QString& { return m_log_dir; }
+auto SettingsGetQuery::rustLogActive() const -> bool { return m_rust_log_active; }
 
 void SettingsGetQuery::reload() {
     setStatus(Status::Querying);
@@ -280,11 +286,15 @@ void SettingsGetQuery::reload() {
         if (! self) co_return;
 
         self->inspect_set(result, [self](const proto::Response& rsp) {
-            const auto& get_rsp = rsp.settingsGet();
-            self->m_global      = global_to_map(get_rsp.global());
-            self->m_plugins     = plugins_to_map(get_rsp.plugins());
+            const auto& get_rsp     = rsp.settingsGet();
+            self->m_global          = global_to_map(get_rsp.global());
+            self->m_plugins         = plugins_to_map(get_rsp.plugins());
+            self->m_log_dir         = get_rsp.logDir();
+            self->m_rust_log_active = get_rsp.rustLogActive();
             Q_EMIT self->globalChanged();
             Q_EMIT self->pluginsChanged();
+            Q_EMIT self->logDirChanged();
+            Q_EMIT self->rustLogActiveChanged();
         });
         co_return;
     });

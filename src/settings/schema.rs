@@ -315,6 +315,8 @@ pub struct GlobalSettings {
     /// Hide the StatusNotifierItem tray icon. Applied live; the
     /// `--no-tray` CLI flag forces the tray off regardless.
     pub hide_tray_icon: bool,
+
+    pub debug_logging_enabled: bool,
 }
 
 impl Default for GlobalSettings {
@@ -342,6 +344,7 @@ impl Default for GlobalSettings {
             pointer_forwarding_enabled: true,
             autostart_enabled: false,
             hide_tray_icon: false,
+            debug_logging_enabled: false,
         }
     }
 }

@@ -1781,6 +1781,10 @@ pub(super) async fn dispatch_inner(
                     .into_iter()
                     .map(|(k, v)| (k, pb::PluginSettings { values: v }))
                     .collect(),
+                log_dir: crate::logging::log_dir()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_default(),
+                rust_log_active: crate::logging::rust_log_active(),
             })
         }
 
@@ -1829,6 +1833,7 @@ pub(super) async fn dispatch_inner(
             let prev_queue_mode = previous_settings.global.queue_mode.clone();
             let prev_rotation_secs = previous_settings.global.rotation_secs;
             let prev_hide_tray = previous_settings.global.hide_tray_icon;
+            let prev_debug_logging = previous_settings.global.debug_logging_enabled;
             state.settings.update(|s| {
                 if let Some(g) = r.global.as_ref() {
                     let filters: Vec<_> = g
@@ -1898,10 +1903,15 @@ pub(super) async fn dispatch_inner(
                         }
                     }
                     s.global.hide_tray_icon = g.hide_tray_icon;
+                    s.global.debug_logging_enabled = g.debug_logging_enabled;
                 }
                 s.plugins = new_plugins.clone();
             });
             let current_settings = state.settings.snapshot();
+            let new_debug_logging = current_settings.global.debug_logging_enabled;
+            if new_debug_logging != prev_debug_logging {
+                crate::logging::apply_debug_setting(new_debug_logging);
+            }
             let new_filter = current_settings.global.wallpaper_filter.clone();
             if new_filter != previous_filter {
                 log::debug!(

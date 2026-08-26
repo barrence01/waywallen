@@ -23,21 +23,29 @@ export class SettingsGetQuery : public Query,
 
     Q_PROPERTY(QVariantMap global READ global NOTIFY globalChanged FINAL)
     Q_PROPERTY(QVariantMap plugins READ plugins NOTIFY pluginsChanged FINAL)
+    Q_PROPERTY(QString logDir READ logDir NOTIFY logDirChanged FINAL)
+    Q_PROPERTY(bool rustLogActive READ rustLogActive NOTIFY rustLogActiveChanged FINAL)
 
 public:
     SettingsGetQuery(QObject* parent = nullptr);
 
     auto global() const -> const QVariantMap&;
     auto plugins() const -> const QVariantMap&;
+    auto logDir() const -> const QString&;
+    auto rustLogActive() const -> bool;
 
     void reload() override;
 
     Q_SIGNAL void globalChanged();
     Q_SIGNAL void pluginsChanged();
+    Q_SIGNAL void logDirChanged();
+    Q_SIGNAL void rustLogActiveChanged();
 
 private:
     QVariantMap m_global;
     QVariantMap m_plugins;
+    QString     m_log_dir;
+    bool        m_rust_log_active = false;
 };
 
 /// Apply a full-replace settings write. Caller must populate both

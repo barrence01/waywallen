@@ -185,6 +185,21 @@ MD.Page {
         m_flush.restart();
     }
 
+    function logFolderUrl() {
+        let path = String(getQ.logDir || "");
+        if (path.length === 0)
+            return "";
+        if (path.indexOf("file://") === 0)
+            return path;
+        return "file://" + path.split("/").map(encodeURIComponent).join("/");
+    }
+
+    function openLogFolder() {
+        const url = root.logFolderUrl();
+        if (url.length > 0)
+            MD.Util.openFolderExternally(url);
+    }
+
     property int autoReplayRevision: 0
     property int pauseEffectRevision: 0
 
@@ -250,7 +265,8 @@ MD.Page {
             "renderer.volume": 100,
             pluginUpdateNotifications: true,
             duplicateRenderers: false,
-            hideTrayIcon: false
+            hideTrayIcon: false,
+            debugLoggingEnabled: false
         };
     }
 
@@ -295,7 +311,8 @@ MD.Page {
             rendererVolume: root._rendererVolume(g),
             pluginUpdateNotifications: Boolean(g.pluginUpdateNotifications ?? true),
             duplicateRenderers: Boolean(g.duplicateRenderers ?? false),
-            hideTrayIcon: Boolean(g.hideTrayIcon ?? false)
+            hideTrayIcon: Boolean(g.hideTrayIcon ?? false),
+            debugLoggingEnabled: Boolean(g.debugLoggingEnabled ?? false)
         });
     }
 
@@ -715,6 +732,68 @@ MD.Page {
                         target: m_hide_tray_icon
                         property: "checked"
                         value: Boolean(root._currentGlobal()?.hideTrayIcon ?? false)
+                    }
+                }
+            }
+
+            SettingItem {
+                first: false
+                last: false
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        FieldLabel { text: qsTr("Debug logging") }
+
+                        MD.Text {
+                            text: getQ.rustLogActive
+                                ? qsTr("Disabled because RUST_LOG is set.")
+                                : qsTr("Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.")
+                            typescale: MD.Token.typescale.body_small
+                            color: MD.Token.color.on_surface_variant
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    MD.Switch {
+                        id: m_debug_logging
+                        enabled: !getQ.rustLogActive
+                        onToggled: root._mut(g => {
+                            g.debugLoggingEnabled = checked;
+                        })
+                    }
+                    Binding {
+                        target: m_debug_logging
+                        property: "checked"
+                        value: Boolean(root._currentGlobal()?.debugLoggingEnabled ?? false)
+                    }
+                }
+            }
+
+            SettingItem {
+                first: false
+                last: false
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    FieldLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("Log folder")
+                    }
+
+                    MD.Button {
+                        text: qsTr("Open")
+                        mdState.type: MD.Enum.BtText
+                        enabled: String(getQ.logDir || "").length > 0
+                        onClicked: root.openLogFolder()
                     }
                 }
             }

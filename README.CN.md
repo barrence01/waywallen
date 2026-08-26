@@ -86,7 +86,8 @@ Waywallen 是一个为 Linux 桌面打造的动态壁纸解决方案。<br>
   NVIDIA 用户应使用 [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver)，通过 VA-API 暴露 NVDEC。  
 
 - 如何获取日志？  
-  首先需要退出正在运行的 Waywallen 守护进程。
+  日志按天写入 `~/.local/state/waywallen/logs/`（或 `$XDG_STATE_HOME/waywallen/logs/`），最多保留 7 个轮转日志文件（`waywallen_rYYYY-MM-DD.log`）。  
+  如需提高详细程度，请先退出正在运行的守护进程，然后：
   ```bash
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen

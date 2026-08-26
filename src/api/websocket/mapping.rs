@@ -726,6 +726,7 @@ pub(super) fn global_to_pb(g: &crate::settings::GlobalSettings) -> pb::GlobalSet
             volume: Some(g.renderer.effective_volume()),
         }),
         hide_tray_icon: g.hide_tray_icon,
+        debug_logging_enabled: g.debug_logging_enabled,
     }
 }
 

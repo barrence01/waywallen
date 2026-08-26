@@ -858,11 +858,14 @@ impl RendererManager {
         }
         cmd.kill_on_drop(true)
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stderr(Stdio::piped());
 
         let mut child = cmd
             .spawn()
             .with_context(|| format!("spawn {}", renderer_def.bin.display()))?;
+        if let Some(stderr) = child.stderr.take() {
+            crate::logging::forward_stderr(stderr, crate::logging::TARGET_RENDERER);
+        }
         let child_pid = child.id();
         let process_group = child_pid.and_then(|pid| i32::try_from(pid).ok());
         let process_group_registration = self.register_process_group(process_group);

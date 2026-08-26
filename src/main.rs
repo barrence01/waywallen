@@ -1,5 +1,5 @@
 fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    let _logging = waywallen::logging::init(waywallen::logging::LoggingPolicy::DEFAULT);
 
     let config = waywallen::daemon::DaemonConfig::from_env();
     let runtime = tokio::runtime::Builder::new_multi_thread()

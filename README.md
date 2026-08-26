@@ -86,7 +86,8 @@ It started life as a Wallpaper Engine plugin for KDE.
   NVIDIA users should use [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver) to expose NVDEC through VA-API.
 
 - How to get logs?  
-  First, stop the running Waywallen daemon.
+  Daily logs are written under `~/.local/state/waywallen/logs/` (or `$XDG_STATE_HOME/waywallen/logs/`), keeping up to 7 rotated log files (`waywallen_rYYYY-MM-DD.log`).  
+  To raise verbosity, stop the running daemon and restart with:
   ```bash
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
