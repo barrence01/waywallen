@@ -16,6 +16,7 @@ mod paths;
 mod schema;
 mod store;
 
+pub use crate::logging::log_dir;
 pub use paths::{
     data_dir, default_config_path, default_db_path, plugin_state_dir, remote_content_dir,
     sanitize_path_segment,

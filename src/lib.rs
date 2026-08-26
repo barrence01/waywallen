@@ -6,6 +6,7 @@ pub mod daemon;
 pub mod error;
 mod event_process;
 pub mod events;
+pub mod logging;
 pub mod model;
 pub mod playback;
 pub mod plugin;

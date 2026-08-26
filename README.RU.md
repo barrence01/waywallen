@@ -86,7 +86,8 @@ Waywallen — решение для динамических обоев на р�
   Пользователям NVIDIA следует использовать [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver), чтобы использовать NVDEC через VA-API.
 
 - Как получить логи?  
-  Сначала завершите работающий демон Waywallen.
+  Посуточные логи пишутся в `~/.local/state/waywallen/logs/` (или `$XDG_STATE_HOME/waywallen/logs/`) и хранятся до 7 ротированных файлов логов (`waywallen_rYYYY-MM-DD.log`).  
+  Чтобы повысить подробность, остановите демон и перезапустите:
   ```bash
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen

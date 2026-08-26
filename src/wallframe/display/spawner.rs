@@ -261,11 +261,13 @@ pub fn log_outcome(outcome: &PickOutcome, caps: &DeCaps) {
         PickOutcome::None => {
             if caps.is_kde() {
                 log::warn!(
-                    "no KDE display backend registered; install waywallen-kde or configure a manifest"
+                    target: "waywallen::display",
+                    "no display backend detected for KDE; install waywallen-kde or configure a manifest"
                 );
             } else {
                 log::warn!(
-                    "no display backend matched xdg_desktop={:?}; daemon will run in pure external-consumer mode",
+                    target: "waywallen::display",
+                    "no display backend / monitors path matched xdg_desktop={:?}; daemon will run in pure external-consumer mode",
                     caps.xdg_desktop
                 );
             }
@@ -381,14 +383,11 @@ pub async fn run_backend(
         cmd.env("WAYWALLEN_SOCKET", &socket);
         cmd.kill_on_drop(true)
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stderr(Stdio::piped());
 
-        // Linux-only safety net: `kill_on_drop(true)` covers clean exits.
-        // PDEATHSIG also handles abrupt parent death.
         #[cfg(target_os = "linux")]
         unsafe {
             cmd.pre_exec(|| {
-                // prctl(PR_SET_PDEATHSIG, SIGTERM, 0, 0, 0)
                 let rc = libc::prctl(
                     libc::PR_SET_PDEATHSIG,
                     libc::SIGTERM as libc::c_ulong,
@@ -407,7 +406,8 @@ pub async fn run_backend(
             Ok(c) => c,
             Err(e) => {
                 log::error!(
-                    "spawn '{}' failed: {e}; backend will not run",
+                    "display backend spawn failed: backend={} spawn={}: {e}; backend will not run",
+                    def.name,
                     def.bin.display()
                 );
                 // Not recoverable: wrong path, permissions, etc. Don't
@@ -415,6 +415,9 @@ pub async fn run_backend(
                 return Err(e.into());
             }
         };
+        if let Some(stderr) = child.stderr.take() {
+            crate::logging::forward_stderr(stderr, crate::logging::TARGET_DISPLAY);
+        }
         let pid = child.id();
         log::info!("display backend '{}' pid={:?}", def.name, pid);
 

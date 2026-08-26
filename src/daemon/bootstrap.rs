@@ -135,6 +135,7 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
     renderer_mgr.start_reaper();
     let settings_store =
         settings::SettingsStore::load_or_default(settings::default_config_path()).await;
+    crate::logging::apply_debug_setting(settings_store.global().debug_logging_enabled);
     renderer_mgr.attach_settings(settings_store.clone());
     router.attach_settings(settings_store.clone());
     let registry_snapshot = renderer_mgr.registry_snapshot();
@@ -142,10 +143,19 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
 
     let system_info = Arc::new(system::SystemInfo::load());
     renderer_mgr.attach_system_info(system_info.clone());
-    log::info!("system: discovered {} GPU(s)", system_info.gpus().len());
+    let gpu_count = system_info.gpus().len();
+    if gpu_count == 0 {
+        log::warn!(
+            target: "waywallen::gpu",
+            "no GPU render nodes detected; Vulkan/VA-API hardware paths will be unavailable"
+        );
+    } else {
+        log::info!(target: "waywallen::gpu", "system: discovered {gpu_count} GPU(s)");
+    }
     for g in system_info.gpus() {
-        log::debug!(
-            "  gpu: render={:?} primary={:?} drm={}:{} pci={:?} name={:?} {} ({:#06x}:{:#06x})",
+        log::info!(
+            target: "waywallen::gpu",
+            "gpu: render={:?} primary={:?} drm={}:{} pci={:?} name={:?} {} ({:#06x}:{:#06x})",
             g.render_node,
             g.primary_node,
             g.render_major,
