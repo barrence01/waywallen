@@ -14,7 +14,11 @@ fn count_rotated_logs(dir: &Path) -> usize {
                 .path()
                 .file_name()
                 .and_then(|name| name.to_str())
-                .is_some_and(|name| name.starts_with("waywallen_r") && name.ends_with(".log"))
+                .is_some_and(|name| {
+                    name.starts_with("waywallen_r")
+                        && name.ends_with(".log")
+                        && name.contains("_00-00-00")
+                })
         })
         .count()
 }
@@ -41,8 +45,8 @@ fn keep_log_files_retains_at_most_n_newest_on_rotation() {
         .rotate(
             Criterion::Age(Age::Second),
             Naming::TimestampsCustomFormat {
-                current_infix: None,
-                format: "r%Y-%m-%d",
+                current_infix: Some("rCURRENT"),
+                format: "r%Y-%m-%d_00-00-00",
             },
             Cleanup::KeepLogFiles(usize::from(keep)),
         )

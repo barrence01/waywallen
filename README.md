@@ -90,7 +90,7 @@ Waywallen is built by [Lito](https://github.com/litocpp/lito) (Please star it)
   NVIDIA users should use [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver) to expose NVDEC through VA-API.
 
 - How to get logs?  
-  Daily logs are written under `~/.local/state/waywallen/logs/` (or `$XDG_STATE_HOME/waywallen/logs/`), keeping up to 7 rotated log files (`waywallen_rYYYY-MM-DD.log`).  
+  Daily daemon logs are written under `~/.local/state/waywallen/logs/` (or `$XDG_STATE_HOME/waywallen/logs/`): active file `waywallen_rCURRENT.log`, rotated archives `waywallen_rYYYY-MM-DD_00-00-00.log` (up to 7 kept). 
   To raise verbosity, stop the running daemon and restart with:
   ```bash
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn

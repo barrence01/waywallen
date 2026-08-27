@@ -123,8 +123,8 @@ fn try_init_file(
         .rotate(
             Criterion::Age(Age::Day),
             Naming::TimestampsCustomFormat {
-                current_infix: None,
-                format: "r%Y-%m-%d",
+                current_infix: Some("rCURRENT"),
+                format: "r%Y-%m-%d_00-00-00",
             },
             Cleanup::KeepLogFiles(usize::from(policy.retention_days)),
         )
@@ -182,41 +182,43 @@ mod tests {
         log::info!(target: "waywallen::logging_test", "smoke-test-line");
         drop(logging);
 
-        let mut found = false;
-        for entry in fs::read_dir(dir.path()).unwrap() {
-            let path = entry.unwrap().path();
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if name.starts_with("waywallen_r") && name.ends_with(".log") {
-                let contents = fs::read_to_string(&path).unwrap();
-                if contents.contains("smoke-test-line") {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        assert!(found, "expected smoke-test-line in a waywallen_r*.log file");
-
-        // opt_format prefixes each line with [YYYY-MM-DD HH:MM:SS...]
-        let mut timestamped = false;
-        for entry in fs::read_dir(dir.path()).unwrap() {
-            let path = entry.unwrap().path();
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if !(name.starts_with("waywallen_r") && name.ends_with(".log")) {
-                continue;
-            }
-            let contents = fs::read_to_string(&path).unwrap();
-            if contents
-                .lines()
-                .any(|line| line.starts_with('[') && line.contains("smoke-test-line"))
-            {
-                timestamped = true;
-                break;
-            }
-        }
+        let current = dir.path().join("waywallen_rCURRENT.log");
+        assert!(current.is_file(), "expected {}", current.display());
+        let contents = fs::read_to_string(&current).unwrap();
         assert!(
-            timestamped,
+            contents.contains("smoke-test-line"),
+            "expected smoke-test-line in {}",
+            current.display()
+        );
+        assert!(
+            contents
+                .lines()
+                .any(|line| line.starts_with('[') && line.contains("smoke-test-line")),
             "expected opt_format timestamp prefix on smoke-test-line"
         );
+    }
+
+    #[test]
+    fn init_with_legacy_short_rotated_log_does_not_panic() {
+        let _guard = test_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = dir.path().join("waywallen_r2026-08-26.log");
+        let display = dir.path().join("waywallen_display_r2026-08-26.log");
+        fs::write(&legacy, "daemon\n").unwrap();
+        fs::write(&display, "display\n").unwrap();
+
+        let logging = init_in(LoggingPolicy::DEFAULT, dir.path());
+        log::info!(target: "waywallen::logging_test", "post-init-line");
+        drop(logging);
+
+        assert!(
+            legacy.is_file(),
+            "legacy daemon log should be left in place"
+        );
+        assert_eq!(fs::read_to_string(&legacy).unwrap(), "daemon\n");
+        assert!(display.is_file(), "display log must remain untouched");
+        let current = fs::read_to_string(dir.path().join("waywallen_rCURRENT.log")).unwrap();
+        assert!(current.contains("post-init-line"));
     }
 
     #[test]
