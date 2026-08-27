@@ -25,7 +25,8 @@ Waywallen 是一个为 Linux 桌面打造的动态壁纸解决方案。<br>
 
 ### 安装
 
-**预编译包** —— 到 [Releases 页面](https://github.com/waywallen/waywallen/releases) 下载最新版本。
+**预编译包**  
+到 [Releases 页面](https://github.com/waywallen/waywallen/releases) 下载最新版本。
 
 **Flatpak**
 
@@ -33,7 +34,10 @@ Waywallen 是一个为 Linux 桌面打造的动态壁纸解决方案。<br>
   <img width='240' alt='Get it on Flathub' src='https://flathub.org/api/badge?locale=zh-Hans'/>
 </a>
 
-**从源码构建** —— 见 [BUILD.md](BUILD.md)。
+**从源码构建**  
+见 [BUILD.md](BUILD.md)。  
+
+Waywallen 使用 [Lito](https://github.com/litocpp/lito) 构建（请为它点个 Star）。  
 
 ### 桌面集成
 

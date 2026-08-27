@@ -25,7 +25,8 @@ Waywallen — решение для динамических обоев на р�
 
 ### Установка
 
-**Готовые сборки** — скачайте последнюю версию AppImage на [странице релизов](https://github.com/waywallen/waywallen/releases).
+**Готовые сборки**  
+Скачайте последнюю версию AppImage на [странице релизов](https://github.com/waywallen/waywallen/releases).
 
 **Flatpak**
 
@@ -33,7 +34,10 @@ Waywallen — решение для динамических обоев на р�
 <img width='240' alt='Установить из Flathub' src='https://flathub.org/api/badge?locale=ru'/>
 </a>
 
-**Из исходного кода** — см. [BUILD.md](BUILD.md).
+**Из исходного кода**  
+См. [BUILD.md](BUILD.md).  
+
+Waywallen собирается с помощью [Lito](https://github.com/litocpp/lito) (поставьте ему звезду).  
 
 ### Интеграция с рабочим столом
 
