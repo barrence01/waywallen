@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use futures_util::StreamExt;
 use zbus::fdo::RequestNameFlags;
 use zbus::names::WellKnownName;
 use zbus::{interface, Connection, SignalContext};
@@ -288,6 +289,14 @@ pub async fn emit_shutting_down(conn: &Connection) -> zbus::Result<()> {
         .interface::<_, Daemon1>(OBJECT_PATH)
         .await?;
     Daemon1::shutting_down(iface_ref.signal_context()).await
+}
+
+pub async fn wait_for_disconnect(conn: &Connection) -> zbus::Result<()> {
+    let mut messages = zbus::MessageStream::from(conn);
+    while let Some(message) = messages.next().await {
+        message?;
+    }
+    Ok(())
 }
 
 /// Snapshot of the dbus connection from `DaemonContext`. Callers can take

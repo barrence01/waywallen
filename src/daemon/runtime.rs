@@ -91,11 +91,20 @@ where
             log::info!("SIGTERM received, shutting down");
             false
         }
+        result = crate::system::dbus::wait_for_disconnect(&dbus) => {
+            match result {
+                Ok(()) => log::info!("D-Bus user bus connection closed, shutting down"),
+                Err(error) => {
+                    log::info!("D-Bus user bus connection closed: {error}; shutting down")
+                }
+            }
+            false
+        }
         _ = async {
             let mut receiver = state.shutdown_subscribe();
             let _ = receiver.wait_for(|requested| *requested).await;
         } => {
-            log::info!("shutdown requested via D-Bus");
+            log::info!("shutdown requested");
             false
         }
     };

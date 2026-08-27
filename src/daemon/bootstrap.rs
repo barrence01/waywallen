@@ -284,15 +284,24 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
         );
     }
 
-    // Session state monitor. Watches D-Bus for lock-screen and
-    // user-switch events, then forwards them to the router.
+    // Session monitor. Watches D-Bus for lock-screen, user-switch, and
+    // login-session removal events.
     {
         let router = router.clone();
+        let session_bus = dbus_conn.clone();
         let shutdown = state.shutdown_subscribe();
+        let session_state = state.clone();
         state.tasks.spawn_async(
             tasks::TaskKind::Service,
             "service/session-monitor",
-            async move { system::session::run(router, shutdown).await },
+            async move {
+                let reason = system::session::run(router, session_bus, shutdown).await?;
+                if reason != system::session::ExitReason::DaemonShutdown {
+                    log::info!("session monitor requested shutdown: {reason:?}");
+                    session_state.shutdown_now();
+                }
+                Ok(())
+            },
         );
     }
 
