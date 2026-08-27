@@ -92,6 +92,16 @@ Waywallen 是一个为 Linux 桌面打造的动态壁纸解决方案。<br>
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
   ```
+  Flatpak 日志存储在 `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/`。
+  可使用以下命令以详细日志重新启动：
+  ```bash
+  flatpak kill org.waywallen.waywallen
+  flatpak run \
+    --env=RSTD_LOG=debug \
+    --env=RUST_LOG=debug,zbus=warn \
+    org.waywallen.waywallen
+  ```
+
 - 如何在 flatpak 中调试？
   ```bash
   flatpak install org.waywallen.waywallen.Debug

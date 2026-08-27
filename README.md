@@ -92,6 +92,16 @@ It started life as a Wallpaper Engine plugin for KDE.
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
   ```
+  For Flatpak, logs are stored under `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/`.
+  Restart it with verbose logging using:
+  ```bash
+  flatpak kill org.waywallen.waywallen
+  flatpak run \
+    --env=RSTD_LOG=debug \
+    --env=RUST_LOG=debug,zbus=warn \
+    org.waywallen.waywallen
+  ```
+
 - How to debug in Flatpak?  
   ```bash
   flatpak install org.waywallen.waywallen.Debug

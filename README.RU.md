@@ -92,6 +92,16 @@ Waywallen — решение для динамических обоев на р�
   export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
   ```
+  Для Flatpak журналы хранятся в `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/`.
+  Чтобы перезапустить приложение с подробным журналированием, выполните:
+  ```bash
+  flatpak kill org.waywallen.waywallen
+  flatpak run \
+    --env=RSTD_LOG=debug \
+    --env=RUST_LOG=debug,zbus=warn \
+    org.waywallen.waywallen
+  ```
+
 - Как выполнить отладку во Flatpak?
   ```bash
   flatpak install org.waywallen.waywallen.Debug
