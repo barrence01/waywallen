@@ -661,6 +661,9 @@ impl Engine {
             return Ok(());
         };
         let assignments = session.data.lock().await.jump_to(entry_id);
+        if assignments.is_empty() {
+            return Ok(());
+        }
         session.handle.kick();
         drop(operation);
         apply

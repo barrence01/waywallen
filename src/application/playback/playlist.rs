@@ -34,12 +34,20 @@ fn apply_source(source: PlaylistApplySource, activation_source: ApplySource) -> 
     }
 }
 
+fn publishes_position_change(source: PlaylistApplySource) -> bool {
+    matches!(
+        source,
+        PlaylistApplySource::Rotation | PlaylistApplySource::Jump | PlaylistApplySource::Step
+    )
+}
+
 fn apply_port(app: &Arc<DaemonContext>, activation_source: ApplySource) -> ApplyPort {
     let app = app.clone();
     ApplyPort::new(move |request: ApplyRequest| {
         let app = app.clone();
         async move {
-            let source = apply_source(request.source, activation_source);
+            let playlist_source = request.source;
+            let source = apply_source(playlist_source, activation_source);
             let calls = request.assignments.into_iter().map(|assignment| {
                 let app = app.clone();
                 let entry_id = assignment.entry_id;
@@ -85,7 +93,13 @@ fn apply_port(app: &Arc<DaemonContext>, activation_source: ApplySource) -> Apply
                     }
                 }
             }
-            first_error.map_or(Ok(()), Err)
+            if let Some(error) = first_error {
+                return Err(error);
+            }
+            if publishes_position_change(playlist_source) {
+                publish_changed(&app);
+            }
+            Ok(())
         }
     })
 }
@@ -354,14 +368,9 @@ pub async fn jump_to(app: &Arc<DaemonContext>, playlist_id: i64, entry_id: &str)
 }
 
 pub(super) async fn step_sessions(app: &Arc<DaemonContext>, delta: i32) -> Result<bool> {
-    let stepped = app
-        .playlists
+    app.playlists
         .step(delta, apply_port(app, ApplySource::UserPlaylistActivation))
-        .await?;
-    if stepped {
-        publish_changed(app);
-    }
-    Ok(stepped)
+        .await
 }
 
 pub async fn rebuild_for_playlist(app: &Arc<DaemonContext>, playlist_id: i64) {
