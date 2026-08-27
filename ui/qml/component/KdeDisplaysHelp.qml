@@ -4,14 +4,6 @@ import QtQuick.Layouts
 import Qcm.Material as MD
 import waywallen.ui as W
 
-// KDE Plasma install hint for the DisplaysPage empty state. The
-// daemon's layer-shell backend doesn't auto-spawn on Plasma sessions —
-// the user has to install the `waywallen-display` wallpaper extension
-// and enable it via Plasma's desktop configuration.
-//
-// Self-gated by `W.Util.desktop`: invisible (and skipped by
-// QtQuick.Layouts) on non-KDE sessions, so consumers can include it
-// unconditionally inside their empty-state column.
 ColumnLayout {
     id: root
 
@@ -19,7 +11,7 @@ ColumnLayout {
     readonly property string kdeStoreUrl: "https://store.kde.org/p/2356221"
 
     spacing: 12
-    visible: W.Util.desktop === W.Util.Desktop.Kde
+    visible: W.Notify.displayBackend.name === "kde-plasma"
 
     MD.Text {
         Layout.fillWidth: true

@@ -10,7 +10,7 @@ ColumnLayout {
     readonly property string githubUrl: "https://github.com/waywallen/waywallen-display"
 
     spacing: 12
-    visible: W.Util.desktop === W.Util.Desktop.Gnome
+    visible: W.Notify.displayBackend.name === "gnome-shell"
 
     MD.Text {
         Layout.fillWidth: true

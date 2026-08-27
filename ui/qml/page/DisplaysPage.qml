@@ -616,9 +616,6 @@ MD.Page {
                         color: MD.Token.color.on_surface_variant
                     }
 
-                    // Desktop-specific install hints are self-gated on
-                    // `W.Util.desktop`, so this section stays empty when
-                    // the daemon can spawn its own display backend.
                     W.KdeDisplaysHelp {
                         Layout.fillWidth: true
                     }
