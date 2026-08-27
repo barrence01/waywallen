@@ -64,6 +64,35 @@ MD.Page {
         return "";
     }
 
+    // The daemon already reports why a check failed; surface it instead of
+    // leaving the tag unexplained. The message is backend text and is shown as
+    // sent, only folded so a long manifest URL cannot stretch the tooltip past
+    // the window.
+    function updateTagTooltip(info) {
+        const state = updateState(info);
+        if (state !== pluginUpdateStateFailed && state !== pluginUpdateStateUnsupported)
+            return "";
+        return foldMessage(info && info.error ? String(info.error) : "", 64);
+    }
+
+    function foldMessage(message, limit) {
+        const lines = [];
+        for (let word of message.split(" ")) {
+            while (word.length > limit) {
+                lines.push(word.substring(0, limit));
+                word = word.substring(limit);
+            }
+            if (word.length === 0)
+                continue;
+            const last = lines.length - 1;
+            if (last >= 0 && lines[last].length + 1 + word.length <= limit)
+                lines[last] += " " + word;
+            else
+                lines.push(word);
+        }
+        return lines.join("\n");
+    }
+
     function updateTagBgColor(info) {
         const state = updateState(info);
         if (state === pluginUpdateStateAvailable)
@@ -499,10 +528,21 @@ MD.Page {
                         z: 2
 
                         W.Tag {
+                            id: pluginUpdateTag
+                            readonly property string reason: root.updateTagTooltip(pluginItem.modelData.updateInfo)
+
                             visible: root.updateTagVisible(pluginItem.modelData.updateInfo)
                             text: root.updateTagText(pluginItem.modelData.updateInfo)
                             bgColor: root.updateTagBgColor(pluginItem.modelData.updateInfo)
                             fgColor: root.updateTagFgColor(pluginItem.modelData.updateInfo)
+
+                            HoverHandler {
+                                id: pluginUpdateTagHover
+                            }
+
+                            MD.ToolTip.visible: pluginUpdateTagHover.hovered && pluginUpdateTag.reason.length > 0
+                            MD.ToolTip.delay: 300
+                            MD.ToolTip.text: pluginUpdateTag.reason
                         }
                         W.Tag {
                             text: "v" + (pluginItem.modelData.version || "0.0.0")
