@@ -65,6 +65,8 @@ fi
 rm -rf "$APPDIR"
 
 APPIMAGE_OUT="$PROJECT_DIR/waywallen-$BUILD_TAG-$APPIMAGE_ARCH.AppImage"
+ZSYNC_OUT="$APPIMAGE_OUT.zsync"
+UPDATE_INFORMATION="gh-releases-zsync|waywallen|waywallen|latest|waywallen-*-$APPIMAGE_ARCH.AppImage.zsync"
 info "Building $APPIMAGE_ARCH AppImage tagged as $BUILD_TAG"
 
 command -v conda >/dev/null \
@@ -74,6 +76,7 @@ command -v cargo >/dev/null \
 command -v curl >/dev/null || fail "curl not found"
 command -v git >/dev/null || fail "git not found"
 command -v python3 >/dev/null || fail "python3 not found"
+command -v zsyncmake >/dev/null || fail "zsyncmake not found. Install zsync first"
 [[ -f "$ENV_FILE" ]] || fail "missing $ENV_FILE"
 
 if [[ -n "${LITO_BIN:-}" ]] && "$LITO_BIN" --help >/dev/null 2>&1; then
@@ -314,17 +317,20 @@ for style in "${QUICKCONTROLS2_PRUNE[@]}"; do
 done
 
 info "Packing AppImage"
-rm -f "$APPIMAGE_OUT"
+rm -f "$APPIMAGE_OUT" "$ZSYNC_OUT"
 PATH="$TOOLS_DIR:$PATH" \
 ARCH="$APPIMAGE_ARCH" \
 "$APPIMAGETOOL" --appimage-extract-and-run \
     --no-appstream \
+    --updateinformation "$UPDATE_INFORMATION" \
     "$APPDIR" "$APPIMAGE_OUT"
 [[ -f "$APPIMAGE_OUT" ]] || fail "AppImage build failed"
+[[ -f "$ZSYNC_OUT" ]] || fail "zsync metadata generation failed"
 
 cat <<EOF
 
 Build complete: $APPIMAGE_OUT
+Update metadata: $ZSYNC_OUT
 
 Run it:
     chmod +x "$APPIMAGE_OUT"
