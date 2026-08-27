@@ -28,6 +28,7 @@ fn apply_source(source: PlaylistApplySource, activation_source: ApplySource) -> 
         PlaylistApplySource::Activation => activation_source,
         PlaylistApplySource::Rotation => ApplySource::PlaylistRotation,
         PlaylistApplySource::Jump => ApplySource::UserPlaylistJump,
+        PlaylistApplySource::Step => ApplySource::UserPlaylistStep,
         PlaylistApplySource::Rebuild => ApplySource::PlaylistRebuild,
         PlaylistApplySource::Attach => ApplySource::PlaylistAttach,
     }
@@ -350,6 +351,17 @@ pub async fn jump_to(app: &Arc<DaemonContext>, playlist_id: i64, entry_id: &str)
             apply_port(app, ApplySource::UserPlaylistActivation),
         )
         .await
+}
+
+pub(super) async fn step_sessions(app: &Arc<DaemonContext>, delta: i32) -> Result<bool> {
+    let stepped = app
+        .playlists
+        .step(delta, apply_port(app, ApplySource::UserPlaylistActivation))
+        .await?;
+    if stepped {
+        publish_changed(app);
+    }
+    Ok(stepped)
 }
 
 pub async fn rebuild_for_playlist(app: &Arc<DaemonContext>, playlist_id: i64) {

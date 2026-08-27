@@ -49,6 +49,7 @@ fn apply_sources_project_to_start_preemption_once() {
         ApplySource::UserQueueStep,
         ApplySource::UserPlaylistActivation,
         ApplySource::UserPlaylistJump,
+        ApplySource::UserPlaylistStep,
         ApplySource::StartupRestore,
         ApplySource::DisplayRecall,
         ApplySource::PlaylistAttach,

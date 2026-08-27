@@ -185,13 +185,13 @@ impl SessionData {
         }
     }
 
-    fn next_assignments(&mut self) -> Vec<ApplyAssignment> {
+    fn step_assignments(&mut self, delta: i32) -> Vec<ApplyAssignment> {
         if self.targets.is_empty() {
             return Vec::new();
         }
         let mut selections = Vec::new();
         if self.synchronized() {
-            let Some(entry_id) = self.synchronized_cursor.next(1) else {
+            let Some(entry_id) = self.synchronized_cursor.next(delta) else {
                 return Vec::new();
             };
             for (target_id, target) in &mut self.targets {
@@ -201,7 +201,7 @@ impl SessionData {
             }
         } else {
             for (target_id, target) in &mut self.targets {
-                if let Some(entry_id) = target.cursor.next(1) {
+                if let Some(entry_id) = target.cursor.next(delta) {
                     target.current = Some(entry_id.clone());
                     selections.push((entry_id, target_id.clone()));
                 }
@@ -672,6 +672,40 @@ impl Engine {
             .await
     }
 
+    pub async fn step(&self, delta: i32, apply: ApplyPort) -> Result<bool> {
+        let operation = self.operations.lock().await;
+        let sessions = self
+            .state
+            .lock()
+            .await
+            .by_playlist
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        if sessions.is_empty() {
+            return Ok(false);
+        }
+
+        let mut assignments = Vec::new();
+        for session in &sessions {
+            assignments.extend(session.data.lock().await.step_assignments(delta));
+            session.handle.kick();
+        }
+        let assignments = merge_assignments(assignments);
+        drop(operation);
+
+        if !assignments.is_empty() {
+            apply
+                .apply(ApplyRequest {
+                    source: ApplySource::Step,
+                    assignments,
+                    first_frame_timeout: None,
+                })
+                .await?;
+        }
+        Ok(true)
+    }
+
     pub async fn status(&self) -> Vec<DisplayStatus> {
         let sessions = self
             .state
@@ -830,7 +864,7 @@ async fn run_playlist_rotator(
                     if config.borrow().interval_secs == 0 { continue; }
                     scheduled_deadline = due.checked_add(duration);
                     *deadline.lock().unwrap() = scheduled_deadline;
-                    let assignments = data.lock().await.next_assignments();
+                    let assignments = data.lock().await.step_assignments(1);
                     if assignments.is_empty() { continue; }
                     if let Err(error) = apply.apply(ApplyRequest {
                         source: ApplySource::Rotation,
@@ -897,7 +931,7 @@ mod tests {
         let mut data = SessionData::new(definition(1, true), 7);
         data.upsert_target(target(10), &HashMap::new());
         data.upsert_target(target(20), &HashMap::new());
-        let assignments = data.next_assignments();
+        let assignments = data.step_assignments(1);
         assert_eq!(assignments.len(), 1);
         assert_eq!(assignments[0].targets.len(), 2);
     }
@@ -912,7 +946,7 @@ mod tests {
             data.targets[&TargetId::Display(20)].cursor.rng
         );
         assert_eq!(
-            data.next_assignments()
+            data.step_assignments(1)
                 .iter()
                 .map(|assignment| assignment.targets.len())
                 .sum::<usize>(),
@@ -929,7 +963,7 @@ mod tests {
         data.upsert_target(target(10), &HashMap::new());
         data.upsert_target(target(20), &HashMap::new());
 
-        let assignments = data.next_assignments();
+        let assignments = data.step_assignments(1);
 
         assert_eq!(assignments.len(), 1);
         assert_eq!(assignments[0].targets.len(), 2);
@@ -947,7 +981,7 @@ mod tests {
         );
         data.upsert_target(target(20), &HashMap::new());
 
-        let assignments = data.next_assignments();
+        let assignments = data.step_assignments(1);
         let targets = assignments
             .iter()
             .flat_map(|assignment| assignment.targets.iter())
@@ -976,7 +1010,7 @@ mod tests {
         let assignments = data.reconfigure(definition(1, true));
 
         assert!(assignments.is_empty());
-        let assignments = data.next_assignments();
+        let assignments = data.step_assignments(1);
         assert_eq!(assignments.len(), 1);
         assert_eq!(assignments[0].targets.len(), 2);
         assert!(data
@@ -1151,5 +1185,46 @@ mod tests {
             vec![TargetId::Display(7)]
         );
         assert_eq!(requests[0].source, ApplySource::Activation);
+    }
+
+    #[tokio::test]
+    async fn manual_step_uses_playlist_direction_and_targets() {
+        let engine = Engine::new();
+        let (port, applied) = capture_port();
+        let (_shutdown_tx, shutdown) = watch::channel(false);
+        let mut definition = definition(1, false);
+        definition.mode = Mode::Sequential;
+        engine
+            .activate(
+                Activation {
+                    definition,
+                    targets: vec![target(10), target(20)],
+                    resume_by_display: HashMap::new(),
+                    first_frame_timeout: None,
+                },
+                port.clone(),
+                shutdown,
+            )
+            .await
+            .unwrap();
+        applied.lock().await.clear();
+
+        assert!(engine.step(-1, port).await.unwrap());
+
+        let requests = applied.lock().await;
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].source, ApplySource::Step);
+        assert_eq!(requests[0].assignments.len(), 1);
+        assert_eq!(requests[0].assignments[0].entry_id, "c");
+        assert_eq!(requests[0].assignments[0].targets.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn manual_step_without_playlist_is_not_handled() {
+        let engine = Engine::new();
+        let (port, applied) = capture_port();
+
+        assert!(!engine.step(1, port).await.unwrap());
+        assert!(applied.lock().await.is_empty());
     }
 }

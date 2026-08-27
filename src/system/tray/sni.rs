@@ -119,7 +119,7 @@ impl StatusNotifierItem {
     }
 
     async fn secondary_activate(&self, _x: i32, _y: i32) {
-        if let Err(e) = application::step(&self.app, 1).await {
+        if let Err(e) = application::step_active(&self.app, 1).await {
             log::warn!("tray secondary activate: {e}");
         }
     }
@@ -138,7 +138,7 @@ impl StatusNotifierItem {
     async fn scroll(&self, delta: i32, orientation: String) {
         let _ = orientation;
         let step = if delta >= 0 { 1 } else { -1 };
-        if let Err(e) = application::step(&self.app, step).await {
+        if let Err(e) = application::step_active(&self.app, step).await {
             log::warn!("tray scroll: {e}");
         }
     }

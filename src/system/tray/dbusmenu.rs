@@ -147,12 +147,12 @@ impl DBusMenu {
                 }
             }
             ID_NEXT => {
-                if let Err(e) = application::step(&app, 1).await {
+                if let Err(e) = application::step_active(&app, 1).await {
                     log::warn!("tray next: {e}");
                 }
             }
             ID_PREV => {
-                if let Err(e) = application::step(&app, -1).await {
+                if let Err(e) = application::step_active(&app, -1).await {
                     log::warn!("tray previous: {e}");
                 }
             }
@@ -514,10 +514,10 @@ async fn dispatch_click(app: &Arc<DaemonContext>, id: i32) -> zbus::fdo::Result<
             let _ = crate::open_or_raise_ui(app).await;
         }
         ID_NEXT => {
-            let _ = application::step(app, 1).await;
+            let _ = application::step_active(app, 1).await;
         }
         ID_PREV => {
-            let _ = application::step(app, -1).await;
+            let _ = application::step_active(app, -1).await;
         }
         ID_PAUSE => {
             let _ = application::toggle_pause_all(app).await;

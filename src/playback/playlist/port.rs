@@ -23,6 +23,7 @@ pub enum ApplySource {
     Activation,
     Rotation,
     Jump,
+    Step,
     Rebuild,
     Attach,
 }

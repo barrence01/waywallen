@@ -82,14 +82,14 @@ impl Daemon1 {
         Ok(())
     }
 
-    async fn next(&self) -> zbus::fdo::Result<String> {
-        application::step(&self.app, 1)
+    async fn next(&self) -> zbus::fdo::Result<()> {
+        application::step_active(&self.app, 1)
             .await
             .map_err(zbus::fdo::Error::from)
     }
 
-    async fn previous(&self) -> zbus::fdo::Result<String> {
-        application::step(&self.app, -1)
+    async fn previous(&self) -> zbus::fdo::Result<()> {
+        application::step_active(&self.app, -1)
             .await
             .map_err(zbus::fdo::Error::from)
     }
