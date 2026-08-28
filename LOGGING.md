@@ -7,8 +7,7 @@ Waywallen writes daily daemon logs under:
 
 When neither `XDG_STATE_HOME` nor `HOME` is set, the daemon logs to stderr only.
 
-Files are named `waywallen_rYYYY-MM-DD.log`, appended across restarts. On rotation, flexi_logger 0.31 `Cleanup::KeepLogFiles(7)` keeps at most the seven newest rotated log files and deletes older ones.
-
+The active daemon log is `waywallen_rCURRENT.log`, appended across restarts. On daily rotation it becomes `waywallen_rYYYY-MM-DD_00-00-00.log` (the `_00-00-00` suffix is a flexi_logger compatibility shim, not a real timestamp). flexi_logger 0.31 `Cleanup::KeepLogFiles(7)` keeps at most the seven newest rotated log files and deletes older ones.
 Each log line uses flexi_logger `opt_format` (timestamp + level + file:line). Stderr uses the colored variant of the same format. File I/O is asynchronous and flushed about every 2 seconds, so lines may appear in the log file with a short delay.
 
 ## Debug logging setting
