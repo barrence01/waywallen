@@ -85,8 +85,8 @@ MD.Page {
     function pruneTags(tags, filters) {
         const allowed = {};
         for (const filter of filters ?? []) {
-            for (const value of filter.values ?? [])
-                allowed[String(value)] = true;
+            for (const option of filter.options ?? [])
+                allowed[String(option.value)] = true;
         }
         let out = [];
         for (const tag of tags ?? []) {

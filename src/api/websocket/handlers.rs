@@ -1224,7 +1224,9 @@ pub(super) async fn dispatch_inner(
                         let tags = s
                             .filters
                             .iter()
-                            .flat_map(|filter| filter.values.iter().cloned())
+                            .flat_map(|filter| {
+                                filter.options.iter().map(|option| option.value.clone())
+                            })
                             .collect();
                         let settings = s
                             .settings
@@ -1299,7 +1301,18 @@ pub(super) async fn dispatch_inner(
                                             pb::RemoteFilterType::Toggle as i32
                                         }
                                     },
-                                    values: filter.values,
+                                    options: filter
+                                        .options
+                                        .into_iter()
+                                        .map(|option| pb::RemoteFilterOption {
+                                            value: option.value,
+                                            label: option.label.text().to_string(),
+                                            label_text:
+                                                crate::control_proto::plugin_message_to_proto(
+                                                    &option.label,
+                                                ),
+                                        })
+                                        .collect(),
                                     description: filter.description.text().to_string(),
                                     confirmation: filter.confirmation.text().to_string(),
                                     title_text: crate::control_proto::plugin_message_to_proto(

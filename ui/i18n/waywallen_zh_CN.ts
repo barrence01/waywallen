@@ -2348,6 +2348,16 @@ Unsaved frame state may be lost.</source>
         <translation>旋转</translation>
     </message>
     <message>
+        <location filename="../qml/page/WallpaperDetailPanel.qml" line="788"/>
+        <source>Properties</source>
+        <translation>属性</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WallpaperDetailPanel.qml" line="788"/>
+        <source>User properties</source>
+        <translation>用户属性</translation>
+    </message>
+    <message>
         <location filename="../qml/page/WallpaperDetailPanel.qml" line="804"/>
         <source>Reset to defaults</source>
         <translation>恢复默认值</translation>
@@ -2787,6 +2797,24 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/filter/WpTypeFilter.qml" line="19"/>
         <source>any</source>
         <translation>任意</translation>
+    </message>
+</context>
+<context>
+    <name>waywallen::model::UserPropertyListModel</name>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="287"/>
+        <source>Scheme color</source>
+        <translation>配色方案</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="296"/>
+        <source>Enable audio</source>
+        <translation>启用音频</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="306"/>
+        <source>Playback speed</source>
+        <translation>播放速度</translation>
     </message>
 </context>
 </TS>

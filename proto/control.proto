@@ -949,6 +949,12 @@ message RemoteSortOption {
   PluginMessage label_text = 3;
 }
 
+message RemoteFilterOption {
+  string value = 1;
+  string label = 2;
+  PluginMessage label_text = 3;
+}
+
 enum RemoteFilterType {
   REMOTE_FILTER_TYPE_UNSPECIFIED = 0;
   REMOTE_FILTER_TYPE_SELECT = 1;
@@ -960,7 +966,7 @@ message RemoteFilterDef {
   string id = 1;
   string title = 2;
   RemoteFilterType type = 3;
-  repeated string values = 4;
+  repeated RemoteFilterOption options = 4;
   string description = 5;
   string confirmation = 6;
   PluginMessage title_text = 7;

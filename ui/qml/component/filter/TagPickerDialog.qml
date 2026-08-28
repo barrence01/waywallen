@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Templates as T
+import waywallen.ui as W
 import Qcm.Material as MD
 
 // Multi-select tag picker. `selected` seeds the current selection on open;
@@ -10,9 +11,23 @@ MD.Dialog {
     id: control
 
     property var allTags: []
+    property var tagLabels: ({})
+    // Remote filters supply value/label option objects; local tag pickers use raw tags.
+    property var options: []
     property var selected: []
     property string dialogTitle: qsTr("Select tags")
     signal commit(var tags)
+
+    function tagLabel(tag) {
+        const option = (control.options ?? []).find(option => option.value === tag);
+        const label = W.I18n.tr(option?.labelText ?? option?.label ?? control.tagLabels?.[tag] ?? tag);
+        return label.length > 0 ? label : tag;
+    }
+    function tags() {
+        return control.options?.length > 0
+            ? control.options.map(option => option.value)
+            : control.allTags;
+    }
 
     title: dialogTitle
     parent: T.Overlay.overlay
@@ -77,7 +92,7 @@ MD.Dialog {
 
             MD.Text {
                 Layout.fillWidth: true
-                visible: !control.allTags || control.allTags.length === 0
+                visible: !control.tags() || control.tags().length === 0
                 text: qsTr("No tags in library")
                 typescale: MD.Token.typescale.body_medium
                 color: MD.Token.color.on_surface_variant
@@ -86,14 +101,14 @@ MD.Dialog {
 
             Flow {
                 Layout.fillWidth: true
-                visible: control.allTags && control.allTags.length > 0
+                visible: control.tags() && control.tags().length > 0
                 spacing: 8
                 Repeater {
-                    model: control.allTags
+                    model: control.tags()
                     delegate: MD.FilterChip {
                         required property var modelData
                         checkable: false
-                        text: modelData
+                        text: control.tagLabel(modelData)
                         checked: (control.pending || []).indexOf(modelData) >= 0
                         onClicked: control.togglePending(modelData)
                     }
