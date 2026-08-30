@@ -465,68 +465,68 @@
         <translation>Мониторы не зарегистрированы</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="748"/>
-        <location filename="../qml/page/DisplaysPage.qml" line="1052"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="745"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1049"/>
         <source>Display #%1</source>
         <translation>Монитор #%1</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="898"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="895"/>
         <source>Empty canvas</source>
         <translation>Пустой холст</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="984"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="981"/>
         <source>%1 overlapping displays</source>
         <translation>Перекрывающихся дисплеев: %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="984"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="981"/>
         <source>Offline</source>
         <translation>Не в сети</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1072"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1069"/>
         <source>Edit display</source>
         <translation>Изменить монитор</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1072"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1069"/>
         <source>Edit canvas</source>
         <translation>Редактировать холст</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1087"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1084"/>
         <source>Delete canvas</source>
         <translation>Удалить холст</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1105"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1102"/>
         <source>ID:</source>
         <translation>ID:</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1119"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1116"/>
         <source>Size:</source>
         <translation>Размер:</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1129"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1126"/>
         <source>Empty</source>
         <translation>Пусто</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1141"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1138"/>
         <source>Members:</source>
         <translation>Участники:</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1147"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1144"/>
         <source>%1 total, %2 online</source>
         <translation>Всего: %1, в сети: %2</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1157"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1154"/>
         <source>Refresh:</source>
         <translation>Частота:</translation>
     </message>
@@ -536,7 +536,7 @@
         <translation>Не удалось обновить холст</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="843"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="840"/>
         <source>Unnamed canvas</source>
         <translation>Безымянный холст</translation>
     </message>
@@ -551,12 +551,12 @@
         <translation>Холст %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1172"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1169"/>
         <source>Canvas area:</source>
         <translation>Область холста:</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1190"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1187"/>
         <source>Canvas</source>
         <translation>Холст</translation>
     </message>
@@ -654,22 +654,22 @@
 <context>
     <name>KdeDisplaysHelp</name>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="26"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="18"/>
         <source>KDE Plasma needs the &lt;b&gt;waywallen-display&lt;/b&gt; wallpaper extension to bridge wallpapers to the desktop. Install it from either source:</source>
         <translation>Чтобы вывести обои на рабочий стол, KDE Plasma нужно дополнение &lt;b&gt;waywallen-display&lt;/b&gt;. Установите его из любого источника:</translation>
     </message>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="39"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="31"/>
         <source>GitHub</source>
         <translation>GitHub</translation>
     </message>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="46"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="38"/>
         <source>KDE Store</source>
         <translation>KDE Store</translation>
     </message>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="56"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="48"/>
         <source>Then right-click the desktop → &lt;b&gt;Configure Desktop and Wallpaper…&lt;/b&gt; and pick the &lt;b&gt;Waywallen&lt;/b&gt; wallpaper plugin.</source>
         <translation>Затем щёлкните правой кнопкой по рабочему столу → &lt;b&gt;Настроить рабочий стол и обои…&lt;/b&gt; и выберите модуль обоев &lt;b&gt;Waywallen&lt;/b&gt;.</translation>
     </message>
@@ -748,52 +748,52 @@
         <translation>Редактировать плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="97"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="103"/>
         <source>Reset</source>
         <translation>Сбросить</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="106"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="112"/>
         <source>Apply</source>
         <translation>Применить</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="132"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="138"/>
         <source>Playlist update failed</source>
         <translation>Не удалось обновить плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="137"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="143"/>
         <source>Playlist updated</source>
         <translation>Плейлист обновлён</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="173"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="179"/>
         <source>Name</source>
         <translation>Название</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="190"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="196"/>
         <source>Mode</source>
         <translation>Режим</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="199"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="207"/>
         <source>Sequential</source>
         <translation>По порядку</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="199"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="213"/>
         <source>Shuffle</source>
         <translation>Вперемешку</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="199"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="219"/>
         <source>Random</source>
         <translation>Случайно</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="211"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="232"/>
         <source>Rotation interval</source>
         <translation>Интервал смены</translation>
     </message>
@@ -813,27 +813,27 @@
         <translation>Использовать одинаковые обои на всех целях; при отключении время смены остаётся синхронизированным</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="288"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="341"/>
         <source>Wallpapers</source>
         <translation>Обои</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="322"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="378"/>
         <source>Untitled</source>
         <translation>Без названия</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="345"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="401"/>
         <source>Remove from playlist</source>
         <translation>Удалить из плейлиста</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="360"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="416"/>
         <source>No wallpapers in this playlist</source>
         <translation>В этом плейлисте нет обоев</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="371"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="427"/>
         <source>Playlist unavailable</source>
         <translation>Плейлист недоступен</translation>
     </message>
@@ -957,167 +957,167 @@
         <translation>Обновление не поддерживается</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="88"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="205"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="117"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="234"/>
         <source>Inactive plugins</source>
         <translation>Неактивные плагины</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="94"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="123"/>
         <source>Check updates</source>
         <translation>Проверить обновления</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="100"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="129"/>
         <source>Install from .zip</source>
         <translation>Установить из .zip</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="149"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="178"/>
         <source>Deleted &quot;%1&quot; — restart waywallen to unload it</source>
         <translation>Плагин «%1» удалён — перезапустите waywallen, чтобы выгрузить его</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="149"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="178"/>
         <source>Deleted &quot;%1&quot;</source>
         <translation>Плагин «%1» удалён</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="157"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="186"/>
         <source>Installed &quot;%1&quot; — restart waywallen to load it</source>
         <translation>Плагин «%1» установлен — перезапустите waywallen, чтобы загрузить его</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="157"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="186"/>
         <source>Installed &quot;%1&quot;</source>
         <translation>Плагин «%1» установлен</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="163"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="192"/>
         <source>Plugin install failed</source>
         <translation>Не удалось установить плагин</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="171"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="200"/>
         <source>Updated &quot;%1&quot;</source>
         <translation>Плагин «%1» обновлён</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="177"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="206"/>
         <source>Plugin update failed</source>
         <translation>Не удалось обновить плагин</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="190"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="219"/>
         <source>Plugin package inspect failed</source>
         <translation>Не удалось прочитать пакет плагина</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="215"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="244"/>
         <source>These plugins were skipped because another installed plugin with the same id was selected. Higher versions win; when versions match, user plugins win over system plugins.</source>
         <translation>Эти плагины пропущены, потому что был выбран другой установленный плагин с тем же идентификатором. Побеждает более новая версия; при равных версиях пользовательский плагин важнее системного.</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="228"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="418"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="257"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="447"/>
         <source>User</source>
         <translation>Пользовательский</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="253"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="418"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="282"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="447"/>
         <source>System</source>
         <translation>Системный</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="276"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="305"/>
         <source>Choose plugin package</source>
         <translation>Выберите пакет плагина</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="278"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="307"/>
         <source>Plugin package (*.zip)</source>
         <translation>Пакет плагина (*.zip)</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="278"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="307"/>
         <source>All files (*)</source>
         <translation>Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="287"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="316"/>
         <source>Update plugin?</source>
         <translation>Обновить плагин?</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="287"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="316"/>
         <source>Install plugin?</source>
         <translation>Установить плагин?</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="303"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="332"/>
         <source>Name</source>
         <translation>Название</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="316"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="345"/>
         <source>Id</source>
         <translation>ID</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="329"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="358"/>
         <source>Version</source>
         <translation>Версия</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="335"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="364"/>
         <source>%1 -&gt; %2</source>
         <translation>%1 → %2</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="335"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="335"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="371"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="364"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="364"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="400"/>
         <source>unknown</source>
         <translation>неизвестно</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="342"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="371"/>
         <source>Source</source>
         <translation>Источник</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="348"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="377"/>
         <source>Yes</source>
         <translation>Да</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="348"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="377"/>
         <source>No</source>
         <translation>Нет</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="371"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="400"/>
         <source>A system plugin with the same id is active. Installing this package may replace it with the user plugin version %1.</source>
         <translation>Активен системный плагин с тем же идентификатором. Установка этого пакета может заменить его пользовательским плагином версии %1.</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="397"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="426"/>
         <source>No plugins installed</source>
         <translation>Плагины не установлены</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="469"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="498"/>
         <source>Updating</source>
         <translation>Обновление</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="469"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="498"/>
         <source>Update</source>
         <translation>Обновить</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="484"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="513"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
@@ -1347,12 +1347,12 @@
         <translation>Фильтры</translation>
     </message>
     <message>
-        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="95"/>
+        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="100"/>
         <source>Any</source>
         <translation>Любой</translation>
     </message>
     <message>
-        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="141"/>
+        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="146"/>
         <source>Select values</source>
         <translation>Выберите значения</translation>
     </message>
@@ -1641,299 +1641,325 @@ Related display: #%1</source>
         <translation>Не удалось изменить автозапуск при входе</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="192"/>
+        <location filename="../qml/page/SettingsPage.qml" line="207"/>
         <source>Any window</source>
         <translation>Любое окно</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="193"/>
+        <location filename="../qml/page/SettingsPage.qml" line="208"/>
         <source>Focused window</source>
         <translation>Активное окно</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="194"/>
+        <location filename="../qml/page/SettingsPage.qml" line="209"/>
         <source>Maximized window</source>
         <translation>Развёрнутое окно</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="195"/>
+        <location filename="../qml/page/SettingsPage.qml" line="210"/>
         <source>Fullscreen window</source>
         <translation>Полноэкранное окно</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="196"/>
+        <location filename="../qml/page/SettingsPage.qml" line="211"/>
         <source>Session locked</source>
         <translation>Сеанс заблокирован</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="197"/>
+        <location filename="../qml/page/SettingsPage.qml" line="212"/>
         <source>Session inactive</source>
         <translation>Сеанс неактивен</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="201"/>
+        <location filename="../qml/page/SettingsPage.qml" line="216"/>
         <source>None</source>
         <translation>Нет</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="202"/>
+        <location filename="../qml/page/SettingsPage.qml" line="217"/>
         <source>Mute</source>
         <translation>Заглушить</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="203"/>
+        <location filename="../qml/page/SettingsPage.qml" line="218"/>
         <source>Pause</source>
         <translation>Пауза</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="204"/>
+        <location filename="../qml/page/SettingsPage.qml" line="219"/>
         <source>Stop</source>
         <translation>Стоп</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="274"/>
-        <location filename="../qml/page/SettingsPage.qml" line="504"/>
+        <location filename="../qml/page/SettingsPage.qml" line="290"/>
+        <location filename="../qml/page/SettingsPage.qml" line="521"/>
         <source>Failed to change language</source>
         <translation>Не удалось изменить язык</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="373"/>
+        <location filename="../qml/page/SettingsPage.qml" line="390"/>
         <source>Sequential</source>
         <translation>По порядку</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="374"/>
+        <location filename="../qml/page/SettingsPage.qml" line="391"/>
         <source>Shuffle</source>
         <translation>Вперемешку</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="375"/>
+        <location filename="../qml/page/SettingsPage.qml" line="392"/>
         <source>Random</source>
         <translation>Случайно</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="406"/>
+        <location filename="../qml/page/SettingsPage.qml" line="423"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="413"/>
+        <location filename="../qml/page/SettingsPage.qml" line="430"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="419"/>
+        <location filename="../qml/page/SettingsPage.qml" line="436"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="425"/>
-        <location filename="../qml/page/SettingsPage.qml" line="456"/>
+        <location filename="../qml/page/SettingsPage.qml" line="442"/>
+        <location filename="../qml/page/SettingsPage.qml" line="473"/>
+        <location filename="../src/ui_language.cpp" line="74"/>
         <source>System</source>
         <translation>Системная</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="443"/>
+        <location filename="../qml/page/SettingsPage.qml" line="460"/>
         <source>Accent color</source>
         <translation>Акцентный цвет</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="450"/>
+        <location filename="../qml/page/SettingsPage.qml" line="467"/>
         <source>Custom</source>
         <translation>Свой</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="491"/>
+        <location filename="../qml/page/SettingsPage.qml" line="508"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="570"/>
+        <location filename="../qml/page/SettingsPage.qml" line="587"/>
         <source>Auto-expand sidebar</source>
         <translation>Раскрывать боковую панель</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="573"/>
+        <location filename="../qml/page/SettingsPage.qml" line="590"/>
         <source>Expand or collapse the sidebar with the window size.</source>
         <translation>Раскрывать и сворачивать боковую панель вместе с размером окна.</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="601"/>
+        <location filename="../qml/page/SettingsPage.qml" line="618"/>
         <source>Single UI instance</source>
         <translation>Один экземпляр интерфейса</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="604"/>
+        <location filename="../qml/page/SettingsPage.qml" line="621"/>
         <source>When enabled, launching Waywallen again focuses the existing window.</source>
         <translation>При повторном запуске Waywallen фокусируется уже открытое окно.</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="635"/>
+        <location filename="../qml/page/SettingsPage.qml" line="652"/>
         <source>Quit UI with daemon</source>
         <translation>Закрывать интерфейс вместе с демоном</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="638"/>
+        <location filename="../qml/page/SettingsPage.qml" line="655"/>
         <source>Close the UI when the daemon shuts down. Disable to keep it open for reconnection.</source>
         <translation>Закрывать интерфейс при завершении демона. Отключите, чтобы оставить его открытым для повторного подключения.</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="664"/>
+        <location filename="../qml/page/SettingsPage.qml" line="681"/>
         <source>Start at login</source>
         <translation>Запускать при входе в систему</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="697"/>
+        <location filename="../qml/page/SettingsPage.qml" line="714"/>
         <source>Hide tray icon</source>
         <translation>Скрыть значок в системном лотке</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="700"/>
+        <location filename="../qml/page/SettingsPage.qml" line="717"/>
         <source>Remove the status-bar icon. Reopen this window by launching Waywallen again.</source>
         <translation>Убрать значок из системного лотка. Чтобы снова открыть это окно, запустите Waywallen ещё раз.</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="732"/>
+        <location filename="../qml/page/SettingsPage.qml" line="751"/>
+        <source>Debug logging</source>
+        <translation>Отладочное логирование</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="755"/>
+        <source>Disabled because RUST_LOG is set.</source>
+        <translation>Отключено, так как задана переменная RUST_LOG.</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="756"/>
+        <source>Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.</source>
+        <translation>Включать сообщения уровня отладки в файл журнала (debug,zbus=warn). Изменение применяется сразу.</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="789"/>
+        <source>Log folder</source>
+        <translation>Папка с журналами</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="793"/>
+        <source>Open</source>
+        <translation>Открыть</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="811"/>
         <source>Allow duplicate renderers</source>
         <translation>Разрешить дублирование рендереров</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="759"/>
+        <location filename="../qml/page/SettingsPage.qml" line="838"/>
         <source>Mouse forwarding</source>
         <translation>Передача событий мыши</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="786"/>
+        <location filename="../qml/page/SettingsPage.qml" line="865"/>
         <source>Plugin update notifications</source>
         <translation>Уведомлять об обновлениях плагинов</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="515"/>
+        <location filename="../qml/page/SettingsPage.qml" line="532"/>
         <source>Auto replay</source>
         <translation>Автоповтор</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="394"/>
+        <location filename="../qml/page/SettingsPage.qml" line="411"/>
         <source>Appearance</source>
         <translation>Внешний вид</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="556"/>
+        <location filename="../qml/page/SettingsPage.qml" line="573"/>
         <source>Behavior</source>
         <translation>Поведение</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="803"/>
+        <location filename="../qml/page/SettingsPage.qml" line="882"/>
         <source>Effect</source>
         <translation>Эффект</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="815"/>
+        <location filename="../qml/page/SettingsPage.qml" line="894"/>
         <source>Blur while paused</source>
         <translation>Размытие во время паузы</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="847"/>
+        <location filename="../qml/page/SettingsPage.qml" line="926"/>
         <source>Blur radius</source>
         <translation>Радиус размытия</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="871"/>
+        <location filename="../qml/page/SettingsPage.qml" line="950"/>
         <source>px</source>
         <translation>пкс</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="878"/>
+        <location filename="../qml/page/SettingsPage.qml" line="957"/>
         <source>Audio</source>
         <translation>Звук</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="890"/>
+        <location filename="../qml/page/SettingsPage.qml" line="969"/>
         <source>Enable audio</source>
         <translation>Включить звук</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="917"/>
+        <location filename="../qml/page/SettingsPage.qml" line="996"/>
         <source>Enable audio capture</source>
         <translation>Включить захват звука</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="944"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1023"/>
         <source>Volume</source>
         <translation>Громкость</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="968"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1047"/>
         <source>%</source>
         <translation>%</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="985"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1064"/>
         <source>Mute for other active playback streams</source>
         <translation>Заглушать, когда звук воспроизводят другие приложения</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1012"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1091"/>
         <source>Mute fade</source>
         <translation>Плавность заглушения</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1036"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1115"/>
         <source>ms</source>
         <translation>мс</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1043"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1122"/>
         <source>Rotation</source>
         <translation>Смена обоев</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1055"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1134"/>
         <source>Queue mode</source>
         <translation>Режим очереди</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1085"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1164"/>
         <source>Rotation interval</source>
         <translation>Интервал смены</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1092"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1171"/>
         <source>Interval</source>
         <translation>Интервал</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1107"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1186"/>
         <source>s</source>
         <translation>с</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1114"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1193"/>
         <source>Cache</source>
         <translation>Кэш</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1122"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1201"/>
         <source>Network image cache</source>
         <translation>Кэш сетевых изображений</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1123"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1202"/>
         <source>%1 of %2 used</source>
         <translation>Использовано %1 из %2</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1130"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1209"/>
         <source>Clear</source>
         <translation>Очистить</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1135"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1214"/>
         <source>Network image cache cleared</source>
         <translation>Кэш сетевых изображений очищен</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1146"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1225"/>
         <source>Maximum cache size</source>
         <translation>Максимальный размер кэша</translation>
     </message>
@@ -2008,57 +2034,57 @@ Unsaved frame state may be lost.</source>
 Несохранённое состояние кадров может быть потеряно.</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="221"/>
+        <location filename="../qml/page/StatusPage.qml" line="227"/>
         <source>Daemon</source>
         <translation>Демон</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="236"/>
+        <location filename="../qml/page/StatusPage.qml" line="244"/>
         <source>Service:</source>
         <translation>Служба:</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="270"/>
+        <location filename="../qml/page/StatusPage.qml" line="278"/>
         <source>State:</source>
         <translation>Состояние:</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="301"/>
+        <location filename="../qml/page/StatusPage.qml" line="309"/>
         <source>Renderers</source>
         <translation>Рендереры</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="309"/>
+        <location filename="../qml/page/StatusPage.qml" line="317"/>
         <source>Mute all</source>
         <translation>Заглушить всё</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="320"/>
+        <location filename="../qml/page/StatusPage.qml" line="328"/>
         <source>Pause all</source>
         <translation>Приостановить всё</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="331"/>
+        <location filename="../qml/page/StatusPage.qml" line="339"/>
         <source>Stop all</source>
         <translation>Остановить всё</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="345"/>
+        <location filename="../qml/page/StatusPage.qml" line="353"/>
         <source>No renderers</source>
         <translation>Рендереров нет</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="439"/>
+        <location filename="../qml/page/StatusPage.qml" line="447"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="445"/>
+        <location filename="../qml/page/StatusPage.qml" line="453"/>
         <source>Supported types: %1</source>
         <translation>Поддерживаемые типы: %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="450"/>
+        <location filename="../qml/page/StatusPage.qml" line="458"/>
         <source>No components</source>
         <translation>Компонентов нет</translation>
     </message>
@@ -2112,12 +2138,12 @@ Unsaved frame state may be lost.</source>
 <context>
     <name>TagPickerDialog</name>
     <message>
-        <location filename="../qml/component/filter/TagPickerDialog.qml" line="14"/>
+        <location filename="../qml/component/filter/TagPickerDialog.qml" line="18"/>
         <source>Select tags</source>
         <translation>Выберите метки</translation>
     </message>
     <message>
-        <location filename="../qml/component/filter/TagPickerDialog.qml" line="81"/>
+        <location filename="../qml/component/filter/TagPickerDialog.qml" line="96"/>
         <source>No tags in library</source>
         <translation>В библиотеке нет меток</translation>
     </message>
@@ -2159,6 +2185,24 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/page/wallpaper/TweakSheet.qml" line="131"/>
         <source>Fixed</source>
         <translation>Фиксированное</translation>
+    </message>
+</context>
+<context>
+    <name>waywallen::model::UserPropertyListModel</name>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="287"/>
+        <source>Scheme color</source>
+        <translation>Цветовая схема</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="296"/>
+        <source>Enable audio</source>
+        <translation>Включить звук</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="306"/>
+        <source>Playback speed</source>
+        <translation>Скорость воспроизведения</translation>
     </message>
 </context>
 <context>
@@ -2603,12 +2647,12 @@ Unsaved frame state may be lost.</source>
         <translation>Не удалось запустить плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="210"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="209"/>
         <source>Sync failed: %1</source>
         <translation>Ошибка синхронизации: %1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/page/WallpaperPage.qml" line="212"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="211"/>
         <source>Scanned %n wallpaper(s)</source>
         <translation>
             <numerusform>Просканировано обоев: %n</numerusform>
@@ -2617,94 +2661,94 @@ Unsaved frame state may be lost.</source>
         </translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="241"/>
-        <location filename="../qml/page/WallpaperPage.qml" line="833"/>
-        <location filename="../qml/page/WallpaperPage.qml" line="840"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="240"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="849"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="856"/>
         <source>New playlist</source>
         <translation>Новый плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="251"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="250"/>
         <source>Add to playlist</source>
         <translation>Добавить в плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="260"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="259"/>
         <source>Apply</source>
         <translation>Применить</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="269"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="268"/>
         <source>Remove %1</source>
         <translation>Удалить: %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="278"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="277"/>
         <source>Playlists</source>
         <translation>Плейлисты</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="286"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="285"/>
         <source>Tweak</source>
         <translation>Вид</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="295"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="294"/>
         <source>Filters</source>
         <translation>Фильтры</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="307"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="306"/>
         <source>Library Manager</source>
         <translation>Менеджер библиотек</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="321"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="320"/>
         <source>Refresh</source>
         <translation>Обновить</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="441"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="440"/>
         <source>Name</source>
         <translation>Название</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="445"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="444"/>
         <source>Size</source>
         <translation>Размер</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="449"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="448"/>
         <source>Last modified</source>
         <translation>Дата изменения</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="859"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="875"/>
         <source>Added to playlist</source>
         <translation>Добавлено в плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="879"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="895"/>
         <source>Playlist deleted</source>
         <translation>Плейлист удалён</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="941"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="957"/>
         <source>Search</source>
         <translation>Поиск</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="1072"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="1088"/>
         <source>No wallpapers found</source>
         <translation>Обои не найдены</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="1081"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="1097"/>
         <source>Click the %1 button in the top right to add a library.</source>
         <translation>Нажмите кнопку %1 в правом верхнем углу, чтобы добавить библиотеку.</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="1098"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="1114"/>
         <source>Auto detect libraries</source>
         <translation>Найти библиотеки автоматически</translation>
     </message>
@@ -2807,24 +2851,6 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/filter/WpTypeFilter.qml" line="19"/>
         <source>any</source>
         <translation>любой</translation>
-    </message>
-</context>
-<context>
-    <name>waywallen::model::UserPropertyListModel</name>
-    <message>
-        <location filename="../src/model/user_property_model.cpp" line="287"/>
-        <source>Scheme color</source>
-        <translation>Цветовая схема</translation>
-    </message>
-    <message>
-        <location filename="../src/model/user_property_model.cpp" line="296"/>
-        <source>Enable audio</source>
-        <translation>Включить звук</translation>
-    </message>
-    <message>
-        <location filename="../src/model/user_property_model.cpp" line="306"/>
-        <source>Playback speed</source>
-        <translation>Скорость воспроизведения</translation>
     </message>
 </context>
 </TS>

@@ -453,68 +453,68 @@
         <translation>没有已注册的显示器</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="748"/>
-        <location filename="../qml/page/DisplaysPage.qml" line="1052"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="745"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1049"/>
         <source>Display #%1</source>
         <translation>显示器 #%1</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="898"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="895"/>
         <source>Empty canvas</source>
         <translation>空画布</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="984"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="981"/>
         <source>%1 overlapping displays</source>
         <translation>%1 个重叠显示器</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="984"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="981"/>
         <source>Offline</source>
         <translation>离线</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1072"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1069"/>
         <source>Edit display</source>
         <translation>编辑显示器</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1072"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1069"/>
         <source>Edit canvas</source>
         <translation>编辑画布</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1087"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1084"/>
         <source>Delete canvas</source>
         <translation>删除画布</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1105"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1102"/>
         <source>ID:</source>
         <translation>ID：</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1119"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1116"/>
         <source>Size:</source>
         <translation>大小：</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1129"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1126"/>
         <source>Empty</source>
         <translation>空</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1141"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1138"/>
         <source>Members:</source>
         <translation>成员：</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1147"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1144"/>
         <source>%1 total, %2 online</source>
         <translation>共 %1 个，%2 个在线</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1157"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1154"/>
         <source>Refresh:</source>
         <translation>刷新率：</translation>
     </message>
@@ -524,7 +524,7 @@
         <translation>画布更新失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="843"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="840"/>
         <source>Unnamed canvas</source>
         <translation>未命名画布</translation>
     </message>
@@ -539,12 +539,12 @@
         <translation>画布 %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1172"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1169"/>
         <source>Canvas area:</source>
         <translation>画布区域：</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1190"/>
+        <location filename="../qml/page/DisplaysPage.qml" line="1187"/>
         <source>Canvas</source>
         <translation>画布</translation>
     </message>
@@ -652,22 +652,22 @@
 <context>
     <name>KdeDisplaysHelp</name>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="26"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="18"/>
         <source>KDE Plasma needs the &lt;b&gt;waywallen-display&lt;/b&gt; wallpaper extension to bridge wallpapers to the desktop. Install it from either source:</source>
         <translation>KDE Plasma 需要 &lt;b&gt;waywallen-display&lt;/b&gt; 壁纸扩展将壁纸桥接到桌面。请从以下任一来源安装：</translation>
     </message>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="39"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="31"/>
         <source>GitHub</source>
         <translation>GitHub</translation>
     </message>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="46"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="38"/>
         <source>KDE Store</source>
         <translation>KDE 商店</translation>
     </message>
     <message>
-        <location filename="../qml/component/KdeDisplaysHelp.qml" line="56"/>
+        <location filename="../qml/component/KdeDisplaysHelp.qml" line="48"/>
         <source>Then right-click the desktop → &lt;b&gt;Configure Desktop and Wallpaper…&lt;/b&gt; and pick the &lt;b&gt;Waywallen&lt;/b&gt; wallpaper plugin.</source>
         <translation>然后右键点击桌面 → &lt;b&gt;配置桌面和壁纸…&lt;/b&gt;，并选择 &lt;b&gt;Waywallen&lt;/b&gt; 壁纸插件。</translation>
     </message>
@@ -746,52 +746,52 @@
         <translation>编辑播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="97"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="103"/>
         <source>Reset</source>
         <translation>重置</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="106"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="112"/>
         <source>Apply</source>
         <translation>应用</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="132"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="138"/>
         <source>Playlist update failed</source>
         <translation>播放列表更新失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="137"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="143"/>
         <source>Playlist updated</source>
         <translation>已更新播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="173"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="179"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="190"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="196"/>
         <source>Mode</source>
         <translation>模式</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="199"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="207"/>
         <source>Sequential</source>
         <translation>顺序</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="199"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="213"/>
         <source>Shuffle</source>
         <translation>乱序</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="199"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="219"/>
         <source>Random</source>
         <translation>随机</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="211"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="232"/>
         <source>Rotation interval</source>
         <translation>轮换间隔</translation>
     </message>
@@ -811,27 +811,27 @@
         <translation>在所有目标上使用同一张壁纸；关闭后各目标独立选择，但轮换时间仍保持同步</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="288"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="341"/>
         <source>Wallpapers</source>
         <translation>壁纸</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="322"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="378"/>
         <source>Untitled</source>
         <translation>未命名</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="345"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="401"/>
         <source>Remove from playlist</source>
         <translation>从播放列表中移除</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="360"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="416"/>
         <source>No wallpapers in this playlist</source>
         <translation>此播放列表中没有壁纸</translation>
     </message>
     <message>
-        <location filename="../qml/page/PlaylistEditPage.qml" line="371"/>
+        <location filename="../qml/page/PlaylistEditPage.qml" line="427"/>
         <source>Playlist unavailable</source>
         <translation>播放列表不可用</translation>
     </message>
@@ -953,167 +953,167 @@
         <translation>不支持的更新</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="88"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="205"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="117"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="234"/>
         <source>Inactive plugins</source>
         <translation>未启用的插件</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="94"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="123"/>
         <source>Check updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="100"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="129"/>
         <source>Install from .zip</source>
         <translation>从 .zip 安装</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="149"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="178"/>
         <source>Deleted &quot;%1&quot; — restart waywallen to unload it</source>
         <translation>已删除“%1”——请重启 waywallen 以卸载它</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="149"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="178"/>
         <source>Deleted &quot;%1&quot;</source>
         <translation>已删除“%1”</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="157"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="186"/>
         <source>Installed &quot;%1&quot; — restart waywallen to load it</source>
         <translation>已安装“%1”——请重启 waywallen 以加载它</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="157"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="186"/>
         <source>Installed &quot;%1&quot;</source>
         <translation>已安装“%1”</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="163"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="192"/>
         <source>Plugin install failed</source>
         <translation>插件安装失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="171"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="200"/>
         <source>Updated &quot;%1&quot;</source>
         <translation>已更新“%1”</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="177"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="206"/>
         <source>Plugin update failed</source>
         <translation>插件更新失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="190"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="219"/>
         <source>Plugin package inspect failed</source>
         <translation>插件包检查失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="215"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="244"/>
         <source>These plugins were skipped because another installed plugin with the same id was selected. Higher versions win; when versions match, user plugins win over system plugins.</source>
         <translation>这些插件已被跳过，因为选择了另一个具有相同 ID 的已安装插件。版本较高者优先；版本相同时，用户插件优先于系统插件。</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="228"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="418"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="257"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="447"/>
         <source>User</source>
         <translation>用户</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="253"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="418"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="282"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="447"/>
         <source>System</source>
         <translation>系统</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="276"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="305"/>
         <source>Choose plugin package</source>
         <translation>选择插件包</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="278"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="307"/>
         <source>Plugin package (*.zip)</source>
         <translation>插件包 (*.zip)</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="278"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="307"/>
         <source>All files (*)</source>
         <translation>所有文件 (*)</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="287"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="316"/>
         <source>Update plugin?</source>
         <translation>更新插件？</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="287"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="316"/>
         <source>Install plugin?</source>
         <translation>安装插件？</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="303"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="332"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="316"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="345"/>
         <source>Id</source>
         <translation>ID</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="329"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="358"/>
         <source>Version</source>
         <translation>版本</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="335"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="364"/>
         <source>%1 -&gt; %2</source>
         <translation>%1 → %2</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="335"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="335"/>
-        <location filename="../qml/page/PluginManagePage.qml" line="371"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="364"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="364"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="400"/>
         <source>unknown</source>
         <translation>未知</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="342"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="371"/>
         <source>Source</source>
         <translation>来源</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="348"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="377"/>
         <source>Yes</source>
         <translation>是</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="348"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="377"/>
         <source>No</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="371"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="400"/>
         <source>A system plugin with the same id is active. Installing this package may replace it with the user plugin version %1.</source>
         <translation>存在具有相同 ID 的系统插件。安装此软件包可能会使用用户插件版本 %1 替换它。</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="397"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="426"/>
         <source>No plugins installed</source>
         <translation>未安装插件</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="469"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="498"/>
         <source>Updating</source>
         <translation>更新中</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="469"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="498"/>
         <source>Update</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../qml/page/PluginManagePage.qml" line="484"/>
+        <location filename="../qml/page/PluginManagePage.qml" line="513"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
@@ -1343,12 +1343,12 @@
         <translation>筛选</translation>
     </message>
     <message>
-        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="95"/>
+        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="100"/>
         <source>Any</source>
         <translation>任意</translation>
     </message>
     <message>
-        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="141"/>
+        <location filename="../qml/dialog/RemoteFilterDialog.qml" line="146"/>
         <source>Select values</source>
         <translation>选择值</translation>
     </message>
@@ -1635,299 +1635,325 @@ Related display: #%1</source>
         <translation>更新登录启动项失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="192"/>
+        <location filename="../qml/page/SettingsPage.qml" line="207"/>
         <source>Any window</source>
         <translation>任意窗口</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="193"/>
+        <location filename="../qml/page/SettingsPage.qml" line="208"/>
         <source>Focused window</source>
         <translation>聚焦窗口</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="194"/>
+        <location filename="../qml/page/SettingsPage.qml" line="209"/>
         <source>Maximized window</source>
         <translation>最大化窗口</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="195"/>
+        <location filename="../qml/page/SettingsPage.qml" line="210"/>
         <source>Fullscreen window</source>
         <translation>全屏窗口</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="196"/>
+        <location filename="../qml/page/SettingsPage.qml" line="211"/>
         <source>Session locked</source>
         <translation>会话已锁定</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="197"/>
+        <location filename="../qml/page/SettingsPage.qml" line="212"/>
         <source>Session inactive</source>
         <translation>会话未激活</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="201"/>
+        <location filename="../qml/page/SettingsPage.qml" line="216"/>
         <source>None</source>
         <translation>无</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="202"/>
+        <location filename="../qml/page/SettingsPage.qml" line="217"/>
         <source>Mute</source>
         <translation>静音</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="203"/>
+        <location filename="../qml/page/SettingsPage.qml" line="218"/>
         <source>Pause</source>
         <translation>暂停</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="204"/>
+        <location filename="../qml/page/SettingsPage.qml" line="219"/>
         <source>Stop</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="274"/>
-        <location filename="../qml/page/SettingsPage.qml" line="504"/>
+        <location filename="../qml/page/SettingsPage.qml" line="290"/>
+        <location filename="../qml/page/SettingsPage.qml" line="521"/>
         <source>Failed to change language</source>
         <translation>切换语言失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="373"/>
+        <location filename="../qml/page/SettingsPage.qml" line="390"/>
         <source>Sequential</source>
         <translation>顺序</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="374"/>
+        <location filename="../qml/page/SettingsPage.qml" line="391"/>
         <source>Shuffle</source>
         <translation>乱序</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="375"/>
+        <location filename="../qml/page/SettingsPage.qml" line="392"/>
         <source>Random</source>
         <translation>随机</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="406"/>
+        <location filename="../qml/page/SettingsPage.qml" line="423"/>
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="413"/>
+        <location filename="../qml/page/SettingsPage.qml" line="430"/>
         <source>Light</source>
         <translation>浅色</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="419"/>
+        <location filename="../qml/page/SettingsPage.qml" line="436"/>
         <source>Dark</source>
         <translation>深色</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="425"/>
-        <location filename="../qml/page/SettingsPage.qml" line="456"/>
+        <location filename="../qml/page/SettingsPage.qml" line="442"/>
+        <location filename="../qml/page/SettingsPage.qml" line="473"/>
+        <location filename="../src/ui_language.cpp" line="74"/>
         <source>System</source>
         <translation>系统</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="443"/>
+        <location filename="../qml/page/SettingsPage.qml" line="460"/>
         <source>Accent color</source>
         <translation>强调色</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="450"/>
+        <location filename="../qml/page/SettingsPage.qml" line="467"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="491"/>
+        <location filename="../qml/page/SettingsPage.qml" line="508"/>
         <source>Language</source>
         <translation>语言</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="570"/>
+        <location filename="../qml/page/SettingsPage.qml" line="587"/>
         <source>Auto-expand sidebar</source>
         <translation>自动展开侧边栏</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="573"/>
+        <location filename="../qml/page/SettingsPage.qml" line="590"/>
         <source>Expand or collapse the sidebar with the window size.</source>
         <translation>根据窗口大小展开或收起侧边栏。</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="601"/>
+        <location filename="../qml/page/SettingsPage.qml" line="618"/>
         <source>Single UI instance</source>
         <translation>单 UI 实例</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="604"/>
+        <location filename="../qml/page/SettingsPage.qml" line="621"/>
         <source>When enabled, launching Waywallen again focuses the existing window.</source>
         <translation>启用后，再次启动 Waywallen 会聚焦已有窗口。</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="635"/>
+        <location filename="../qml/page/SettingsPage.qml" line="652"/>
         <source>Quit UI with daemon</source>
         <translation>随守护进程退出 UI</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="638"/>
+        <location filename="../qml/page/SettingsPage.qml" line="655"/>
         <source>Close the UI when the daemon shuts down. Disable to keep it open for reconnection.</source>
         <translation>守护进程关闭时退出 UI。禁用后 UI 将保持打开并等待重新连接。</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="664"/>
+        <location filename="../qml/page/SettingsPage.qml" line="681"/>
         <source>Start at login</source>
         <translation>登录时启动</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="697"/>
+        <location filename="../qml/page/SettingsPage.qml" line="714"/>
         <source>Hide tray icon</source>
         <translation>隐藏托盘图标</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="700"/>
+        <location filename="../qml/page/SettingsPage.qml" line="717"/>
         <source>Remove the status-bar icon. Reopen this window by launching Waywallen again.</source>
         <translation>移除状态栏图标。再次启动 Waywallen 即可重新打开此窗口。</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="732"/>
+        <location filename="../qml/page/SettingsPage.qml" line="751"/>
+        <source>Debug logging</source>
+        <translation>调试日志</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="755"/>
+        <source>Disabled because RUST_LOG is set.</source>
+        <translation>由于已设置 RUST_LOG，此选项已禁用。</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="756"/>
+        <source>Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.</source>
+        <translation>将调试级别消息写入日志文件（debug,zbus=warn）。立即生效。</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="789"/>
+        <source>Log folder</source>
+        <translation>日志文件夹</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="793"/>
+        <source>Open</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="811"/>
         <source>Allow duplicate renderers</source>
         <translation>允许重复渲染器</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="759"/>
+        <location filename="../qml/page/SettingsPage.qml" line="838"/>
         <source>Mouse forwarding</source>
         <translation>鼠标转发</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="786"/>
+        <location filename="../qml/page/SettingsPage.qml" line="865"/>
         <source>Plugin update notifications</source>
         <translation>插件更新通知</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="515"/>
+        <location filename="../qml/page/SettingsPage.qml" line="532"/>
         <source>Auto replay</source>
         <translation>自动重播</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="394"/>
+        <location filename="../qml/page/SettingsPage.qml" line="411"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="556"/>
+        <location filename="../qml/page/SettingsPage.qml" line="573"/>
         <source>Behavior</source>
         <translation>行为</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="803"/>
+        <location filename="../qml/page/SettingsPage.qml" line="882"/>
         <source>Effect</source>
         <translation>效果</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="815"/>
+        <location filename="../qml/page/SettingsPage.qml" line="894"/>
         <source>Blur while paused</source>
         <translation>暂停时模糊</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="847"/>
+        <location filename="../qml/page/SettingsPage.qml" line="926"/>
         <source>Blur radius</source>
         <translation>模糊半径</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="871"/>
+        <location filename="../qml/page/SettingsPage.qml" line="950"/>
         <source>px</source>
         <translation>像素</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="878"/>
+        <location filename="../qml/page/SettingsPage.qml" line="957"/>
         <source>Audio</source>
         <translation>音频</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="890"/>
+        <location filename="../qml/page/SettingsPage.qml" line="969"/>
         <source>Enable audio</source>
         <translation>启用音频</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="917"/>
+        <location filename="../qml/page/SettingsPage.qml" line="996"/>
         <source>Enable audio capture</source>
         <translation>启用音频捕获</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="944"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1023"/>
         <source>Volume</source>
         <translation>音量</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="968"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1047"/>
         <source>%</source>
         <translation>%</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="985"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1064"/>
         <source>Mute for other active playback streams</source>
         <translation>其他播放流活跃时静音</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1012"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1091"/>
         <source>Mute fade</source>
         <translation>静音淡变</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1036"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1115"/>
         <source>ms</source>
         <translation>毫秒</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1043"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1122"/>
         <source>Rotation</source>
         <translation>轮换</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1055"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1134"/>
         <source>Queue mode</source>
         <translation>队列模式</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1085"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1164"/>
         <source>Rotation interval</source>
         <translation>轮换间隔</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1092"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1171"/>
         <source>Interval</source>
         <translation>间隔</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1107"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1186"/>
         <source>s</source>
         <translation>秒</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1114"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1193"/>
         <source>Cache</source>
         <translation>缓存</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1122"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1201"/>
         <source>Network image cache</source>
         <translation>网络图片缓存</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1123"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1202"/>
         <source>%1 of %2 used</source>
         <translation>已使用 %1 / %2</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1130"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1209"/>
         <source>Clear</source>
         <translation>清除</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1135"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1214"/>
         <source>Network image cache cleared</source>
         <translation>已清除网络图片缓存</translation>
     </message>
     <message>
-        <location filename="../qml/page/SettingsPage.qml" line="1146"/>
+        <location filename="../qml/page/SettingsPage.qml" line="1225"/>
         <source>Maximum cache size</source>
         <translation>最大缓存大小</translation>
     </message>
@@ -2002,57 +2028,57 @@ Unsaved frame state may be lost.</source>
 未保存的帧状态可能会丢失。</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="221"/>
+        <location filename="../qml/page/StatusPage.qml" line="227"/>
         <source>Daemon</source>
         <translation>后台</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="236"/>
+        <location filename="../qml/page/StatusPage.qml" line="244"/>
         <source>Service:</source>
         <translation>服务：</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="270"/>
+        <location filename="../qml/page/StatusPage.qml" line="278"/>
         <source>State:</source>
         <translation>状态：</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="301"/>
+        <location filename="../qml/page/StatusPage.qml" line="309"/>
         <source>Renderers</source>
         <translation>渲染器</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="309"/>
+        <location filename="../qml/page/StatusPage.qml" line="317"/>
         <source>Mute all</source>
         <translation>全部静音</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="320"/>
+        <location filename="../qml/page/StatusPage.qml" line="328"/>
         <source>Pause all</source>
         <translation>全部暂停</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="331"/>
+        <location filename="../qml/page/StatusPage.qml" line="339"/>
         <source>Stop all</source>
         <translation>全部停止</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="345"/>
+        <location filename="../qml/page/StatusPage.qml" line="353"/>
         <source>No renderers</source>
         <translation>没有渲染器</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="439"/>
+        <location filename="../qml/page/StatusPage.qml" line="447"/>
         <source>Components</source>
         <translation>组件</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="445"/>
+        <location filename="../qml/page/StatusPage.qml" line="453"/>
         <source>Supported types: %1</source>
         <translation>支持的类型：%1</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="450"/>
+        <location filename="../qml/page/StatusPage.qml" line="458"/>
         <source>No components</source>
         <translation>没有组件</translation>
     </message>
@@ -2106,12 +2132,12 @@ Unsaved frame state may be lost.</source>
 <context>
     <name>TagPickerDialog</name>
     <message>
-        <location filename="../qml/component/filter/TagPickerDialog.qml" line="14"/>
+        <location filename="../qml/component/filter/TagPickerDialog.qml" line="18"/>
         <source>Select tags</source>
         <translation>选择标签</translation>
     </message>
     <message>
-        <location filename="../qml/component/filter/TagPickerDialog.qml" line="81"/>
+        <location filename="../qml/component/filter/TagPickerDialog.qml" line="96"/>
         <source>No tags in library</source>
         <translation>库中没有标签</translation>
     </message>
@@ -2153,6 +2179,24 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/page/wallpaper/TweakSheet.qml" line="131"/>
         <source>Fixed</source>
         <translation>固定</translation>
+    </message>
+</context>
+<context>
+    <name>waywallen::model::UserPropertyListModel</name>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="287"/>
+        <source>Scheme color</source>
+        <translation>配色方案</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="296"/>
+        <source>Enable audio</source>
+        <translation>启用音频</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="306"/>
+        <source>Playback speed</source>
+        <translation>播放速度</translation>
     </message>
 </context>
 <context>
@@ -2597,106 +2641,106 @@ Unsaved frame state may be lost.</source>
         <translation>播放列表播放失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="210"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="209"/>
         <source>Sync failed: %1</source>
         <translation>同步失败：%1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/page/WallpaperPage.qml" line="212"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="211"/>
         <source>Scanned %n wallpaper(s)</source>
         <translation>
             <numerusform>已扫描 %n 个壁纸</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="241"/>
-        <location filename="../qml/page/WallpaperPage.qml" line="833"/>
-        <location filename="../qml/page/WallpaperPage.qml" line="840"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="240"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="849"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="856"/>
         <source>New playlist</source>
         <translation>新建播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="251"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="250"/>
         <source>Add to playlist</source>
         <translation>添加到播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="260"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="259"/>
         <source>Apply</source>
         <translation>应用</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="269"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="268"/>
         <source>Remove %1</source>
         <translation>移除 %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="278"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="277"/>
         <source>Playlists</source>
         <translation>播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="286"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="285"/>
         <source>Tweak</source>
         <translation>调整</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="295"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="294"/>
         <source>Filters</source>
         <translation>筛选</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="307"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="306"/>
         <source>Library Manager</source>
         <translation>库管理器</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="321"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="320"/>
         <source>Refresh</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="441"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="440"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="445"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="444"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="449"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="448"/>
         <source>Last modified</source>
         <translation>最后修改时间</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="859"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="875"/>
         <source>Added to playlist</source>
         <translation>已添加到播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="879"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="895"/>
         <source>Playlist deleted</source>
         <translation>已删除播放列表</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="941"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="957"/>
         <source>Search</source>
         <translation>搜索</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="1072"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="1088"/>
         <source>No wallpapers found</source>
         <translation>未找到壁纸</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="1081"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="1097"/>
         <source>Click the %1 button in the top right to add a library.</source>
         <translation>点击右上角的 %1 按钮添加库。</translation>
     </message>
     <message>
-        <location filename="../qml/page/WallpaperPage.qml" line="1098"/>
+        <location filename="../qml/page/WallpaperPage.qml" line="1114"/>
         <source>Auto detect libraries</source>
         <translation>自动检测库</translation>
     </message>
@@ -2797,24 +2841,6 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/filter/WpTypeFilter.qml" line="19"/>
         <source>any</source>
         <translation>任意</translation>
-    </message>
-</context>
-<context>
-    <name>waywallen::model::UserPropertyListModel</name>
-    <message>
-        <location filename="../src/model/user_property_model.cpp" line="287"/>
-        <source>Scheme color</source>
-        <translation>配色方案</translation>
-    </message>
-    <message>
-        <location filename="../src/model/user_property_model.cpp" line="296"/>
-        <source>Enable audio</source>
-        <translation>启用音频</translation>
-    </message>
-    <message>
-        <location filename="../src/model/user_property_model.cpp" line="306"/>
-        <source>Playback speed</source>
-        <translation>播放速度</translation>
     </message>
 </context>
 </TS>
