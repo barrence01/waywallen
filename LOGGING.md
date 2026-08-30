@@ -15,23 +15,22 @@ File output has no ANSI escapes, while stderr uses color when connected to a ter
 
 In **Settings**, enable **Debug logging** to raise the daemon filter from the default (`info,zbus=warn`) to `debug,zbus=warn`. The change applies immediately to both the log file and stderr.
 
-When `RUST_LOG` is set in the daemon environment, the Settings toggle is disabled and shows *Disabled because RUST_LOG is set.* The saved debug preference is not modified; removing `RUST_LOG` and restarting restores the saved setting.
+When `WW_LOG` is set in the daemon environment, the Settings toggle is disabled and shows *Disabled because WW_LOG is set.* The saved debug preference is not modified; removing `WW_LOG` and restarting restores the saved setting.
 
 Use **Log folder → Open** in Settings to open the log directory in the file manager.
 
 ## Environment overrides
 
-When `RUST_LOG` is set, it overrides the Debug logging setting for the daemon filter:
+When `WW_LOG` is set, it overrides the Debug logging setting for the daemon and renderer processes:
 
 ```bash
-export WW_LOG=debug RUST_LOG=debug,zbus=warn
+export WW_LOG=debug
 ./waywallen
 ```
 
-- `RUST_LOG` — `tracing-subscriber` filter for the daemon
-- `WW_LOG` — initial level for renderer processes (`off`, `error`, `warn`, `info`, `debug`, or `trace`)
+For the daemon, `WW_LOG` accepts the same `tracing-subscriber` filter syntax as `RUST_LOG`, such as `debug,waywallen::probe=trace`. The daemon always appends `zbus=warn`, overriding any `zbus` directive supplied by the environment.
 
-The daemon passes its current renderer level through `WW_LOG` when spawning a renderer. Later Debug logging changes are sent to running renderers through renderer IPC.
+When the filter starts with a global `off`, `error`, `warn`, `info`, `debug`, or `trace` directive, the daemon passes that level through `WW_LOG` when spawning a renderer. A target-only filter leaves renderers at `info`. Later Debug logging changes are sent to running renderers through renderer IPC.
 
 ## Child process stderr
 
@@ -39,4 +38,4 @@ Renderer and display child stderr is forwarded to the daemon log at **info** lev
 
 ## Changing the default filter in code
 
-There is no build-time flag (Cargo feature / AppImage script) for the default level. Edit `DEFAULT_FILTER` and `DEBUG_FILTER` in `src/logging/policy.rs` and rebuild. `DEFAULT_FILTER` is used at daemon init and whenever Debug logging is off (unless `RUST_LOG` is set). The Debug logging setting uses `filter_for_debug(true)` → `DEBUG_FILTER`.
+There is no build-time flag (Cargo feature / AppImage script) for the default level. Edit `DEFAULT_FILTER` and `DEBUG_FILTER` in `src/logging/policy.rs` and rebuild. `DEFAULT_FILTER` is used at daemon init and whenever Debug logging is off (unless `WW_LOG` is set). The Debug logging setting uses `filter_for_debug(true)` → `DEBUG_FILTER`.

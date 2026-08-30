@@ -1797,7 +1797,7 @@ pub(super) async fn dispatch_inner(
                 log_dir: crate::logging::log_dir()
                     .map(|path| path.display().to_string())
                     .unwrap_or_default(),
-                rust_log_active: crate::logging::rust_log_active(),
+                ww_log_active: crate::logging::ww_log_active(),
             })
         }
 

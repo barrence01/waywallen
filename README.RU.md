@@ -93,7 +93,7 @@ Waywallen собирается с помощью [Lito](https://github.com/litoc
   Посуточные логи по UTC пишутся в `~/.local/state/waywallen/logs/daemon/` (или `$XDG_STATE_HOME/waywallen/logs/daemon/`); сохраняется до 8 файлов `waywallen.YYYY-MM-DD.log`, а `waywallen-current.log` указывает на текущий файл.
   Чтобы повысить подробность, остановите демон и перезапустите:
   ```bash
-  export WW_LOG=debug RUST_LOG=debug,zbus=warn
+  export WW_LOG=debug
   ./waywallen
   ```
   Для Flatpak журналы хранятся в `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/daemon/`.
@@ -102,7 +102,6 @@ Waywallen собирается с помощью [Lito](https://github.com/litoc
   flatpak kill org.waywallen.waywallen
   flatpak run \
     --env=WW_LOG=debug \
-    --env=RUST_LOG=debug,zbus=warn \
     org.waywallen.waywallen
   ```
 

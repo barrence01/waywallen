@@ -72,33 +72,24 @@ fn log_level_name(level: LogLevel) -> &'static str {
     }
 }
 
-fn parse_log_level(value: &str) -> Option<LogLevel> {
-    match value.to_ascii_lowercase().as_str() {
-        "off" => Some(LogLevel::Off),
-        "error" => Some(LogLevel::Error),
-        "warn" => Some(LogLevel::Warn),
-        "info" => Some(LogLevel::Info),
-        "debug" => Some(LogLevel::Debug),
-        "trace" => Some(LogLevel::Trace),
-        _ => None,
+fn renderer_log_level(level: log::LevelFilter) -> LogLevel {
+    match level {
+        log::LevelFilter::Off => LogLevel::Off,
+        log::LevelFilter::Error => LogLevel::Error,
+        log::LevelFilter::Warn => LogLevel::Warn,
+        log::LevelFilter::Info => LogLevel::Info,
+        log::LevelFilter::Debug => LogLevel::Debug,
+        log::LevelFilter::Trace => LogLevel::Trace,
     }
 }
 
 fn initial_renderer_log_level() -> (LogLevel, bool) {
-    let Some(value) = std::env::var_os("WW_LOG") else {
-        return (LogLevel::Info, false);
-    };
-    let Some(value) = value.to_str() else {
-        eprintln!("waywallen: WW_LOG is not valid UTF-8; using info");
-        return (LogLevel::Info, true);
-    };
-    match parse_log_level(value) {
-        Some(level) => (level, true),
-        None => {
-            eprintln!("waywallen: invalid WW_LOG value {value:?}; using info");
-            (LogLevel::Info, true)
-        }
-    }
+    (
+        crate::logging::ww_log_level()
+            .map(renderer_log_level)
+            .unwrap_or(LogLevel::Info),
+        crate::logging::ww_log_active(),
+    )
 }
 
 fn renderer_process_label(name: &str, pid: Option<u32>, id: &str) -> String {
@@ -2007,17 +1998,6 @@ mod subscription_tests {
             renderer_process_label("", None, "d6ce5a5f-eab7-4bd6-a898-f5c84d027c5e"),
             "renderer-d6ce5a5f"
         );
-    }
-
-    #[test]
-    fn renderer_log_level_parser_accepts_wire_levels() {
-        assert_eq!(parse_log_level("off"), Some(LogLevel::Off));
-        assert_eq!(parse_log_level("ERROR"), Some(LogLevel::Error));
-        assert_eq!(parse_log_level("warn"), Some(LogLevel::Warn));
-        assert_eq!(parse_log_level("info"), Some(LogLevel::Info));
-        assert_eq!(parse_log_level("debug"), Some(LogLevel::Debug));
-        assert_eq!(parse_log_level("trace"), Some(LogLevel::Trace));
-        assert_eq!(parse_log_level("verbose"), None);
     }
 
     #[tokio::test]

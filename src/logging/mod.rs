@@ -22,6 +22,7 @@ type FilterHandle = reload::Handle<EnvFilter, Registry>;
 
 static FILTER_HANDLE: OnceLock<FilterHandle> = OnceLock::new();
 const DAILY_LOG_DIR: &str = "daemon";
+const LOG_ENV: &str = "WW_LOG";
 
 pub struct LoggingGuard {
     worker: Option<WorkerGuard>,
@@ -40,8 +41,14 @@ impl Drop for LoggingGuard {
     }
 }
 
-pub fn rust_log_active() -> bool {
-    std::env::var_os("RUST_LOG").is_some()
+pub fn ww_log_active() -> bool {
+    std::env::var_os(LOG_ENV).is_some()
+}
+
+pub fn ww_log_level() -> Option<log::LevelFilter> {
+    std::env::var_os(LOG_ENV)
+        .as_deref()
+        .and_then(renderer_log_level)
 }
 
 pub fn init(policy: LoggingPolicy) -> LoggingGuard {
@@ -96,8 +103,8 @@ pub fn init_stderr(default_filter: &str) {
 }
 
 pub fn apply_debug_setting(enabled: bool) {
-    if rust_log_active() {
-        log::info!("debug_logging_enabled ignored because RUST_LOG is set");
+    if ww_log_active() {
+        log::info!("debug_logging_enabled ignored because WW_LOG is set");
         return;
     }
     let Some(handle) = FILTER_HANDLE.get() else {
@@ -209,7 +216,7 @@ fn install(policy: LoggingPolicy, file: Option<FileWriter>) -> LoggingGuard {
 }
 
 fn filter_from_environment(default_filter: &str) -> EnvFilter {
-    let raw = std::env::var_os("RUST_LOG");
+    let raw = std::env::var_os(LOG_ENV);
     filter_from_value(default_filter, raw.as_deref())
 }
 
@@ -220,16 +227,33 @@ fn filter_from_value(default_filter: &str, raw: Option<&std::ffi::OsStr>) -> Env
         });
     };
     match raw.to_str().and_then(|raw| EnvFilter::try_new(raw).ok()) {
-        Some(filter) => filter,
+        Some(filter) => force_zbus_warn(filter),
         None => {
             eprintln!(
-                "waywallen: invalid RUST_LOG value {:?}; using {default_filter}",
+                "waywallen: invalid WW_LOG filter {:?}; using {default_filter}",
                 raw
             );
             EnvFilter::try_new(default_filter).unwrap_or_else(|error| {
                 panic!("invalid built-in log filter {default_filter}: {error}")
             })
         }
+    }
+}
+
+fn force_zbus_warn(filter: EnvFilter) -> EnvFilter {
+    filter.add_directive("zbus=warn".parse().expect("valid zbus log directive"))
+}
+
+fn renderer_log_level(raw: &std::ffi::OsStr) -> Option<log::LevelFilter> {
+    let level = raw.to_str()?.split(',').next()?.trim();
+    match level.to_ascii_lowercase().as_str() {
+        "off" => Some(log::LevelFilter::Off),
+        "error" => Some(log::LevelFilter::Error),
+        "warn" => Some(log::LevelFilter::Warn),
+        "info" => Some(log::LevelFilter::Info),
+        "debug" => Some(log::LevelFilter::Debug),
+        "trace" => Some(log::LevelFilter::Trace),
+        _ => None,
     }
 }
 
@@ -271,5 +295,33 @@ mod tests {
             filter.to_string(),
             EnvFilter::try_new(DEFAULT_FILTER).unwrap().to_string()
         );
+    }
+
+    #[test]
+    fn environment_filter_supports_targets_and_forces_zbus_warn() {
+        let filter = filter_from_value(
+            DEFAULT_FILTER,
+            Some(std::ffi::OsStr::new(
+                "debug,waywallen::probe=trace,zbus=trace",
+            )),
+        );
+        let filter = filter.to_string();
+        assert!(filter.contains("debug"));
+        assert!(filter.contains("waywallen::probe=trace"));
+        assert!(filter.contains("zbus=warn"));
+        assert!(!filter.contains("zbus=trace"));
+    }
+
+    #[test]
+    fn renderer_level_uses_leading_global_directive() {
+        assert_eq!(
+            renderer_log_level(std::ffi::OsStr::new("DEBUG,zbus=warn")),
+            Some(log::LevelFilter::Debug)
+        );
+        assert_eq!(
+            renderer_log_level(std::ffi::OsStr::new("waywallen::probe=trace")),
+            None
+        );
+        assert_eq!(renderer_log_level(std::ffi::OsStr::new("verbose")), None);
     }
 }

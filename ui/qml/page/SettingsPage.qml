@@ -751,8 +751,8 @@ MD.Page {
                         FieldLabel { text: qsTr("Debug logging") }
 
                         MD.Text {
-                            text: getQ.rustLogActive
-                                ? qsTr("Disabled because RUST_LOG is set.")
+                            text: getQ.wwLogActive
+                                ? qsTr("Disabled because WW_LOG is set.")
                                 : qsTr("Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.")
                             typescale: MD.Token.typescale.body_small
                             color: MD.Token.color.on_surface_variant
@@ -763,7 +763,7 @@ MD.Page {
 
                     MD.Switch {
                         id: m_debug_logging
-                        enabled: !getQ.rustLogActive
+                        enabled: !getQ.wwLogActive
                         onToggled: root._mut(g => {
                             g.debugLoggingEnabled = checked;
                         })

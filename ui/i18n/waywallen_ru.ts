@@ -1800,8 +1800,8 @@ Related display: #%1</source>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="755"/>
-        <source>Disabled because RUST_LOG is set.</source>
-        <translation>Отключено, так как задана переменная RUST_LOG.</translation>
+        <source>Disabled because WW_LOG is set.</source>
+        <translation>Отключено, так как задана переменная WW_LOG.</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="756"/>

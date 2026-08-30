@@ -270,7 +270,7 @@ SettingsGetQuery::SettingsGetQuery(QObject* parent): Query(parent) {}
 auto SettingsGetQuery::global() const -> const QVariantMap& { return m_global; }
 auto SettingsGetQuery::plugins() const -> const QVariantMap& { return m_plugins; }
 auto SettingsGetQuery::logDir() const -> const QString& { return m_log_dir; }
-auto SettingsGetQuery::rustLogActive() const -> bool { return m_rust_log_active; }
+auto SettingsGetQuery::wwLogActive() const -> bool { return m_ww_log_active; }
 
 void SettingsGetQuery::reload() {
     setStatus(Status::Querying);
@@ -286,15 +286,15 @@ void SettingsGetQuery::reload() {
         if (! self) co_return;
 
         self->inspect_set(result, [self](const proto::Response& rsp) {
-            const auto& get_rsp     = rsp.settingsGet();
-            self->m_global          = global_to_map(get_rsp.global());
-            self->m_plugins         = plugins_to_map(get_rsp.plugins());
-            self->m_log_dir         = get_rsp.logDir();
-            self->m_rust_log_active = get_rsp.rustLogActive();
+            const auto& get_rsp   = rsp.settingsGet();
+            self->m_global        = global_to_map(get_rsp.global());
+            self->m_plugins       = plugins_to_map(get_rsp.plugins());
+            self->m_log_dir       = get_rsp.logDir();
+            self->m_ww_log_active = get_rsp.wwLogActive();
             Q_EMIT self->globalChanged();
             Q_EMIT self->pluginsChanged();
             Q_EMIT self->logDirChanged();
-            Q_EMIT self->rustLogActiveChanged();
+            Q_EMIT self->wwLogActiveChanged();
         });
         co_return;
     });

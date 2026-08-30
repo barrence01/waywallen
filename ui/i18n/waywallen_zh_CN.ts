@@ -1794,8 +1794,8 @@ Related display: #%1</source>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="755"/>
-        <source>Disabled because RUST_LOG is set.</source>
-        <translation>由于已设置 RUST_LOG，此选项已禁用。</translation>
+        <source>Disabled because WW_LOG is set.</source>
+        <translation>由于已设置 WW_LOG，此选项已禁用。</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="756"/>

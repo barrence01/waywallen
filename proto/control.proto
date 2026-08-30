@@ -1561,8 +1561,8 @@ message GlobalSettings {
   // be reopened by launching waywallen again. `--no-tray` overrides.
   bool hide_tray_icon = 26;
 
-  // Raise the daemon log filter to debug (file + stderr). Honored unless
-  // RUST_LOG is set. Applied live.
+  // Raise the daemon and renderer log levels to debug. Honored unless
+  // WW_LOG is set. Applied live.
   bool debug_logging_enabled = 27;
 }
 
@@ -1610,8 +1610,8 @@ message SettingsGetResponse {
   map<string, PluginSettings> plugins = 2;
   // Absolute path of the daemon log directory (read-only).
   string log_dir = 3;
-  // True when RUST_LOG is set in the daemon environment (read-only).
-  bool rust_log_active = 4;
+  // True when WW_LOG is set in the daemon environment (read-only).
+  bool ww_log_active = 4;
 }
 
 // Full replace. The daemon overwrites global and the plugin map with
