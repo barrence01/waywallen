@@ -7,8 +7,9 @@ Waywallen writes daily daemon logs under:
 
 When neither `XDG_STATE_HOME` nor `HOME` is set, the daemon logs to stderr only.
 
-The active daemon log is `waywallen_rCURRENT.log`, appended across restarts. On daily rotation it becomes `waywallen_rYYYY-MM-DD_00-00-00.log` (the `_00-00-00` suffix is a flexi_logger compatibility shim, not a real timestamp). flexi_logger 0.31 `Cleanup::KeepLogFiles(7)` keeps at most the seven newest rotated log files and deletes older ones.
-Each log line uses flexi_logger `opt_format` (timestamp + level + file:line). Stderr uses the colored variant of the same format. File I/O is asynchronous and flushed about every 2 seconds, so lines may appear in the log file with a short delay.
+Daemon logs use the `daemon/` subdirectory so their retention policy cannot remove legacy daemon or display logs. Files use UTC daily names such as `daemon/waywallen.2026-08-30.log`; `daemon/waywallen-current.log` points to the active file. At most eight daily files are retained.
+
+File output has no ANSI escapes, while stderr uses color when connected to a terminal. File writes use a bounded lossy queue so a blocked disk cannot stall the daemon. The queue is flushed on normal shutdown; if it overflows, the dropped-line count is reported directly to stderr.
 
 ## Debug logging setting
 
@@ -23,16 +24,18 @@ Use **Log folder → Open** in Settings to open the log directory in the file ma
 When `RUST_LOG` is set, it overrides the Debug logging setting for the daemon filter:
 
 ```bash
-export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
+export WW_LOG=debug RUST_LOG=debug,zbus=warn
 ./waywallen
 ```
 
-- `RUST_LOG` — Rust/`flexi_logger` filter for the daemon
-- `RSTD_LOG` — C++/`rstd` plugin loggers (not controlled by the Debug logging setting)
+- `RUST_LOG` — `tracing-subscriber` filter for the daemon
+- `WW_LOG` — initial level for renderer processes (`off`, `error`, `warn`, `info`, `debug`, or `trace`)
+
+The daemon passes its current renderer level through `WW_LOG` when spawning a renderer. Later Debug logging changes are sent to running renderers through renderer IPC.
 
 ## Child process stderr
 
-Renderer and display child stderr is forwarded to the daemon log at **debug** level with target `waywallen::child`, prefixed by role (`[renderer]` / `[display]`). Severity is not inferred from message text.
+Renderer and display child stderr is forwarded to the daemon log at **info** level with target `waywallen::child`, prefixed by role. Severity is not inferred from message text. Supervisors retain a bounded tail only for concise process-failure diagnostics.
 
 ## Changing the default filter in code
 

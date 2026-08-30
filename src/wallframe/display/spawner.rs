@@ -7,6 +7,8 @@ use tokio::sync::watch;
 
 use crate::plugin::display_registry::{DisplayDef, DisplayRegistry, SpawnMode};
 
+const CHILD_STDERR_REASON_BYTES: usize = 512;
+
 pub const DISPLAY_BACKEND_STATE_DISABLED: &str = "disabled";
 pub const DISPLAY_BACKEND_STATE_UNMATCHED: &str = "unmatched";
 pub const DISPLAY_BACKEND_STATE_EXTERNAL: &str = "external";
@@ -415,9 +417,12 @@ pub async fn run_backend(
                 return Err(e.into());
             }
         };
-        if let Some(stderr) = child.stderr.take() {
-            crate::logging::forward_stderr(stderr, crate::logging::TARGET_DISPLAY);
-        }
+        let stderr = child.stderr.take().map(|child_stderr| {
+            crate::wallframe::process_stdio::ChildStderrCapture::spawn(
+                child_stderr,
+                format!("display {}", def.name),
+            )
+        });
         let pid = child.id();
         log::info!("display backend '{}' pid={:?}", def.name, pid);
 
@@ -444,11 +449,21 @@ pub async fn run_backend(
                         def.name
                     ),
                 }
+                if let Some(stderr) = &stderr {
+                    let _ = stderr.drain(Duration::from_millis(250)).await;
+                }
                 return Ok(());
             }
             res = child.wait() => res,
         };
 
+        let stderr = match &stderr {
+            Some(stderr) => stderr
+                .drain(Duration::from_millis(250))
+                .await
+                .last_line_limited(CHILD_STDERR_REASON_BYTES),
+            None => None,
+        };
         match status {
             Ok(st) if st.success() => {
                 log::info!(
@@ -459,19 +474,36 @@ pub async fn run_backend(
                 return Ok(());
             }
             Ok(st) => {
-                log::warn!(
-                    "display backend '{}' exited {:?}; restarting in {:?}",
-                    def.name,
-                    st,
-                    delay
-                );
+                if let Some(stderr) = &stderr {
+                    log::warn!(
+                        "display backend '{}' exited {:?}: {stderr}; restarting in {:?}",
+                        def.name,
+                        st,
+                        delay
+                    );
+                } else {
+                    log::warn!(
+                        "display backend '{}' exited {:?}; restarting in {:?}",
+                        def.name,
+                        st,
+                        delay
+                    );
+                }
             }
             Err(e) => {
-                log::warn!(
-                    "display backend '{}' wait failed: {e}; restarting in {:?}",
-                    def.name,
-                    delay
-                );
+                if let Some(stderr) = &stderr {
+                    log::warn!(
+                        "display backend '{}' wait failed: {e}: {stderr}; restarting in {:?}",
+                        def.name,
+                        delay
+                    );
+                } else {
+                    log::warn!(
+                        "display backend '{}' wait failed: {e}; restarting in {:?}",
+                        def.name,
+                        delay
+                    );
+                }
             }
         }
 

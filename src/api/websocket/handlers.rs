@@ -1924,6 +1924,10 @@ pub(super) async fn dispatch_inner(
             let new_debug_logging = current_settings.global.debug_logging_enabled;
             if new_debug_logging != prev_debug_logging {
                 crate::logging::apply_debug_setting(new_debug_logging);
+                state
+                    .renderer_manager
+                    .set_renderer_debug_logging(new_debug_logging)
+                    .await;
             }
             let new_filter = current_settings.global.wallpaper_filter.clone();
             if new_filter != previous_filter {

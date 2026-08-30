@@ -555,6 +555,7 @@ void apply_control(HostState& host, ww_bridge_control_t& c) {
         host.neg_cv.notify_all();
         break;
     }
+    case WW_EVT_IN_SET_LOG_LEVEL: ww_renderer_log_set_level(c.u.set_log_level.level); break;
     default:
         rstd_warn("waywallen-image-renderer: unknown control op {}", static_cast<int>(c.op));
         break;
@@ -753,27 +754,7 @@ namespace waywallen::image
 {
 
 int run(int argc, char** argv) {
-    static rstd::log::EnvLogger _logger;
-    rstd::log::set_logger(_logger);
-    rstd::log::set_max_level(_logger.filter());
-
-    ww_bridge_set_log_callback(
-        [](ww_bridge_log_level_t level, const char* msg, void*) {
-            constexpr rstd::log::Level kMap[4] = {
-                rstd::log::Level::Debug,
-                rstd::log::Level::Info,
-                rstd::log::Level::Warn,
-                rstd::log::Level::Error,
-            };
-            auto              lvl  = kMap[(unsigned)level <= 3u ? (unsigned)level : 3u];
-            auto              args = rstd::fmt::Arguments::make("{}", msg);
-            rstd::log::Record rec {
-                rstd::log::Metadata { lvl, {} },
-                args,
-            };
-            rstd::log::log(rec);
-        },
-        nullptr);
+    ww_renderer_log_init();
 
     auto parsed_args = parse_args(argc, argv);
     if (! parsed_args.should_run) return parsed_args.exit_code;

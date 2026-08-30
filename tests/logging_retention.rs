@@ -1,76 +1,51 @@
 use std::fs;
+use std::io::Write;
 use std::path::Path;
-use std::time::Duration;
 
-use flexi_logger::{Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, Naming, WriteMode};
-use waywallen::logging::{LoggingPolicy, DEFAULT_FILTER};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
-fn count_rotated_logs(dir: &Path) -> usize {
+fn count_daily_logs(dir: &Path) -> usize {
     fs::read_dir(dir)
         .unwrap()
         .flatten()
         .filter(|entry| {
-            entry
-                .path()
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| {
-                    name.starts_with("waywallen_r")
-                        && name.ends_with(".log")
-                        && name.contains("_00-00-00")
-                })
+            entry.file_type().is_ok_and(|ty| ty.is_file())
+                && entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|name| name.starts_with("waywallen.") && name.ends_with(".log"))
         })
         .count()
 }
 
 #[test]
-fn keep_log_files_retains_at_most_n_newest_on_rotation() {
+fn isolated_daily_directory_preserves_legacy_logs() {
     let dir = tempfile::tempdir().unwrap();
-    let keep = 3_u8;
-    let policy = LoggingPolicy {
-        retention_days: keep,
-        also_stderr: false,
-        ..LoggingPolicy::DEFAULT
-    };
-
-    let mut logger = Logger::try_with_str(DEFAULT_FILTER)
-        .unwrap()
-        .log_to_file(
-            FileSpec::default()
-                .directory(dir.path())
-                .basename(policy.file_prefix)
-                .suppress_timestamp(),
+    let daily_dir = dir.path().join("daemon");
+    fs::create_dir(&daily_dir).unwrap();
+    for day in 1..=5 {
+        fs::write(
+            daily_dir.join(format!("waywallen.2000-01-{day:02}.log")),
+            format!("old-{day}\n"),
         )
-        .append()
-        .rotate(
-            Criterion::Age(Age::Second),
-            Naming::TimestampsCustomFormat {
-                current_infix: Some("rCURRENT"),
-                format: "r%Y-%m-%d_00-00-00",
-            },
-            Cleanup::KeepLogFiles(usize::from(keep)),
-        )
-        .write_mode(WriteMode::AsyncWith {
-            pool_capa: 32,
-            message_capa: 1024,
-            flush_interval: Duration::from_secs(2),
-        });
-
-    if policy.also_stderr {
-        logger = logger.duplicate_to_stderr(Duplicate::All);
+        .unwrap();
     }
+    let legacy = dir.path().join("waywallen_r2026-08-26.log");
+    let display = dir.path().join("waywallen_display_r2026-08-26.log");
+    fs::write(&legacy, "legacy\n").unwrap();
+    fs::write(&display, "display\n").unwrap();
 
-    let handle = logger.start().expect("logger init");
+    let mut appender = RollingFileAppender::builder()
+        .rotation(Rotation::DAILY)
+        .filename_prefix("waywallen")
+        .filename_suffix("log")
+        .max_log_files(3)
+        .build(&daily_dir)
+        .unwrap();
+    writeln!(appender, "current").unwrap();
+    appender.flush().unwrap();
 
-    for i in 0..5 {
-        log::info!(target: "waywallen::logging_test", "rotation-trigger-{i}");
-        std::thread::sleep(Duration::from_secs(2));
-    }
-    handle.shutdown();
-
-    let remaining = count_rotated_logs(dir.path());
-    assert!(
-        remaining <= usize::from(keep),
-        "flexi_logger KeepLogFiles({keep}) should leave at most {keep} rotated logs, found {remaining}"
-    );
+    assert_eq!(count_daily_logs(&daily_dir), 3);
+    assert_eq!(fs::read_to_string(legacy).unwrap(), "legacy\n");
+    assert_eq!(fs::read_to_string(display).unwrap(), "display\n");
 }

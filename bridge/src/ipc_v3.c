@@ -451,6 +451,25 @@ static int rd_media_playback_state(ww_rd_t *r, waywallen_media_playback_state_t 
     }
 }
 
+static int w_log_level(ww_buf_t *b, waywallen_log_level_t v) {
+    return w_u32(b, (uint32_t)v);
+}
+
+static int rd_log_level(ww_rd_t *r, waywallen_log_level_t *out) {
+    uint32_t value;
+    int rc = rd_u32(r, &value);
+    if (rc) return rc;
+    switch (value) {
+    case 0: *out = WAYWALLEN_LOG_LEVEL_OFF; return WW_OK;
+    case 1: *out = WAYWALLEN_LOG_LEVEL_ERROR; return WW_OK;
+    case 2: *out = WAYWALLEN_LOG_LEVEL_WARN; return WW_OK;
+    case 3: *out = WAYWALLEN_LOG_LEVEL_INFO; return WW_OK;
+    case 4: *out = WAYWALLEN_LOG_LEVEL_DEBUG; return WW_OK;
+    case 5: *out = WAYWALLEN_LOG_LEVEL_TRACE; return WW_OK;
+    default: return WW_ERR_BAD_ENUM;
+    }
+}
+
 static int w_event_subscription_status(ww_buf_t *b, waywallen_event_subscription_status_t v) {
     return w_u32(b, (uint32_t)v);
 }
@@ -1631,6 +1650,39 @@ void ww_evt_in_request_frame_free(ww_evt_in_request_frame_t *m) {
 }
 
 uint32_t ww_evt_in_request_frame_expected_fds(const ww_evt_in_request_frame_t *m) {
+    (void)m;
+    return 0;
+}
+
+int ww_evt_in_set_log_level_encode(const ww_evt_in_set_log_level_t *m, ww_buf_t *out) {
+    int rc;
+    (void)m;
+    if ((rc = w_log_level(out, m->level))) return rc;
+    return WW_OK;
+}
+
+int ww_evt_in_set_log_level_decode(const uint8_t *buf, size_t len, ww_evt_in_set_log_level_t *out) {
+    memset(out, 0, sizeof(*out));
+    ww_rd_t r = { buf, 0, len };
+    int rc;
+    if ((rc = rd_log_level(&r, &out->level))) goto fail;
+    if (r.pos != r.len) {
+        int rc2 = WW_ERR_TRAILING;
+        (void)rc2;
+        ww_evt_in_set_log_level_free(out);
+        return WW_ERR_TRAILING;
+    }
+    return WW_OK;
+fail:
+    ww_evt_in_set_log_level_free(out);
+    return rc;
+}
+
+void ww_evt_in_set_log_level_free(ww_evt_in_set_log_level_t *m) {
+    (void)m;
+}
+
+uint32_t ww_evt_in_set_log_level_expected_fds(const ww_evt_in_set_log_level_t *m) {
     (void)m;
     return 0;
 }

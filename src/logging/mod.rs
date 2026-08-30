@@ -1,89 +1,97 @@
-//! Code-configured async file logging for the waywallen daemon.
-//!
-//! Tune behavior via [`LoggingPolicy::DEFAULT`]. Runtime filter still honors
-//! `RUST_LOG` when set. Child-process stderr is forwarded through
-//! [`forward_stderr`].
+//! Daemon logging with reloadable filtering and daily files.
 
-mod child_stdio;
 mod paths;
 mod policy;
 
-pub use child_stdio::{forward_stderr, TARGET_DISPLAY, TARGET_RENDERER};
 pub use paths::log_dir;
 pub use policy::{filter_for_debug, LoggingPolicy, DEBUG_FILTER, DEFAULT, DEFAULT_FILTER};
 
+use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::OnceLock;
-use std::time::Duration;
 
-use flexi_logger::{
-    colored_opt_format, opt_format, Age, Cleanup, Criterion, Duplicate, FileSpec, Logger,
-    LoggerHandle, Naming, WriteMode,
-};
+use tracing_appender::non_blocking::{ErrorCounter, NonBlocking, NonBlockingBuilder, WorkerGuard};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::reload;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Registry;
 
-/// Global logger handle, initialized once per process.
-///
-/// [`LoggingGuard`] shuts down the writer on drop, but this `OnceLock` is never
-/// reset — re-initializing logging in the same process is not supported.
-static LOGGER_HANDLE: OnceLock<LoggerHandle> = OnceLock::new();
+type FilterHandle = reload::Handle<EnvFilter, Registry>;
 
-/// Keeps the flexi_logger async writer alive until process exit.
-///
-/// On drop, shuts down the underlying writer. The global [`LOGGER_HANDLE`] entry
-/// is not cleared; a second init in the same process is not supported.
+static FILTER_HANDLE: OnceLock<FilterHandle> = OnceLock::new();
+const DAILY_LOG_DIR: &str = "daemon";
+
 pub struct LoggingGuard {
-    handle: Option<LoggerHandle>,
+    worker: Option<WorkerGuard>,
+    error_counter: Option<ErrorCounter>,
 }
 
 impl Drop for LoggingGuard {
     fn drop(&mut self) {
-        if let Some(handle) = self.handle.take() {
-            handle.shutdown();
+        drop(self.worker.take());
+        if let Some(counter) = &self.error_counter {
+            let dropped = counter.dropped_lines();
+            if dropped != 0 {
+                eprintln!("waywallen: file logger dropped {dropped} line(s)");
+            }
         }
     }
 }
 
-/// Whether the daemon environment sets `RUST_LOG`, overriding the debug setting.
 pub fn rust_log_active() -> bool {
     std::env::var_os("RUST_LOG").is_some()
 }
 
-/// Initialize logging under the default XDG state log directory.
 pub fn init(policy: LoggingPolicy) -> LoggingGuard {
     match log_dir() {
         Some(dir) => init_in(policy, &dir),
         None => {
             eprintln!("waywallen: XDG_STATE_HOME and HOME unset; using stderr-only logging");
-            init_stderr_only(policy)
+            install(policy, None)
         }
     }
 }
 
-/// Initialize logging under an explicit directory (tests / overrides).
 pub fn init_in(policy: LoggingPolicy, dir: &Path) -> LoggingGuard {
     if let Err(error) = std::fs::create_dir_all(dir) {
         eprintln!(
             "waywallen: cannot create log directory {}: {error}; falling back to stderr-only",
             dir.display()
         );
-        return init_stderr_only(policy);
+        return install(policy, None);
     }
 
-    match try_init_file(policy, dir) {
-        Ok(handle) => {
-            log::info!(
-                "logging: writing to {} (keep at most {} rotated log file(s))",
-                dir.display(),
-                policy.retention_days
-            );
-            LoggingGuard {
-                handle: Some(register_handle(handle)),
-            }
-        }
+    let daily_dir = dir.join(DAILY_LOG_DIR);
+    let file = match create_file_writer(policy, &daily_dir) {
+        Ok(file) => Some(file),
         Err(error) => {
             eprintln!("waywallen: file logging unavailable ({error}); falling back to stderr-only");
-            init_stderr_only(policy)
+            None
         }
+    };
+    let file_available = file.is_some();
+    let guard = install(policy, file);
+    if file_available {
+        log::info!(
+            "logging: writing to {} (keep at most {} daily log file(s))",
+            daily_dir.display(),
+            policy.max_log_files
+        );
+    }
+    guard
+}
+
+pub fn init_stderr(default_filter: &str) {
+    let filter = filter_from_environment(default_filter);
+    let ansi = std::io::stderr().is_terminal();
+    if let Err(error) = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_ansi(ansi)
+        .try_init()
+    {
+        eprintln!("waywallen: stderr logging init failed: {error}");
     }
 }
 
@@ -92,70 +100,135 @@ pub fn apply_debug_setting(enabled: bool) {
         log::info!("debug_logging_enabled ignored because RUST_LOG is set");
         return;
     }
-    let Some(handle) = LOGGER_HANDLE.get() else {
+    let Some(handle) = FILTER_HANDLE.get() else {
         return;
     };
     let filter = filter_for_debug(enabled);
-    match handle.parse_new_spec(filter) {
+    let parsed = match EnvFilter::try_new(filter) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            log::warn!("failed to parse log filter {filter}: {error}");
+            return;
+        }
+    };
+    match handle.reload(parsed) {
         Ok(()) => log::info!("log filter set to {filter}"),
         Err(error) => log::warn!("failed to apply log filter {filter}: {error}"),
     }
 }
 
-fn register_handle(handle: LoggerHandle) -> LoggerHandle {
-    let _ = LOGGER_HANDLE.set(handle.clone());
-    handle
+struct FileWriter {
+    writer: NonBlocking,
+    guard: WorkerGuard,
+    error_counter: ErrorCounter,
 }
 
-fn try_init_file(
+fn create_file_writer(policy: LoggingPolicy, dir: &Path) -> Result<FileWriter, String> {
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
+    let latest = format!("{}-current.log", policy.file_prefix);
+    let appender = match build_appender(policy, dir, Some(&latest)) {
+        Ok(appender) => appender,
+        Err(first_error) => {
+            eprintln!(
+                "waywallen: rolling log latest link unavailable ({first_error}); retrying without it"
+            );
+            build_appender(policy, dir, None).map_err(|second_error| {
+                format!("with latest link: {first_error}; without latest link: {second_error}")
+            })?
+        }
+    };
+
+    let (writer, guard) = NonBlockingBuilder::default()
+        .buffered_lines_limit(policy.async_channel_size.max(32))
+        .lossy(true)
+        .finish(appender);
+    let error_counter = writer.error_counter();
+    Ok(FileWriter {
+        writer,
+        guard,
+        error_counter,
+    })
+}
+
+fn build_appender(
     policy: LoggingPolicy,
     dir: &Path,
-) -> Result<LoggerHandle, flexi_logger::FlexiLoggerError> {
-    let mut logger = Logger::try_with_env_or_str(policy.default_filter)?
-        .log_to_file(
-            FileSpec::default()
-                .directory(dir)
-                .basename(policy.file_prefix)
-                .suppress_timestamp(),
-        )
-        .format_for_files(opt_format)
-        .append()
-        .rotate(
-            Criterion::Age(Age::Day),
-            Naming::TimestampsCustomFormat {
-                current_infix: Some("rCURRENT"),
-                format: "r%Y-%m-%d_00-00-00",
-            },
-            Cleanup::KeepLogFiles(usize::from(policy.retention_days)),
-        )
-        .write_mode(WriteMode::AsyncWith {
-            pool_capa: policy.async_channel_size.max(32),
-            message_capa: 1024,
-            flush_interval: Duration::from_secs(2),
-        });
-
-    if policy.also_stderr {
-        logger = logger
-            .duplicate_to_stderr(Duplicate::All)
-            .format_for_stderr(colored_opt_format);
+    latest: Option<&str>,
+) -> Result<RollingFileAppender, tracing_appender::rolling::InitError> {
+    let mut builder = RollingFileAppender::builder()
+        .rotation(Rotation::DAILY)
+        .filename_prefix(policy.file_prefix)
+        .filename_suffix("log")
+        .max_log_files(policy.max_log_files);
+    if let Some(latest) = latest {
+        builder = builder.latest_symlink(latest);
     }
-
-    logger.start()
+    builder.build(dir)
 }
 
-fn init_stderr_only(policy: LoggingPolicy) -> LoggingGuard {
-    match Logger::try_with_env_or_str(policy.default_filter).and_then(|logger| {
-        logger
-            .log_to_stderr()
-            .format_for_stderr(colored_opt_format)
-            .start()
-    }) {
-        Ok(handle) => LoggingGuard {
-            handle: Some(register_handle(handle)),
-        },
-        Err(error) => {
-            eprintln!("waywallen: stderr logging init failed: {error}");
-            LoggingGuard { handle: None }
+fn install(policy: LoggingPolicy, file: Option<FileWriter>) -> LoggingGuard {
+    let filter = filter_from_environment(policy.default_filter);
+    let (filter_layer, handle) = reload::Layer::new(filter);
+    let file_layer = file.as_ref().map(|file| {
+        tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_target(true)
+            .with_writer(file.writer.clone())
+    });
+    let stderr_layer = policy.also_stderr.then(|| {
+        tracing_subscriber::fmt::layer()
+            .with_ansi(std::io::stderr().is_terminal())
+            .with_target(true)
+            .with_writer(std::io::stderr)
+    });
+
+    let subscriber = tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(file_layer)
+        .with(stderr_layer);
+    if let Err(error) = subscriber.try_init() {
+        eprintln!("waywallen: logging init failed: {error}");
+        return LoggingGuard {
+            worker: None,
+            error_counter: None,
+        };
+    }
+    if FILTER_HANDLE.set(handle).is_err() {
+        eprintln!("waywallen: logging filter handle was already initialized");
+    }
+
+    let (worker, error_counter) = match file {
+        Some(file) => (Some(file.guard), Some(file.error_counter)),
+        None => (None, None),
+    };
+    LoggingGuard {
+        worker,
+        error_counter,
+    }
+}
+
+fn filter_from_environment(default_filter: &str) -> EnvFilter {
+    let raw = std::env::var_os("RUST_LOG");
+    filter_from_value(default_filter, raw.as_deref())
+}
+
+fn filter_from_value(default_filter: &str, raw: Option<&std::ffi::OsStr>) -> EnvFilter {
+    let Some(raw) = raw else {
+        return EnvFilter::try_new(default_filter).unwrap_or_else(|error| {
+            panic!("invalid built-in log filter {default_filter}: {error}")
+        });
+    };
+    match raw.to_str().and_then(|raw| EnvFilter::try_new(raw).ok()) {
+        Some(filter) => filter,
+        None => {
+            eprintln!(
+                "waywallen: invalid RUST_LOG value {:?}; using {default_filter}",
+                raw
+            );
+            EnvFilter::try_new(default_filter).unwrap_or_else(|error| {
+                panic!("invalid built-in log filter {default_filter}: {error}")
+            })
         }
     }
 }
@@ -163,90 +236,40 @@ fn init_stderr_only(policy: LoggingPolicy) -> LoggingGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::sync::Mutex;
-
-    static INIT_LOCK: Mutex<()> = Mutex::new(());
-
-    fn test_lock() -> std::sync::MutexGuard<'static, ()> {
-        INIT_LOCK
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
+    use std::io::Write;
 
     #[test]
-    fn init_writes_daily_log_file() {
-        let _guard = test_lock();
-        let dir = tempfile::tempdir().unwrap();
-        let logging = init_in(LoggingPolicy::DEFAULT, dir.path());
-        log::info!(target: "waywallen::logging_test", "smoke-test-line");
-        drop(logging);
-
-        let current = dir.path().join("waywallen_rCURRENT.log");
-        assert!(current.is_file(), "expected {}", current.display());
-        let contents = fs::read_to_string(&current).unwrap();
-        assert!(
-            contents.contains("smoke-test-line"),
-            "expected smoke-test-line in {}",
-            current.display()
-        );
-        assert!(
-            contents
-                .lines()
-                .any(|line| line.starts_with('[') && line.contains("smoke-test-line")),
-            "expected opt_format timestamp prefix on smoke-test-line"
-        );
-    }
-
-    #[test]
-    fn init_with_legacy_short_rotated_log_does_not_panic() {
-        let _guard = test_lock();
+    fn rolling_writer_preserves_legacy_files() {
         let dir = tempfile::tempdir().unwrap();
         let legacy = dir.path().join("waywallen_r2026-08-26.log");
         let display = dir.path().join("waywallen_display_r2026-08-26.log");
-        fs::write(&legacy, "daemon\n").unwrap();
-        fs::write(&display, "display\n").unwrap();
+        std::fs::write(&legacy, "daemon\n").unwrap();
+        std::fs::write(&display, "display\n").unwrap();
 
-        let logging = init_in(LoggingPolicy::DEFAULT, dir.path());
-        log::info!(target: "waywallen::logging_test", "post-init-line");
-        drop(logging);
+        let daily_dir = dir.path().join(DAILY_LOG_DIR);
+        let mut file = create_file_writer(LoggingPolicy::DEFAULT, &daily_dir).unwrap();
+        writeln!(file.writer, "post-init-line").unwrap();
+        drop(file.writer);
+        drop(file.guard);
 
-        assert!(
-            legacy.is_file(),
-            "legacy daemon log should be left in place"
-        );
-        assert_eq!(fs::read_to_string(&legacy).unwrap(), "daemon\n");
-        assert!(display.is_file(), "display log must remain untouched");
-        let current = fs::read_to_string(dir.path().join("waywallen_rCURRENT.log")).unwrap();
+        let mut restarted = create_file_writer(LoggingPolicy::DEFAULT, &daily_dir).unwrap();
+        writeln!(restarted.writer, "post-restart-line").unwrap();
+        drop(restarted.writer);
+        drop(restarted.guard);
+
+        assert_eq!(std::fs::read_to_string(&legacy).unwrap(), "daemon\n");
+        assert_eq!(std::fs::read_to_string(&display).unwrap(), "display\n");
+        let current = std::fs::read_to_string(daily_dir.join("waywallen-current.log")).unwrap();
         assert!(current.contains("post-init-line"));
+        assert!(current.contains("post-restart-line"));
     }
 
     #[test]
-    fn rust_log_active_reflects_environment() {
-        let _guard = test_lock();
-        std::env::remove_var("RUST_LOG");
-        assert!(!rust_log_active());
-
-        std::env::set_var("RUST_LOG", "info");
-        assert!(rust_log_active());
-
-        std::env::remove_var("RUST_LOG");
-        assert!(!rust_log_active());
-    }
-
-    #[test]
-    fn rust_log_is_temporary_override_of_persisted_debug_preference() {
-        let _guard = test_lock();
-
-        // Persisted user preference stays enabled regardless of RUST_LOG.
-        let debug_logging_enabled = true;
-
-        std::env::set_var("RUST_LOG", "info");
-        assert!(rust_log_active());
-        assert_eq!(filter_for_debug(debug_logging_enabled), DEBUG_FILTER);
-
-        std::env::remove_var("RUST_LOG");
-        assert!(!rust_log_active());
-        assert_eq!(filter_for_debug(debug_logging_enabled), DEBUG_FILTER);
+    fn invalid_environment_filter_falls_back_to_default() {
+        let filter = filter_from_value(DEFAULT_FILTER, Some(std::ffi::OsStr::new("[")));
+        assert_eq!(
+            filter.to_string(),
+            EnvFilter::try_new(DEFAULT_FILTER).unwrap().to_string()
+        );
     }
 }

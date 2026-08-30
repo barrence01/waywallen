@@ -115,6 +115,15 @@ typedef enum waywallen_media_playback_state {
     WAYWALLEN_MEDIA_PLAYBACK_STATE_PAUSED = 2,
 } waywallen_media_playback_state_t;
 
+typedef enum waywallen_log_level {
+    WAYWALLEN_LOG_LEVEL_OFF = 0,
+    WAYWALLEN_LOG_LEVEL_ERROR = 1,
+    WAYWALLEN_LOG_LEVEL_WARN = 2,
+    WAYWALLEN_LOG_LEVEL_INFO = 3,
+    WAYWALLEN_LOG_LEVEL_DEBUG = 4,
+    WAYWALLEN_LOG_LEVEL_TRACE = 5,
+} waywallen_log_level_t;
+
 typedef enum waywallen_event_subscription_status {
     WAYWALLEN_EVENT_SUBSCRIPTION_STATUS_APPLIED = 0,
     WAYWALLEN_EVENT_SUBSCRIPTION_STATUS_INVALID = 1,
@@ -348,6 +357,7 @@ typedef enum ww_event_in_op {
     WW_EVT_IN_EVENT_SUBSCRIPTIONS_APPLIED = 13,
     WW_EVT_IN_AUDIO_WINDOW = 14,
     WW_EVT_IN_REQUEST_FRAME = 15,
+    WW_EVT_IN_SET_LOG_LEVEL = 16,
 } ww_event_in_op_t;
 
 typedef enum ww_event_op {
@@ -422,6 +432,10 @@ typedef struct ww_evt_in_audio_window_t {
 typedef struct ww_evt_in_request_frame_t {
     int _empty; /* C forbids empty structs */
 } ww_evt_in_request_frame_t;
+
+typedef struct ww_evt_in_set_log_level_t {
+    waywallen_log_level_t level;
+} ww_evt_in_set_log_level_t;
 
 typedef struct ww_evt_ready_t {
     waywallen_drm_node_t drm_node;
@@ -544,6 +558,11 @@ int  ww_evt_in_request_frame_encode(const ww_evt_in_request_frame_t *m, ww_buf_t
 int  ww_evt_in_request_frame_decode(const uint8_t *buf, size_t len, ww_evt_in_request_frame_t *out);
 void ww_evt_in_request_frame_free(ww_evt_in_request_frame_t *m);
 uint32_t ww_evt_in_request_frame_expected_fds(const ww_evt_in_request_frame_t *m);
+
+int  ww_evt_in_set_log_level_encode(const ww_evt_in_set_log_level_t *m, ww_buf_t *out);
+int  ww_evt_in_set_log_level_decode(const uint8_t *buf, size_t len, ww_evt_in_set_log_level_t *out);
+void ww_evt_in_set_log_level_free(ww_evt_in_set_log_level_t *m);
+uint32_t ww_evt_in_set_log_level_expected_fds(const ww_evt_in_set_log_level_t *m);
 
 int  ww_evt_ready_encode(const ww_evt_ready_t *m, ww_buf_t *out);
 int  ww_evt_ready_decode(const uint8_t *buf, size_t len, ww_evt_ready_t *out);

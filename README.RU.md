@@ -90,18 +90,18 @@ Waywallen собирается с помощью [Lito](https://github.com/litoc
   Пользователям NVIDIA следует использовать [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver), чтобы использовать NVDEC через VA-API.
 
 - Как получить логи?  
-  Посуточные логи пишутся в `~/.local/state/waywallen/logs/` (или `$XDG_STATE_HOME/waywallen/logs/`) и хранятся до 7 ротированных файлов логов (`waywallen_rYYYY-MM-DD.log`).  
+  Посуточные логи по UTC пишутся в `~/.local/state/waywallen/logs/daemon/` (или `$XDG_STATE_HOME/waywallen/logs/daemon/`); сохраняется до 8 файлов `waywallen.YYYY-MM-DD.log`, а `waywallen-current.log` указывает на текущий файл.
   Чтобы повысить подробность, остановите демон и перезапустите:
   ```bash
-  export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
+  export WW_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
   ```
-  Для Flatpak журналы хранятся в `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/`.
+  Для Flatpak журналы хранятся в `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/daemon/`.
   Чтобы перезапустить приложение с подробным журналированием, выполните:
   ```bash
   flatpak kill org.waywallen.waywallen
   flatpak run \
-    --env=RSTD_LOG=debug \
+    --env=WW_LOG=debug \
     --env=RUST_LOG=debug,zbus=warn \
     org.waywallen.waywallen
   ```

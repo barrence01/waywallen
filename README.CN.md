@@ -90,18 +90,18 @@ Waywallen 使用 [Lito](https://github.com/litocpp/lito) 构建（请为它点�
   NVIDIA 用户应使用 [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver)，通过 VA-API 暴露 NVDEC。  
 
 - 如何获取日志？  
-  日志按天写入 `~/.local/state/waywallen/logs/`（或 `$XDG_STATE_HOME/waywallen/logs/`），最多保留 7 个轮转日志文件（`waywallen_rYYYY-MM-DD.log`）。  
+  日志按 UTC 日期写入 `~/.local/state/waywallen/logs/daemon/`（或 `$XDG_STATE_HOME/waywallen/logs/daemon/`），最多保留 8 个 `waywallen.YYYY-MM-DD.log`；`waywallen-current.log` 指向当前文件。
   如需提高详细程度，请先退出正在运行的守护进程，然后：
   ```bash
-  export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
+  export WW_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
   ```
-  Flatpak 日志存储在 `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/`。
+  Flatpak 日志存储在 `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/daemon/`。
   可使用以下命令以详细日志重新启动：
   ```bash
   flatpak kill org.waywallen.waywallen
   flatpak run \
-    --env=RSTD_LOG=debug \
+    --env=WW_LOG=debug \
     --env=RUST_LOG=debug,zbus=warn \
     org.waywallen.waywallen
   ```

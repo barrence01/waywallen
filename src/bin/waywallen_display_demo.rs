@@ -87,7 +87,7 @@ fn default_socket_path() -> PathBuf {
 }
 
 fn main() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    waywallen::logging::init_stderr("info");
     let args = parse_args();
     let sock_path = args.socket.clone().unwrap_or_else(default_socket_path);
     log::info!(

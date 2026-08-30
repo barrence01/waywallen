@@ -19,3 +19,7 @@ visibility = "public"
 [dependencies.rstd-cppstd]
 workspace = true
 visibility = "private"
+
+[dependencies.rstd-log]
+workspace = true
+visibility = "private"

@@ -81,7 +81,7 @@ fn parse_args() -> Args {
 }
 
 fn main() -> Result<()> {
-    env_logger::init();
+    waywallen::logging::init_stderr("error");
     let args = parse_args();
     let entry = unsafe { Entry::load().context("load Vulkan")? };
     let app_info = vk::ApplicationInfo::default().api_version(vk::make_api_version(0, 1, 2, 0));

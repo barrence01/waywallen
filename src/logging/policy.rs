@@ -1,7 +1,7 @@
 /// Tunable logging behavior. Prefer editing [`LoggingPolicy::DEFAULT`].
 #[derive(Debug, Clone, Copy)]
 pub struct LoggingPolicy {
-    pub retention_days: u8,
+    pub max_log_files: usize,
     pub file_prefix: &'static str,
     pub default_filter: &'static str,
     pub also_stderr: bool,
@@ -21,7 +21,7 @@ pub fn filter_for_debug(enabled: bool) -> &'static str {
 
 impl LoggingPolicy {
     pub const DEFAULT: Self = Self {
-        retention_days: 7,
+        max_log_files: 8,
         file_prefix: "waywallen",
         default_filter: DEFAULT_FILTER,
         also_stderr: true,

@@ -41,6 +41,15 @@
     <entry name="paused" value="2"/>
   </enum>
 
+  <enum name="log_level">
+    <entry name="off" value="0"/>
+    <entry name="error" value="1"/>
+    <entry name="warn" value="2"/>
+    <entry name="info" value="3"/>
+    <entry name="debug" value="4"/>
+    <entry name="trace" value="5"/>
+  </enum>
+
   <enum name="event_subscription_status">
     <entry name="applied" value="0"/>
     <entry name="invalid" value="1"/>
@@ -308,6 +317,10 @@
   <!-- Ask the renderer to publish its current content once. Requests
        may be coalesced and never imply content-time advancement. -->
   <event_in name="request_frame" opcode="15"/>
+
+  <event_in name="set_log_level" opcode="16">
+    <arg name="level" type="log_level"/>
+  </event_in>
 
   <!-- renderer -> daemon -->
 

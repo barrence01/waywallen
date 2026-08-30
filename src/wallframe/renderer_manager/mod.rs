@@ -16,8 +16,8 @@ use uuid::Uuid;
 
 use crate::wallframe::ipc::proto::{
     AudioWindow, BufferDirective, BufferFormat, BufferMemorySource, BufferPath, ControlMsg,
-    EventMsg, EventSubscriptionResult, EventSubscriptionStatus, MediaPlaybackState, PointerAxis,
-    PointerButton, PointerMotion, RendererInit, RendererState, WireMprisSnapshot,
+    EventMsg, EventSubscriptionResult, EventSubscriptionStatus, LogLevel, MediaPlaybackState,
+    PointerAxis, PointerButton, PointerMotion, RendererInit, RendererState, WireMprisSnapshot,
     RENDERER_STATE_FIELD_CLEAR_COLOR, RENDERER_STATE_FIELD_RUNTIME_TAGS,
     RENDERER_STATE_KNOWN_FIELDS,
 };
@@ -56,6 +56,65 @@ pub type RendererId = String;
 pub type RendererProcessGeneration = u64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RendererLogSnapshot {
+    level: LogLevel,
+    revision: u64,
+}
+
+fn log_level_name(level: LogLevel) -> &'static str {
+    match level {
+        LogLevel::Off => "off",
+        LogLevel::Error => "error",
+        LogLevel::Warn => "warn",
+        LogLevel::Info => "info",
+        LogLevel::Debug => "debug",
+        LogLevel::Trace => "trace",
+    }
+}
+
+fn parse_log_level(value: &str) -> Option<LogLevel> {
+    match value.to_ascii_lowercase().as_str() {
+        "off" => Some(LogLevel::Off),
+        "error" => Some(LogLevel::Error),
+        "warn" => Some(LogLevel::Warn),
+        "info" => Some(LogLevel::Info),
+        "debug" => Some(LogLevel::Debug),
+        "trace" => Some(LogLevel::Trace),
+        _ => None,
+    }
+}
+
+fn initial_renderer_log_level() -> (LogLevel, bool) {
+    let Some(value) = std::env::var_os("WW_LOG") else {
+        return (LogLevel::Info, false);
+    };
+    let Some(value) = value.to_str() else {
+        eprintln!("waywallen: WW_LOG is not valid UTF-8; using info");
+        return (LogLevel::Info, true);
+    };
+    match parse_log_level(value) {
+        Some(level) => (level, true),
+        None => {
+            eprintln!("waywallen: invalid WW_LOG value {value:?}; using info");
+            (LogLevel::Info, true)
+        }
+    }
+}
+
+fn renderer_process_label(name: &str, pid: Option<u32>, id: &str) -> String {
+    let name = if name.is_empty() { "renderer" } else { name };
+    let identity = pid.map_or_else(
+        || id.chars().take(8).collect::<String>(),
+        |pid| pid.to_string(),
+    );
+    if identity.is_empty() {
+        name.to_owned()
+    } else {
+        format!("{name}-{identity}")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RendererProcessExitKind {
     Stopped,
     Killed,
@@ -88,6 +147,30 @@ const WRITER_QUEUE_CAPACITY: usize = 64;
 const RENDERER_FAILED_EXIT_GRACE: Duration = Duration::from_millis(250);
 const RENDERER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const RENDERER_INIT_TIMEOUT: Duration = Duration::from_secs(10);
+const STDERR_DRAIN_TIMEOUT: Duration = Duration::from_millis(250);
+const STDERR_REASON_BYTES: usize = 512;
+
+fn append_stderr_reason(
+    mut reason: String,
+    snapshot: crate::wallframe::process_stdio::StderrSnapshot,
+) -> String {
+    let Some(line) = snapshot.last_line_limited(STDERR_REASON_BYTES) else {
+        return reason;
+    };
+    reason.push_str("; stderr: ");
+    reason.push_str(&line);
+    reason
+}
+
+async fn renderer_failure_reason(
+    reason: String,
+    stderr: Option<&crate::wallframe::process_stdio::ChildStderrCapture>,
+) -> String {
+    match stderr {
+        Some(stderr) => append_stderr_reason(reason, stderr.drain(STDERR_DRAIN_TIMEOUT).await),
+        None => reason,
+    }
+}
 
 fn renderer_exit_status(status: &ExitStatus) -> String {
     let hint = match status.code() {
@@ -424,6 +507,7 @@ pub struct RendererHandle {
 
     /// The child process. Kept alive so dropping the manager reaps it.
     child: Arc<TokioMutex<Option<Child>>>,
+    stderr: Option<crate::wallframe::process_stdio::ChildStderrCapture>,
 
     /// Renderer-published state. Clear color and runtime tags are committed
     /// together so readers never observe a partially applied ReportState.
@@ -617,6 +701,9 @@ pub struct RendererManager {
     process_ownership: watch::Sender<RendererProcessOwnershipSnapshot>,
     process_ownership_state: StdMutex<RendererProcessOwnershipState>,
     next_process_generation: std::sync::atomic::AtomicU64,
+    renderer_log: StdMutex<RendererLogSnapshot>,
+    renderer_log_env_active: bool,
+    renderer_log_update: TokioMutex<()>,
 }
 
 struct Inner {
@@ -651,6 +738,7 @@ impl RendererManager {
         let (reap_tx, reap_rx) = tokio::sync::mpsc::unbounded_channel();
         let (process_exit_tx, process_exit_rx) = tokio::sync::mpsc::unbounded_channel();
         let (process_ownership, _) = watch::channel(RendererProcessOwnershipSnapshot::default());
+        let (renderer_log_level, renderer_log_env_active) = initial_renderer_log_level();
         Self {
             inner: TokioMutex::new(Inner {
                 renderers: HashMap::new(),
@@ -667,6 +755,12 @@ impl RendererManager {
             process_ownership,
             process_ownership_state: StdMutex::new(RendererProcessOwnershipState::default()),
             next_process_generation: std::sync::atomic::AtomicU64::new(0),
+            renderer_log: StdMutex::new(RendererLogSnapshot {
+                level: renderer_log_level,
+                revision: 1,
+            }),
+            renderer_log_env_active,
+            renderer_log_update: TokioMutex::new(()),
         }
     }
 
@@ -678,6 +772,71 @@ impl RendererManager {
     /// Wire the live settings store used by outbound renderer policy gates.
     pub fn attach_settings(&self, settings: Arc<SettingsStore>) {
         let _ = self.settings.set(settings);
+    }
+
+    fn renderer_log_snapshot(&self) -> RendererLogSnapshot {
+        *self
+            .renderer_log
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    pub async fn initialize_renderer_log_level(&self, debug_enabled: bool) {
+        if self.renderer_log_env_active {
+            log::info!(
+                "renderer log level initialized from WW_LOG={}",
+                log_level_name(self.renderer_log_snapshot().level)
+            );
+            return;
+        }
+        self.set_renderer_log_level(if debug_enabled {
+            LogLevel::Debug
+        } else {
+            LogLevel::Info
+        })
+        .await;
+    }
+
+    pub async fn set_renderer_debug_logging(&self, enabled: bool) {
+        self.set_renderer_log_level(if enabled {
+            LogLevel::Debug
+        } else {
+            LogLevel::Info
+        })
+        .await;
+    }
+
+    async fn set_renderer_log_level(&self, level: LogLevel) {
+        let _update = self.renderer_log_update.lock().await;
+        {
+            let mut state = self
+                .renderer_log
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if state.level == level {
+                return;
+            }
+            state.level = level;
+            state.revision = state.revision.wrapping_add(1).max(1);
+        }
+
+        let handles = {
+            let inner = self.inner.lock().await;
+            inner.renderers.values().cloned().collect::<Vec<_>>()
+        };
+        for handle in handles {
+            if let Err(error) = self
+                .send_control_to_handle(&handle.id, &handle, ControlMsg::SetLogLevel { level })
+                .await
+            {
+                log::warn!(
+                    "renderer {}: failed to set log level to {}: {error}",
+                    handle.id,
+                    log_level_name(level)
+                );
+            }
+        }
+        log::info!("renderer log level set to {}", log_level_name(level));
     }
 
     pub fn take_process_exits(
@@ -842,10 +1001,12 @@ impl RendererManager {
 
         // Build the Init message before spawning the child.
         let init_msg = build_init_msg(&req, &renderer_def);
+        let renderer_log = self.renderer_log_snapshot();
 
         let mut cmd = Command::new(&renderer_def.bin);
         cmd.process_group(0);
         cmd.arg("--ipc").arg(&sock_path);
+        cmd.env("WW_LOG", log_level_name(renderer_log.level));
         // SPAWN_VERSION 3: extras (canonical `path` + plugin-specific
         // keys like `assets`/`external_id`) ride as `--<key> <value>`
         let mut extra_keys: Vec<&String> = req.extras.keys().collect();
@@ -863,10 +1024,13 @@ impl RendererManager {
         let mut child = cmd
             .spawn()
             .with_context(|| format!("spawn {}", renderer_def.bin.display()))?;
-        if let Some(stderr) = child.stderr.take() {
-            crate::logging::forward_stderr(stderr, crate::logging::TARGET_RENDERER);
-        }
         let child_pid = child.id();
+        let stderr = child.stderr.take().map(|stderr| {
+            crate::wallframe::process_stdio::ChildStderrCapture::spawn(
+                stderr,
+                renderer_process_label(&renderer_def.name, child_pid, &id),
+            )
+        });
         let process_group = child_pid.and_then(|pid| i32::try_from(pid).ok());
         let process_group_registration = self.register_process_group(process_group);
 
@@ -878,16 +1042,19 @@ impl RendererManager {
             accepted = listener.accept() => accepted.context("accept")?,
             status = child.wait() => {
                 let status = status.context("wait for renderer before IPC connect")?;
-                return Err(Error::RendererSpawnFailed(format!(
+                let reason = renderer_failure_reason(format!(
                     "renderer exited before IPC connect: {}",
                     renderer_exit_status(&status),
-                )));
+                ), stderr.as_ref()).await;
+                return Err(Error::RendererSpawnFailed(reason));
             }
             () = &mut connect_timeout => {
                 let _ = child.start_kill();
-                return Err(Error::RendererSpawnFailed(
-                    "timed out waiting for waywallen-renderer to connect back".into(),
-                ));
+                let process_status = failed_renderer_process_status(&mut child).await;
+                let reason = renderer_failure_reason(format!(
+                    "timed out waiting for waywallen-renderer to connect back; {process_status}"
+                ), stderr.as_ref()).await;
+                return Err(Error::RendererSpawnFailed(reason));
             }
         };
 
@@ -908,11 +1075,16 @@ impl RendererManager {
                 let reason = renderer_spawn_error_reason(error);
                 drop(std_stream);
                 let process_status = failed_renderer_process_status(&mut child).await;
-                return Err(Error::RendererSpawnFailed(format!(
-                    "{reason}; renderer={} pid={}; {process_status}",
-                    renderer_def.name,
-                    child_pid.map_or_else(|| "unknown".to_string(), |pid| pid.to_string()),
-                )));
+                let reason = renderer_failure_reason(
+                    format!(
+                        "{reason}; renderer={} pid={}; {process_status}",
+                        renderer_def.name,
+                        child_pid.map_or_else(|| "unknown".to_string(), |pid| pid.to_string()),
+                    ),
+                    stderr.as_ref(),
+                )
+                .await;
+                return Err(Error::RendererSpawnFailed(reason));
             }
         };
         log::info!(
@@ -1002,6 +1174,7 @@ impl RendererManager {
             frame_record_tx,
             pending_configure,
             child: Arc::new(TokioMutex::new(Some(child))),
+            stderr,
             reported_state,
         });
 
@@ -1021,7 +1194,28 @@ impl RendererManager {
 
         {
             let mut inner = self.inner.lock().await;
-            inner.renderers.insert(id.clone(), handle);
+            inner.renderers.insert(id.clone(), Arc::clone(&handle));
+        }
+        {
+            let _update = self.renderer_log_update.lock().await;
+            let current = self.renderer_log_snapshot();
+            if current.revision != renderer_log.revision {
+                if let Err(error) = self
+                    .send_control_to_handle(
+                        &id,
+                        &handle,
+                        ControlMsg::SetLogLevel {
+                            level: current.level,
+                        },
+                    )
+                    .await
+                {
+                    log::warn!(
+                        "renderer {id}: failed to reconcile log level to {}: {error}",
+                        log_level_name(current.level)
+                    );
+                }
+            }
         }
         process_group_registration.commit();
         thread::spawn(move || {
@@ -1112,9 +1306,13 @@ impl RendererManager {
                         match child.try_wait() {
                             Ok(Some(status)) => {
                                 self.mark_dead_generation(id, handle.process_generation);
-                                return Err(Error::RendererFrameFailed(format!(
+                                let reason = format!(
                                     "renderer '{id}' exited before its first frame: {status}"
-                                )));
+                                );
+                                let reason = handle.stderr.as_ref().map_or(reason.clone(), |stderr| {
+                                    append_stderr_reason(reason, stderr.snapshot())
+                                });
+                                return Err(Error::RendererFrameFailed(reason));
                             }
                             Ok(None) => {}
                             Err(e) => {
@@ -1494,6 +1692,16 @@ impl RendererManager {
             }
         }
         let force_killed = renderer_was_force_killed(exit.as_ref(), force_kill_requested);
+        let reason = exit.as_ref().map(renderer_exit_status).unwrap_or_else(|| {
+            if force_killed {
+                "renderer IPC closed; process was killed".to_string()
+            } else if let Some(error) = wait_error {
+                format!("renderer IPC closed; wait failed: {error}")
+            } else {
+                "renderer IPC closed".to_string()
+            }
+        });
+        let reason = renderer_failure_reason(reason, handle.stderr.as_ref()).await;
         let event = RendererProcessExit {
             renderer_id: id.to_string(),
             process_generation,
@@ -1504,15 +1712,7 @@ impl RendererManager {
             },
             code: exit.as_ref().and_then(ExitStatus::code),
             signal: exit.as_ref().and_then(ExitStatusExt::signal),
-            reason: exit.as_ref().map(renderer_exit_status).unwrap_or_else(|| {
-                if force_killed {
-                    "renderer IPC closed; process was killed".to_string()
-                } else if let Some(error) = wait_error {
-                    format!("renderer IPC closed; wait failed: {error}")
-                } else {
-                    "renderer IPC closed".to_string()
-                }
-            }),
+            reason,
         };
         if self.process_exit_tx.send(event).is_err() {
             log::warn!("renderer {id}: process exit dropped (owner channel closed)");
@@ -1769,6 +1969,7 @@ impl RendererHandle {
             frame_record_tx,
             pending_configure: Arc::new(StdMutex::new(None)),
             child: Arc::new(TokioMutex::new(None)),
+            stderr: None,
             reported_state: Arc::new(StdMutex::new(RendererReportedState::default())),
         });
         (handle, b)
@@ -1795,6 +1996,48 @@ mod subscription_tests {
     use super::*;
     use crate::wallframe::ipc::proto::{AudioStreamFormat, RgbaColor};
     use crate::wallframe::ipc::uds::{recv_control, CodecError};
+
+    #[test]
+    fn renderer_process_label_matches_ui_identity() {
+        assert_eq!(
+            renderer_process_label("wescene-renderer", Some(4321), "ignored"),
+            "wescene-renderer-4321"
+        );
+        assert_eq!(
+            renderer_process_label("", None, "d6ce5a5f-eab7-4bd6-a898-f5c84d027c5e"),
+            "renderer-d6ce5a5f"
+        );
+    }
+
+    #[test]
+    fn renderer_log_level_parser_accepts_wire_levels() {
+        assert_eq!(parse_log_level("off"), Some(LogLevel::Off));
+        assert_eq!(parse_log_level("ERROR"), Some(LogLevel::Error));
+        assert_eq!(parse_log_level("warn"), Some(LogLevel::Warn));
+        assert_eq!(parse_log_level("info"), Some(LogLevel::Info));
+        assert_eq!(parse_log_level("debug"), Some(LogLevel::Debug));
+        assert_eq!(parse_log_level("trace"), Some(LogLevel::Trace));
+        assert_eq!(parse_log_level("verbose"), None);
+    }
+
+    #[tokio::test]
+    async fn renderer_log_level_update_is_sent_to_live_renderer() {
+        let manager = RendererManager::new_default();
+        let (handle, peer) = RendererHandle::test_stub_with_peer("renderer", "scene");
+        manager.register_test_handle(handle).await;
+        let level = if manager.renderer_log_snapshot().level == LogLevel::Debug {
+            LogLevel::Info
+        } else {
+            LogLevel::Debug
+        };
+        let reader = std::thread::spawn(move || recv_control(&peer).unwrap());
+
+        manager.set_renderer_log_level(level).await;
+
+        let (message, fds) = reader.join().unwrap();
+        assert_eq!(message, ControlMsg::SetLogLevel { level });
+        assert!(fds.is_empty());
+    }
 
     #[test]
     fn renderer_exit_status_diagnoses_runtime_dependency_failure() {
@@ -2646,6 +2889,7 @@ mod reuse_tests {
             frame_record_tx: None,
             pending_configure: Arc::new(StdMutex::new(None)),
             child: Arc::new(TokioMutex::new(None)),
+            stderr: None,
             reported_state: Arc::new(StdMutex::new(RendererReportedState::default())),
         });
         mgr.register_test_handle(Arc::clone(&h)).await;

@@ -336,6 +336,7 @@ typedef struct ww_bridge_control {
         ww_evt_in_shutdown_t                    shutdown;
         ww_evt_in_negotiate_buffers_t           negotiate_buffers;
         ww_evt_in_request_frame_t               request_frame;
+        ww_evt_in_set_log_level_t               set_log_level;
     } u;
 } ww_bridge_control_t;
 

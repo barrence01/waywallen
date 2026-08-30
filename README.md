@@ -90,18 +90,18 @@ Waywallen is built by [Lito](https://github.com/litocpp/lito) (Please star it)
   NVIDIA users should use [nvidia-vaapi-driver](https://github.com/elFarto/nvidia-vaapi-driver) to expose NVDEC through VA-API.
 
 - How to get logs?  
-  Daily daemon logs are written under `~/.local/state/waywallen/logs/` (or `$XDG_STATE_HOME/waywallen/logs/`): active file `waywallen_rCURRENT.log`, rotated archives `waywallen_rYYYY-MM-DD_00-00-00.log` (up to 7 kept). 
+  Daily daemon logs are written under `~/.local/state/waywallen/logs/daemon/` (or `$XDG_STATE_HOME/waywallen/logs/daemon/`) as `waywallen.YYYY-MM-DD.log` (up to 8 kept); `waywallen-current.log` points to the active file.
   To raise verbosity, stop the running daemon and restart with:
   ```bash
-  export RSTD_LOG=debug RUST_LOG=debug,zbus=warn
+  export WW_LOG=debug RUST_LOG=debug,zbus=warn
   ./waywallen
   ```
-  For Flatpak, logs are stored under `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/`.
+  For Flatpak, logs are stored under `~/.var/app/org.waywallen.waywallen/.local/state/waywallen/logs/daemon/`.
   Restart it with verbose logging using:
   ```bash
   flatpak kill org.waywallen.waywallen
   flatpak run \
-    --env=RSTD_LOG=debug \
+    --env=WW_LOG=debug \
     --env=RUST_LOG=debug,zbus=warn \
     org.waywallen.waywallen
   ```

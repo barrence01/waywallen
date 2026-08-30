@@ -136,6 +136,9 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
     let settings_store =
         settings::SettingsStore::load_or_default(settings::default_config_path()).await;
     crate::logging::apply_debug_setting(settings_store.global().debug_logging_enabled);
+    renderer_mgr
+        .initialize_renderer_log_level(settings_store.global().debug_logging_enabled)
+        .await;
     renderer_mgr.attach_settings(settings_store.clone());
     router.attach_settings(settings_store.clone());
     let registry_snapshot = renderer_mgr.registry_snapshot();
