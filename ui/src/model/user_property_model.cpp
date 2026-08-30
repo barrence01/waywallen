@@ -17,8 +17,6 @@ bool isSupported(const QString& type, bool has_options) {
            type == QLatin1String("text") || (type == QLatin1String("combo") && has_options);
 }
 
-QString propertiesSection() { return QStringLiteral("Properties"); }
-QString userPropertiesSection() { return QStringLiteral("User properties"); }
 QString builtinKind() { return QStringLiteral("property"); }
 QString userKind() { return QStringLiteral("user"); }
 QString schemeColorKey() { return QStringLiteral("waywallen.scheme_color"); }
@@ -219,7 +217,7 @@ void UserPropertyListModel::rebuildEntries_() {
             e.key             = it.key();
             e.label           = v.value(QStringLiteral("text")).toString();
             e.localized_label = v.value(QStringLiteral("localized_text")).toObject().toVariantMap();
-            e.section         = userPropertiesSection();
+            e.section         = userKind();
             e.kind            = userKind();
             if (e.label.isEmpty()) e.label = e.key;
             e.type = v.value(QStringLiteral("type")).toString().toLower();
@@ -269,7 +267,7 @@ void UserPropertyListModel::appendPredefinedEntries_(const QJsonObject& schema) 
         e.label           = value.value(QStringLiteral("text")).toString();
         e.localized_label = value.value(QStringLiteral("localized_text")).toObject().toVariantMap();
         e.type            = value.value(QStringLiteral("type")).toString().toLower();
-        e.section         = propertiesSection();
+        e.section         = builtinKind();
         e.kind            = builtinKind();
         if (e.label.isEmpty()) e.label = std::move(label);
         if (e.type.isEmpty()) e.type = std::move(type);
@@ -286,7 +284,7 @@ void UserPropertyListModel::appendPredefinedEntries_(const QJsonObject& schema) 
     const auto scheme_schema = schema.value(schemeColorKey()).toObject();
     auto       scheme        = make(schemeColorKey(),
                                     scheme_schema,
-                                    QStringLiteral("Scheme color"),
+                                    UserPropertyListModel::tr("Scheme color"),
                                     QStringLiteral("color"),
                                     QStringLiteral("0.0000 0.0000 0.0000 1.0000"));
     m_entries.append(std::move(scheme));
@@ -295,7 +293,7 @@ void UserPropertyListModel::appendPredefinedEntries_(const QJsonObject& schema) 
         const auto audio_schema = schema.value(enableAudioKey()).toObject();
         auto       audio        = make(enableAudioKey(),
                                        audio_schema,
-                                       QStringLiteral("Enable audio"),
+                                       UserPropertyListModel::tr("Enable audio"),
                                        QStringLiteral("bool"),
                                        QStringLiteral("true"));
         m_entries.append(std::move(audio));
@@ -305,7 +303,7 @@ void UserPropertyListModel::appendPredefinedEntries_(const QJsonObject& schema) 
         const auto speed_schema = schema.value(playbackSpeedKey()).toObject();
         auto       speed        = make(playbackSpeedKey(),
                                        speed_schema,
-                                       QStringLiteral("Playback speed"),
+                                       UserPropertyListModel::tr("Playback speed"),
                                        QStringLiteral("slider"),
                                        QStringLiteral("100"));
         m_entries.append(std::move(speed));

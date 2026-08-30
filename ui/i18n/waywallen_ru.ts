@@ -2354,6 +2354,16 @@ Unsaved frame state may be lost.</source>
         <translation>Поворот</translation>
     </message>
     <message>
+        <location filename="../qml/page/WallpaperDetailPanel.qml" line="788"/>
+        <source>Properties</source>
+        <translation>Свойства</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WallpaperDetailPanel.qml" line="788"/>
+        <source>User properties</source>
+        <translation>Пользовательские свойства</translation>
+    </message>
+    <message>
         <location filename="../qml/page/WallpaperDetailPanel.qml" line="804"/>
         <source>Reset to defaults</source>
         <translation>Вернуть значения по умолчанию</translation>
@@ -2797,6 +2807,24 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/filter/WpTypeFilter.qml" line="19"/>
         <source>any</source>
         <translation>любой</translation>
+    </message>
+</context>
+<context>
+    <name>waywallen::model::UserPropertyListModel</name>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="287"/>
+        <source>Scheme color</source>
+        <translation>Цветовая схема</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="296"/>
+        <source>Enable audio</source>
+        <translation>Включить звук</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="306"/>
+        <source>Playback speed</source>
+        <translation>Скорость воспроизведения</translation>
     </message>
 </context>
 </TS>

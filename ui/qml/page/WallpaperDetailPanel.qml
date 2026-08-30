@@ -785,7 +785,7 @@ Item {
 
                     MD.Text {
                         Layout.fillWidth: true
-                        text: m_prop_section.section
+                        text: m_prop_section.section === "property" ? qsTr("Properties") : qsTr("User properties")
                         typescale: MD.Token.typescale.label_large
                         color: MD.Token.color.on_surface_variant
                     }
@@ -793,9 +793,9 @@ Item {
                     MD.IconButton {
                         icon.name: MD.Token.icon.restart_alt
                         mdState.size: MD.Enum.XS
-                        enabled: m_prop_section.section === "Properties" ? propertyModel.hasPredefinedPropertyOverrides : propertyModel.hasUserPropertyOverrides
+                        enabled: m_prop_section.section === "property" ? propertyModel.hasPredefinedPropertyOverrides : propertyModel.hasUserPropertyOverrides
                         onClicked: {
-                            if (m_prop_section.section === "Properties")
+                            if (m_prop_section.section === "property")
                                 propertyModel.resetPredefinedProperties();
                             else
                                 propertyModel.resetUserProperties();

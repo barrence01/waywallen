@@ -1,5 +1,6 @@
 use super::parsing::redact_secrets;
 use super::*;
+use crate::plugin::i18n::LocalizedText;
 use crate::probe::media::{MediaMeta, MediaProbe};
 use std::io::Write;
 use std::time::Duration;
@@ -853,7 +854,7 @@ fn wallhaven_plugin_supports_optional_api_key_login() {
     assert!(sources[0].supports_search);
     assert!(sources[0].filters.iter().any(|filter| {
         filter.ty == DiscoverFilterType::MultiSelect
-            && filter.values.iter().any(|value| value == "Anime")
+            && filter.options.iter().any(|option| option.value == "Anime")
     }));
     let purity = sources[0]
         .filters
@@ -861,7 +862,22 @@ fn wallhaven_plugin_supports_optional_api_key_login() {
         .find(|filter| filter.id == "purity")
         .unwrap();
     assert_eq!(purity.ty, DiscoverFilterType::MultiSelect);
-    assert_eq!(purity.values, ["SFW", "Sketchy", "NSFW"]);
+    assert_eq!(
+        purity
+            .options
+            .iter()
+            .map(|option| &option.value)
+            .collect::<Vec<_>>(),
+        ["SFW", "Sketchy", "NSFW"]
+    );
+    assert_eq!(
+        purity.options[0].label,
+        LocalizedText::translated("test.plugin", "Safe for work")
+    );
+    assert_eq!(
+        purity.options[1].label,
+        LocalizedText::translated("test.plugin", "Questionable")
+    );
     assert_eq!(sources[0].actions[0].kind, SourceActionKind::Form);
     assert_eq!(sources[0].actions[0].fields.len(), 1);
     assert_eq!(sources[0].actions[0].fields[0].key, "api_key");
@@ -1033,13 +1049,21 @@ return M
         .unwrap();
     // Before the refresh, discovery advertises the static fallback.
     assert_eq!(
-        mgr.discover_sources().unwrap()[0].filters[0].values,
+        mgr.discover_sources().unwrap()[0].filters[0]
+            .options
+            .iter()
+            .map(|option| option.value.clone())
+            .collect::<Vec<_>>(),
         vec!["fallback"]
     );
 
     block_value(async { mgr.refresh_dynamic_tags().await });
     assert_eq!(
-        mgr.discover_sources().unwrap()[0].filters[0].values,
+        mgr.discover_sources().unwrap()[0].filters[0]
+            .options
+            .iter()
+            .map(|option| option.value.clone())
+            .collect::<Vec<_>>(),
         vec!["Live1", "Live2"]
     );
 }
@@ -1059,8 +1083,18 @@ function M.info()
             discover = {
                 search = true,
                 filters = {
-                    { id = "kind", title = "Kind", type = "select", values = { "A", "B" } },
-                    { id = "tags", title = "Tags", type = "multi_select", values = { "X", "Y" } },
+                    {
+                        id = "kind",
+                        title = "Kind",
+                        type = "select",
+                        options = {
+                            { value = "A", label = "Alpha" },
+                            { value = "B", label = "Beta" },
+                        },
+                    },
+                    { id = "tags", title = "Tags", type = "multi_select", options = {
+                        { value = "X", label = "X" }, { value = "Y", label = "Y" },
+                    } },
                 },
             },
         },
@@ -1076,6 +1110,14 @@ return M
     let mgr = SourceManager::new().unwrap();
     mgr.load_plugin(&path, "test.plugin", "1.0", ENTRY_VERSION_V3)
         .unwrap();
+    let kind = mgr.discover_sources().unwrap()[0]
+        .filters
+        .iter()
+        .find(|filter| filter.id == "kind")
+        .unwrap()
+        .clone();
+    assert_eq!(kind.options[0].label, LocalizedText::raw("Alpha"));
+    assert_eq!(kind.options[1].label, LocalizedText::raw("Beta"));
     assert!(block_value(async {
         mgr.call_discover("filters", "", "", 1, &["A".to_string(), "X".to_string()])
             .await
@@ -1091,6 +1133,55 @@ return M
             .await
     })
     .is_err());
+}
+
+#[test]
+fn discover_filters_require_object_options() {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, options) in [
+        ("raw", "{ \"A\", \"B\" }"),
+        ("missing_label", "{ { value = \"A\" } }"),
+        ("empty_label", "{ { value = \"A\", label = \"\" } }"),
+        (
+            "duplicate",
+            "{ { value = \"A\", label = \"A\" }, { value = \"A\", label = \"B\" } }",
+        ),
+    ] {
+        let path = dir.path().join(format!("{name}.lua"));
+        std::fs::write(
+            &path,
+            format!(
+                r#"
+local M = {{}}
+function M.info()
+    return {{
+        name = "{name}",
+        capabilities = {{
+            discover = {{
+                search = true,
+                filters = {{ {{
+                    id = "kind",
+                    title = "Kind",
+                    type = "select",
+                    options = {options},
+                }} }},
+            }},
+        }},
+    }}
+end
+M.discover = {{}}
+function M.discover.search(ctx, params) return {{ items = {{}}, has_more = false }} end
+return M
+"#
+            ),
+        )
+        .unwrap();
+
+        let mgr = SourceManager::new().unwrap();
+        assert!(mgr
+            .load_plugin(&path, "test.plugin", "1.0", ENTRY_VERSION_V3)
+            .is_err());
+    }
 }
 
 #[test]

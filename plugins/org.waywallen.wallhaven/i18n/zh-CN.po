@@ -17,6 +17,10 @@ msgstr "登录 Wallhaven"
 msgid "NSFW wallpapers require a Wallhaven API key."
 msgstr "NSFW 壁纸需要 Wallhaven API 密钥。"
 
+#: wallhaven/api.lua:62
+msgid "Not safe for work"
+msgstr "不宜在工作场所查看"
+
 #: main.lua:28
 msgid "Optional. Use an API key from your Wallhaven account settings. Do not enter your Wallhaven password."
 msgstr "可选。使用 Wallhaven 账户设置中的 API 密钥。请勿输入 Wallhaven 密码。"
@@ -29,6 +33,10 @@ msgstr "热门"
 msgid "Purity"
 msgstr "内容分级"
 
+#: wallhaven/api.lua:61
+msgid "Questionable"
+msgstr "擦边内容"
+
 #: main.lua:60
 msgid "Recent"
 msgstr "最新"
@@ -36,6 +44,10 @@ msgstr "最新"
 #: main.lua:47
 msgid "Remove API key"
 msgstr "移除 API 密钥"
+
+#: wallhaven/api.lua:60
+msgid "Safe for work"
+msgstr "适宜在工作场所查看"
 
 #: wallhaven/api.lua:97
 msgid "Resolution"

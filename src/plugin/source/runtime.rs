@@ -604,7 +604,13 @@ impl LuaPluginRuntime {
             id: "tags".to_string(),
             title: LocalizedText::raw("Tags"),
             ty: DiscoverFilterType::MultiSelect,
-            values: tags,
+            options: tags
+                .into_iter()
+                .map(|value| DiscoverFilterOption {
+                    label: LocalizedText::raw(value.clone()),
+                    value,
+                })
+                .collect(),
             description: LocalizedText::default(),
             confirmation: LocalizedText::default(),
         }]
@@ -652,26 +658,40 @@ impl LuaPluginRuntime {
                     )))
                 }
             };
-            let values = Self::require_string_sequence(&filter, "values", &context)?;
-            if values.is_empty() {
+            let options_tbl: LuaTable = filter
+                .get("options")
+                .map_err(|error| Error::Internal(anyhow!("{context}.options required: {error}")))?;
+            let mut options = Vec::new();
+            for (option_idx, option) in options_tbl.sequence_values::<LuaTable>().enumerate() {
+                let option_context = format!("{context}.options[{}]", option_idx + 1);
+                let option = option.map_err(|error| {
+                    Error::Internal(anyhow!("{option_context} must be an object: {error}"))
+                })?;
+                options.push(DiscoverFilterOption {
+                    value: Self::require_string(&option, "value", &option_context)?,
+                    label: Self::require_localized_text(&option, "label", &option_context)?,
+                });
+            }
+            if options.is_empty() {
                 return Err(Error::Internal(anyhow!(
-                    "{context}.values must not be empty"
+                    "{context}.options must not be empty"
                 )));
             }
-            if ty == DiscoverFilterType::Toggle && values.len() != 1 {
+            if ty == DiscoverFilterType::Toggle && options.len() != 1 {
                 return Err(Error::Internal(anyhow!(
-                    "{context}.values must contain exactly one value for a toggle"
+                    "{context}.options must contain exactly one option for a toggle"
                 )));
             }
-            for value in &values {
-                if value.is_empty() {
+            for option in &options {
+                if option.value.is_empty() {
                     return Err(Error::Internal(anyhow!(
-                        "{context}.values must not contain an empty value"
+                        "{context}.options must not contain an empty value"
                     )));
                 }
-                if !filter_values.insert(value.clone()) {
+                if !filter_values.insert(option.value.clone()) {
                     return Err(Error::Internal(anyhow!(
-                        "{context}.values contains duplicate discover value '{value}'"
+                        "{context}.options contains duplicate discover value '{}'",
+                        option.value
                     )));
                 }
             }
@@ -687,7 +707,7 @@ impl LuaPluginRuntime {
                 id,
                 title,
                 ty,
-                values,
+                options,
                 description,
                 confirmation,
             });
@@ -712,7 +732,7 @@ impl LuaPluginRuntime {
             if !discover
                 .filters
                 .iter()
-                .any(|filter| filter.values.iter().any(|candidate| candidate == *value))
+                .any(|filter| filter.options.iter().any(|option| option.value == *value))
             {
                 return Err(Error::InvalidArgument(format!(
                     "source plugin '{plugin_name}' does not declare discover filter value '{value}'"
@@ -722,9 +742,9 @@ impl LuaPluginRuntime {
         for filter in &discover.filters {
             if filter.ty == DiscoverFilterType::Select
                 && filter
-                    .values
+                    .options
                     .iter()
-                    .filter(|value| selected.contains(value.as_str()))
+                    .filter(|option| selected.contains(option.value.as_str()))
                     .count()
                     > 1
             {

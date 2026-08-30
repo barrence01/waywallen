@@ -34,7 +34,12 @@ MD.Dialog {
         return out;
     }
     function filterValues(filter) {
-        return sanitize(filter && filter.values ? filter.values : []);
+        return sanitize((filter?.options ?? []).map(option => option.value));
+    }
+    function valueLabel(filter, value) {
+        const option = (filter?.options ?? []).find(option => option.value === value);
+        const label = W.I18n.tr(option?.labelText ?? option?.label ?? value);
+        return label.length > 0 ? label : value;
     }
     function selectedMap() {
         let allowed = {};
@@ -92,7 +97,7 @@ MD.Dialog {
         root.apply(collect(filter, values));
     }
     function selectOptions(filter) {
-        return [qsTr("Any")].concat(filterValues(filter));
+        return [qsTr("Any")].concat(filterValues(filter).map(value => valueLabel(filter, value)));
     }
     function selectIndex(filter) {
         const selected = selectedFor(filter);
@@ -139,7 +144,7 @@ MD.Dialog {
 
         W.TagPickerDialog {
             dialogTitle: root.activeFilter ? W.I18n.tr(root.activeFilter.titleText) : qsTr("Select values")
-            allTags: root.filterValues(root.activeFilter)
+            options: root.activeFilter?.options ?? []
             selected: root.selectedFor(root.activeFilter)
             onCommit: function (values) {
                 root.setFilterValues(root.activeFilter, values);
@@ -239,13 +244,13 @@ MD.Dialog {
                             spacing: 8
 
                             Repeater {
-                                model: root.filterValues(filterRow.modelData)
+                                model: filterRow.modelData.options ?? []
                                 delegate: MD.FilterChip {
                                     required property var modelData
                                     checkable: false
-                                    text: modelData
-                                    checked: root.selectedFor(filterRow.modelData).indexOf(modelData) >= 0
-                                    onClicked: root.toggleFilterValue(filterRow.modelData, modelData)
+                                    text: root.valueLabel(filterRow.modelData, modelData.value)
+                                    checked: root.selectedFor(filterRow.modelData).indexOf(modelData.value) >= 0
+                                    onClicked: root.toggleFilterValue(filterRow.modelData, modelData.value)
                                 }
                             }
                         }
@@ -258,7 +263,7 @@ MD.Dialog {
                                 model: root.selectedFor(filterRow.modelData)
                                 delegate: W.Tag {
                                     required property var modelData
-                                    text: modelData
+                                    text: root.valueLabel(filterRow.modelData, modelData)
                                 }
                             }
                         }

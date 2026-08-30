@@ -55,13 +55,22 @@ void RemoteAvailabilityQuery::reload() {
                 QVariantList filters;
                 filters.reserve(src.filters().size());
                 for (const auto& filter : src.filters()) {
-                    QVariantMap fm;
-                    QStringList values;
-                    for (const auto& value : filter.values()) values.push_back(value);
+                    QVariantMap  fm;
+                    QVariantList options;
+                    options.reserve(filter.options().size());
+                    for (const auto& option : filter.options()) {
+                        QVariantMap om;
+                        const auto  fallback =
+                            option.label().isEmpty() ? option.value() : option.label();
+                        om[u"value"_s]     = option.value();
+                        om[u"label"_s]     = fallback;
+                        om[u"labelText"_s] = pluginMessageFromPb(option.labelText(), fallback);
+                        options.push_back(om);
+                    }
                     fm[u"id"_s]           = filter.id_proto();
                     fm[u"title"_s]        = filter.title();
                     fm[u"type"_s]         = static_cast<int>(filter.type());
-                    fm[u"values"_s]       = values;
+                    fm[u"options"_s]      = options;
                     fm[u"description"_s]  = filter.description();
                     fm[u"confirmation"_s] = filter.confirmation();
                     fm[u"titleText"_s]    = pluginMessageFromPb(filter.titleText(), filter.title());

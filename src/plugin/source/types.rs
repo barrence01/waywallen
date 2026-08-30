@@ -165,9 +165,16 @@ pub struct DiscoverFilter {
     pub id: String,
     pub title: LocalizedText,
     pub ty: DiscoverFilterType,
-    pub values: Vec<String>,
+    pub options: Vec<DiscoverFilterOption>,
     pub description: LocalizedText,
     pub confirmation: LocalizedText,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DiscoverFilterOption {
+    /// Machine-readable value clients submit for filtering.
+    pub value: String,
+    pub label: LocalizedText,
 }
 
 /// Discover capability of a single source plugin, derived from
