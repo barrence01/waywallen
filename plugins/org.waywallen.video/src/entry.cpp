@@ -275,6 +275,7 @@ struct HostState {
     std::atomic<bool> negotiated { false };
     std::atomic<bool> paused { false };
     std::atomic<bool> muted { false };
+    std::atomic<bool> audio_gate_open { false };
     std::atomic<bool> settings_enable_audio { true };
     std::atomic<bool> property_enable_audio { true };
 
@@ -505,6 +506,7 @@ void apply_control(HostState& host, ww_bridge_control_t& c) {
     case WW_EVT_IN_PLAY:
         host.pause_fade_ms.store(c.u.play.transition.fade_ms, std::memory_order_release);
         host.paused.store(false, std::memory_order_release);
+        host.audio_gate_open.store(true, std::memory_order_release);
         host.neg_cv.notify_all();
         break;
     case WW_EVT_IN_PAUSE:
@@ -515,6 +517,7 @@ void apply_control(HostState& host, ww_bridge_control_t& c) {
     case WW_EVT_IN_UNMUTE:
         host.mute_fade_ms.store(c.u.unmute.transition.fade_ms, std::memory_order_release);
         host.muted.store(false, std::memory_order_release);
+        host.audio_gate_open.store(true, std::memory_order_release);
         break;
     case WW_EVT_IN_MUTE:
         host.mute_fade_ms.store(c.u.mute.transition.fade_ms, std::memory_order_release);
@@ -1180,6 +1183,7 @@ int run(int argc, char** argv) {
                               rstd::f32(rate));
                 }
                 player->set_volume(rstd::f32(volume_pct / 100.0f));
+                player->set_volume_scale(rstd::f32());
                 av_player.insert(rstd::move(player));
                 rstd_info("waywallen-video-renderer: audio decoder attached (volume={}%)",
                           volume_pct);
@@ -1193,7 +1197,7 @@ int run(int argc, char** argv) {
         .volume_pct   = volume_pct,
         .enabled      = false,
         .paused       = false,
-        .muted        = false,
+        .muted        = true,
         .device_muted = false,
     };
     set_audio_device_enabled(current_av_player(),
@@ -1406,8 +1410,9 @@ int run(int argc, char** argv) {
                                      audio_runtime.volume_pct);
             presenter.reset();
         }
-        const bool     paused_now    = host.paused.load(std::memory_order_acquire);
-        const bool     muted_now     = host.muted.load(std::memory_order_acquire);
+        const bool     audio_gate_open = host.audio_gate_open.load(std::memory_order_acquire);
+        const bool     paused_now      = host.paused.load(std::memory_order_acquire);
+        const bool     muted_now = ! audio_gate_open || host.muted.load(std::memory_order_acquire);
         const uint64_t frame_request = pending_frame_request(host);
         sync_audio_state(current_av_player(),
                          audio_runtime,

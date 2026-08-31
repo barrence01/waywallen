@@ -1301,9 +1301,9 @@ impl Router {
                 })
                 .or_insert_with(|| RendererSlot::running(&handle));
             inner.table.add_renderer(handle);
-            inner.renderer_tasks.insert(id, task);
+            inner.renderer_tasks.insert(id.clone(), task);
         }
-        self.reconcile_lifecycle().await;
+        self.reconcile_registered_lifecycle(&id).await;
         self.refresh_runtime_health().await;
         true
     }
@@ -3153,6 +3153,14 @@ impl Router {
     /// Compute the current Pause/Play diff and dispatch control
     /// messages outside the inner lock after lifecycle mutations.
     async fn reconcile_lifecycle(self: &Arc<Self>) {
+        self.reconcile_lifecycle_inner(None).await;
+    }
+
+    async fn reconcile_registered_lifecycle(self: &Arc<Self>, renderer_id: &str) {
+        self.reconcile_lifecycle_inner(Some(renderer_id)).await;
+    }
+
+    async fn reconcile_lifecycle_inner(self: &Arc<Self>, registered_renderer: Option<&str>) {
         let _lifecycle = self.lifecycle_lock.lock().await;
         let audio_fade_ms = self.resolved_audio_fade_ms();
         let actions: Vec<(RendererId, ControlMsg, &'static str)> = {
@@ -3219,6 +3227,19 @@ impl Router {
                     continue;
                 };
                 if previous_state == target_state {
+                    if registered_renderer == Some(rid.as_str())
+                        && target_state == RendererActivity::Playing
+                    {
+                        out.push((
+                            rid,
+                            ControlMsg::Unmute {
+                                transition: ControlTransition {
+                                    fade_ms: audio_fade_ms,
+                                },
+                            },
+                            "startup",
+                        ));
+                    }
                     continue;
                 }
                 if let Some(slot) = inner.renderer_slots.get_mut(&rid) {
@@ -6587,6 +6608,49 @@ mod tests {
         router.register_renderer(r.clone()).await;
 
         assert!(router.is_paused("r1").await);
+    }
+
+    #[tokio::test]
+    async fn renderer_with_active_link_gets_initial_unmute() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr.clone());
+        let display = router.register_display(reg("HDMI-A-1", 1920, 1080)).await;
+        router
+            .inner
+            .lock()
+            .await
+            .table
+            .add_link("r1".into(), display.id);
+
+        let (renderer, peer) = RendererHandle::test_stub_with_peer("r1", "scene");
+        peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        mgr.register_test_handle(renderer.clone()).await;
+        router.register_renderer(renderer).await;
+
+        let (msg, _) = crate::wallframe::ipc::uds::recv_control(&peer).unwrap();
+        assert!(matches!(msg, ControlMsg::Unmute { .. }));
+    }
+
+    #[tokio::test]
+    async fn external_audio_mutes_renderer_during_registration() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr.clone());
+        let display = router.register_display(reg("HDMI-A-1", 1920, 1080)).await;
+        router
+            .inner
+            .lock()
+            .await
+            .table
+            .add_link("r1".into(), display.id);
+        router.set_other_playback_active(true).await;
+
+        let (renderer, peer) = RendererHandle::test_stub_with_peer("r1", "scene");
+        peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        mgr.register_test_handle(renderer.clone()).await;
+        router.register_renderer(renderer).await;
+
+        let (msg, _) = crate::wallframe::ipc::uds::recv_control(&peer).unwrap();
+        assert!(matches!(msg, ControlMsg::Mute { .. }));
     }
 
     #[tokio::test]
