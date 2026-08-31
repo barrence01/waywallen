@@ -318,12 +318,14 @@ done
 
 info "Packing AppImage"
 rm -f "$APPIMAGE_OUT" "$ZSYNC_OUT"
+pushd "$PROJECT_DIR"
 PATH="$TOOLS_DIR:$PATH" \
 ARCH="$APPIMAGE_ARCH" \
 "$APPIMAGETOOL" --appimage-extract-and-run \
     --no-appstream \
     --updateinformation "$UPDATE_INFORMATION" \
     "$APPDIR" "$APPIMAGE_OUT"
+popd
 [[ -f "$APPIMAGE_OUT" ]] || fail "AppImage build failed"
 [[ -f "$ZSYNC_OUT" ]] || fail "zsync metadata generation failed"
 
