@@ -9,7 +9,7 @@ import waywallen.ui as W
 MD.Page {
     id: root
     title: qsTr('Plugins')
-    scrolling: !m_flick.atYBeginning
+    scrolling: !pluginListView.atYBeginning
     readonly property int inactivePluginCount: (pluginListQuery.inactiveSystem ? pluginListQuery.inactiveSystem.length : 0) + (pluginListQuery.inactiveUser ? pluginListQuery.inactiveUser.length : 0)
     readonly property int pluginUpdateStateUnknown: 1
     readonly property int pluginUpdateStateNoUrl: 2
@@ -410,154 +410,143 @@ MD.Page {
         }
     }
 
-    contentItem: MD.VerticalFlickable {
-        id: m_flick
+    contentItem: MD.VerticalListView {
+        id: pluginListView
+        expand: true
         leftMargin: 12
         rightMargin: 12
         bottomMargin: 12
+        spacing: 4
 
-        ColumnLayout {
-            width: m_flick.contentWidth
-            spacing: 8
+        model: pluginListQuery.plugins
 
-            MD.Text {
-                Layout.fillWidth: true
-                visible: !pluginListQuery.plugins || pluginListQuery.plugins.length === 0
-                text: qsTr("No plugins installed")
-                typescale: MD.Token.typescale.body_medium
+        header: MD.Text {
+            width: pluginListView.contentWidth
+            visible: !pluginListQuery.plugins || pluginListQuery.plugins.length === 0
+            height: visible ? implicitHeight : 0
+            text: qsTr("No plugins installed")
+            typescale: MD.Token.typescale.body_medium
+            color: MD.Token.color.on_surface_variant
+            wrapMode: Text.WordWrap
+        }
+
+        section.property: "section"
+        section.criteria: ViewSection.FullString
+        section.delegate: MD.Text {
+            required property string section
+            width: pluginListView.contentWidth
+            text: section === "user" ? qsTr("User") : qsTr("System")
+            typescale: MD.Token.typescale.title_small
+            color: MD.Token.color.on_surface_variant
+            topPadding: 4
+            bottomPadding: 4
+            leftPadding: 4
+        }
+
+        delegate: MD.ListItem {
+            id: pluginItem
+            required property var modelData
+
+            width: pluginListView.contentWidth
+            radius: 12
+            mdState.backgroundColor: MD.Token.color.surface_container
+            text: modelData.name || modelData.id || ""
+            supportText: modelData.id
+            leader: MD.Icon {
+                name: MD.Token.icon.extension
+                size: 24
                 color: MD.Token.color.on_surface_variant
-                wrapMode: Text.WordWrap
             }
+            trailing: Item {
+                readonly property real actionButtonWidth: 40
+                readonly property int visibleActionCount: (pluginUpdateAction.visible ? 1 : 0) + (pluginDeleteAction.visible ? 1 : 0)
+                readonly property bool hasOverflow: visibleActionCount >= 2
+                readonly property real actionAreaWidth: visibleActionCount > 0 ? actionButtonWidth * (hasOverflow ? 2 : 1) : 0
+                readonly property real actionAreaHeight: visibleActionCount > 0 ? pluginFloatingTags.implicitHeight + 4 + pluginActionToolBar.implicitHeight : 0
 
-            ListView {
-                id: pluginListView
-                Layout.fillWidth: true
-                Layout.preferredHeight: contentHeight
-                implicitHeight: contentHeight
-                interactive: false
-                spacing: 4
+                implicitWidth: actionAreaWidth
+                implicitHeight: actionAreaHeight
 
-                model: pluginListQuery.plugins
-
-                section.property: "section"
-                section.criteria: ViewSection.FullString
-                section.delegate: MD.Text {
-                    required property string section
-                    width: pluginListView.width
-                    text: section === "user" ? qsTr("User") : qsTr("System")
-                    typescale: MD.Token.typescale.title_small
-                    color: MD.Token.color.on_surface_variant
-                    topPadding: 4
-                    bottomPadding: 4
-                    leftPadding: 4
+                MD.ActionToolBar {
+                    id: pluginActionToolBar
+                    anchors.right: parent.right
+                    y: pluginFloatingTags.implicitHeight + 4
+                    visible: pluginUpdateAction.visible || pluginDeleteAction.visible
+                    width: parent.actionAreaWidth
+                    actions: [pluginUpdateAction, pluginDeleteAction]
+                    iconDelegate: MD.BusyIconButton {
+                        action: MD.ToolBarLayout.action
+                        mdState.size: MD.Enum.XS
+                    }
+                    moreDelegate: MD.IconButton {
+                        action: pluginActionToolBar.moreAction
+                        mdState.size: MD.Enum.XS
+                    }
                 }
 
-                delegate: MD.ListItem {
-                    id: pluginItem
-                    required property var modelData
-
-                    width: ListView.view.width
-                    radius: 12
-                    mdState.backgroundColor: MD.Token.color.surface_container
-                    text: modelData.name || modelData.id || ""
-                    supportText: modelData.id
-                    leader: MD.Icon {
-                        name: MD.Token.icon.extension
-                        size: 24
-                        color: MD.Token.color.on_surface_variant
+                MD.Action {
+                    id: pluginUpdateAction
+                    text: updateInstallQuery.pluginId === pluginItem.modelData.id && updateInstallQuery.querying ? qsTr("Updating") : qsTr("Update")
+                    icon.name: "download"
+                    visible: root.updateActionVisible(pluginItem.modelData.updateInfo)
+                    displayHint: MD.ToolBarLayout.KeepVisible
+                    busy: updateInstallQuery.pluginId === pluginItem.modelData.id && updateInstallQuery.querying ? (updateInstallQuery.progressing ? MD.Enum.Progress : MD.Enum.Busy) : MD.Enum.Idle
+                    progress: updateInstallQuery.pluginId === pluginItem.modelData.id ? updateInstallQuery.progress : 0
+                    onTriggered: {
+                        if (updateInstallQuery.querying || deleteQuery.querying)
+                            return;
+                        root.installUpdate(pluginItem.modelData.id, pluginItem.modelData.updateInfo);
                     }
-                    trailing: Item {
-                        readonly property real actionButtonWidth: 40
-                        readonly property int visibleActionCount: (pluginUpdateAction.visible ? 1 : 0) + (pluginDeleteAction.visible ? 1 : 0)
-                        readonly property bool hasOverflow: visibleActionCount >= 2
-                        readonly property real actionAreaWidth: visibleActionCount > 0 ? actionButtonWidth * (hasOverflow ? 2 : 1) : 0
-                        readonly property real actionAreaHeight: visibleActionCount > 0 ? pluginFloatingTags.implicitHeight + 4 + pluginActionToolBar.implicitHeight : 0
+                }
 
-                        implicitWidth: actionAreaWidth
-                        implicitHeight: actionAreaHeight
+                MD.Action {
+                    id: pluginDeleteAction
+                    text: qsTr("Delete")
+                    icon.name: MD.Token.icon.delete
+                    visible: pluginItem.modelData.system !== true
+                    displayHint: pluginUpdateAction.visible ? MD.ToolBarLayout.AlwaysHide : MD.ToolBarLayout.KeepVisible
+                    enabled: !deleteQuery.querying && !updateInstallQuery.querying
+                    onTriggered: deleteQuery.remove(pluginItem.modelData.id)
+                }
+            }
+            Flow {
+                id: pluginFloatingTags
+                anchors.top: parent.top
+                anchors.topMargin: 8
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                spacing: 6
+                z: 2
 
-                        MD.ActionToolBar {
-                            id: pluginActionToolBar
-                            anchors.right: parent.right
-                            y: pluginFloatingTags.implicitHeight + 4
-                            visible: pluginUpdateAction.visible || pluginDeleteAction.visible
-                            width: parent.actionAreaWidth
-                            actions: [pluginUpdateAction, pluginDeleteAction]
-                            iconDelegate: MD.BusyIconButton {
-                                action: MD.ToolBarLayout.action
-                                mdState.size: MD.Enum.XS
-                            }
-                            moreDelegate: MD.IconButton {
-                                action: pluginActionToolBar.moreAction
-                                mdState.size: MD.Enum.XS
-                            }
-                        }
+                W.Tag {
+                    id: pluginUpdateTag
+                    readonly property string reason: root.updateTagTooltip(pluginItem.modelData.updateInfo)
 
-                        MD.Action {
-                            id: pluginUpdateAction
-                            text: updateInstallQuery.pluginId === pluginItem.modelData.id && updateInstallQuery.querying ? qsTr("Updating") : qsTr("Update")
-                            icon.name: "download"
-                            visible: root.updateActionVisible(pluginItem.modelData.updateInfo)
-                            displayHint: MD.ToolBarLayout.KeepVisible
-                            busy: updateInstallQuery.pluginId === pluginItem.modelData.id && updateInstallQuery.querying ? (updateInstallQuery.progressing ? MD.Enum.Progress : MD.Enum.Busy) : MD.Enum.Idle
-                            progress: updateInstallQuery.pluginId === pluginItem.modelData.id ? updateInstallQuery.progress : 0
-                            onTriggered: {
-                                if (updateInstallQuery.querying || deleteQuery.querying)
-                                    return;
-                                root.installUpdate(pluginItem.modelData.id, pluginItem.modelData.updateInfo);
-                            }
-                        }
+                    visible: root.updateTagVisible(pluginItem.modelData.updateInfo)
+                    text: root.updateTagText(pluginItem.modelData.updateInfo)
+                    bgColor: root.updateTagBgColor(pluginItem.modelData.updateInfo)
+                    fgColor: root.updateTagFgColor(pluginItem.modelData.updateInfo)
 
-                        MD.Action {
-                            id: pluginDeleteAction
-                            text: qsTr("Delete")
-                            icon.name: MD.Token.icon.delete
-                            visible: pluginItem.modelData.system !== true
-                            displayHint: pluginUpdateAction.visible ? MD.ToolBarLayout.AlwaysHide : MD.ToolBarLayout.KeepVisible
-                            enabled: !deleteQuery.querying && !updateInstallQuery.querying
-                            onTriggered: deleteQuery.remove(pluginItem.modelData.id)
-                        }
+                    HoverHandler {
+                        id: pluginUpdateTagHover
                     }
-                    Flow {
-                        id: pluginFloatingTags
-                        anchors.top: parent.top
-                        anchors.topMargin: 8
-                        anchors.right: parent.right
-                        anchors.rightMargin: 16
-                        spacing: 6
-                        z: 2
 
-                        W.Tag {
-                            id: pluginUpdateTag
-                            readonly property string reason: root.updateTagTooltip(pluginItem.modelData.updateInfo)
-
-                            visible: root.updateTagVisible(pluginItem.modelData.updateInfo)
-                            text: root.updateTagText(pluginItem.modelData.updateInfo)
-                            bgColor: root.updateTagBgColor(pluginItem.modelData.updateInfo)
-                            fgColor: root.updateTagFgColor(pluginItem.modelData.updateInfo)
-
-                            HoverHandler {
-                                id: pluginUpdateTagHover
-                            }
-
-                            MD.ToolTip.visible: pluginUpdateTagHover.hovered && pluginUpdateTag.reason.length > 0
-                            MD.ToolTip.delay: 300
-                            MD.ToolTip.text: pluginUpdateTag.reason
-                        }
-                        W.Tag {
-                            text: "v" + (pluginItem.modelData.version || "0.0.0")
-                        }
-                    }
-                    below: Flow {
-                        spacing: 6
-                        bottomPadding: 8
-                        Repeater {
-                            model: pluginItem.modelData.renderers
-                            delegate: W.Tag {
-                                required property var modelData
-                                text: modelData.name || ""
-                            }
-                        }
+                    MD.ToolTip.visible: pluginUpdateTagHover.hovered && pluginUpdateTag.reason.length > 0
+                    MD.ToolTip.delay: 300
+                    MD.ToolTip.text: pluginUpdateTag.reason
+                }
+                W.Tag {
+                    text: "v" + (pluginItem.modelData.version || "0.0.0")
+                }
+            }
+            below: Flow {
+                spacing: 6
+                bottomPadding: 8
+                Repeater {
+                    model: pluginItem.modelData.renderers
+                    delegate: W.Tag {
+                        required property var modelData
+                        text: modelData.name || ""
                     }
                 }
             }
