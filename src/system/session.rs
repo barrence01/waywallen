@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
+use ashpd::{
+    desktop::inhibit::{InhibitProxy, SessionState},
+    WindowIdentifier,
+};
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
@@ -54,18 +58,55 @@ trait Login1Manager {
 // Internal event type
 
 enum SessionEvent {
-    /// The screen-saver / lock screen changed state.
     Locked(bool),
-    /// The login session's `Active` property changed.
     SessionActive(bool),
-    /// The current login1 session was removed.
+    PortalUnavailable,
+    PortalSessionEnding,
     LoginSessionRemoved,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExitReason {
     DaemonShutdown,
+    PortalSessionEnding,
     LoginSessionRemoved,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum SessionAction {
+    UpdateLocked(bool),
+    UpdateInactive(bool),
+    StartScreenSaver,
+    Exit(ExitReason),
+}
+
+#[derive(Default)]
+struct SessionMonitorState {
+    screen_saver_started: bool,
+    exit_requested: bool,
+}
+
+impl SessionMonitorState {
+    fn handle(&mut self, event: SessionEvent) -> Option<SessionAction> {
+        match event {
+            SessionEvent::Locked(active) => Some(SessionAction::UpdateLocked(active)),
+            SessionEvent::SessionActive(active) => Some(SessionAction::UpdateInactive(!active)),
+            SessionEvent::PortalUnavailable if !self.screen_saver_started => {
+                self.screen_saver_started = true;
+                Some(SessionAction::StartScreenSaver)
+            }
+            SessionEvent::PortalUnavailable => None,
+            SessionEvent::PortalSessionEnding if !self.exit_requested => {
+                self.exit_requested = true;
+                Some(SessionAction::Exit(ExitReason::PortalSessionEnding))
+            }
+            SessionEvent::LoginSessionRemoved if !self.exit_requested => {
+                self.exit_requested = true;
+                Some(SessionAction::Exit(ExitReason::LoginSessionRemoved))
+            }
+            SessionEvent::PortalSessionEnding | SessionEvent::LoginSessionRemoved => None,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -79,17 +120,16 @@ pub async fn run(
     log::info!("session_monitor: starting");
     let (tx, mut rx) = mpsc::channel::<SessionEvent>(16);
     let mut watchers = JoinSet::new();
+    let mut monitor_state = SessionMonitorState::default();
 
-    // --- Screen saver (session bus) ----------------------------------------
-    log::info!("session_monitor: session bus connected, starting screen-saver monitor");
+    log::info!("session_monitor: starting Portal session monitor");
     {
         let tx2 = tx.clone();
         watchers.spawn(async move {
-            monitor_screen_saver(session_bus, tx2).await;
+            monitor_portal_session(tx2).await;
         });
     }
 
-    // --- Login session (system bus) ----------------------------------------
     match zbus::Connection::system().await {
         Ok(conn) => {
             log::info!("session_monitor: system bus connected, starting login-session monitor");
@@ -103,31 +143,38 @@ pub async fn run(
         }
     }
 
-    // --- Main dispatch loop -------------------------------------------------
     let reason = loop {
         tokio::select! {
-            // Watch for shutdown signal.
             result = shutdown.changed() => {
                 if result.is_err() || *shutdown.borrow() {
                     break ExitReason::DaemonShutdown;
                 }
             }
-            // Receive events from sub-tasks and forward to router.
             Some(event) = rx.recv() => {
-                match event {
-                    SessionEvent::Locked(active) => {
+                match monitor_state.handle(event) {
+                    Some(SessionAction::UpdateLocked(active)) => {
                         log::info!("session_monitor: screen lock active={active}");
                         router.update_session_state(Some(active), None).await;
                     }
-                    SessionEvent::SessionActive(active) => {
-                        // session_inactive is the inverse of `Active`
-                        log::info!("session_monitor: login session active={active}");
-                        router.update_session_state(None, Some(!active)).await;
+                    Some(SessionAction::UpdateInactive(inactive)) => {
+                        log::info!("session_monitor: login session inactive={inactive}");
+                        router.update_session_state(None, Some(inactive)).await;
                     }
-                    SessionEvent::LoginSessionRemoved => {
-                        log::info!("session_monitor: login session removed");
-                        break ExitReason::LoginSessionRemoved;
+                    Some(SessionAction::StartScreenSaver) => {
+                        log::info!(
+                            "session_monitor: starting ScreenSaver monitor after Portal became unavailable"
+                        );
+                        let tx2 = tx.clone();
+                        let session_bus = session_bus.clone();
+                        watchers.spawn(async move {
+                            monitor_screen_saver(session_bus, tx2).await;
+                        });
                     }
+                    Some(SessionAction::Exit(reason)) => {
+                        log::info!("session_monitor: session ending: {reason:?}");
+                        break reason;
+                    }
+                    None => {}
                 }
             }
             joined = watchers.join_next(), if !watchers.is_empty() => {
@@ -142,6 +189,90 @@ pub async fn run(
     while watchers.join_next().await.is_some() {}
     log::info!("session_monitor: stopped");
     Ok(reason)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PortalAction {
+    Continue,
+    AcknowledgeQueryEnd,
+    EndSession,
+}
+
+fn portal_action(state: SessionState) -> PortalAction {
+    match state {
+        SessionState::Running => PortalAction::Continue,
+        SessionState::QueryEnd => PortalAction::AcknowledgeQueryEnd,
+        SessionState::Ending => PortalAction::EndSession,
+    }
+}
+
+async fn monitor_portal_session(tx: mpsc::Sender<SessionEvent>) {
+    if let Err(error) = monitor_portal_session_inner(tx.clone()).await {
+        log::error!("session_monitor: Portal session monitor unavailable: {error:#}");
+        let _ = tx.send(SessionEvent::PortalUnavailable).await;
+    }
+}
+
+async fn monitor_portal_session_inner(tx: mpsc::Sender<SessionEvent>) -> Result<()> {
+    let proxy = InhibitProxy::new()
+        .await
+        .context("failed to create Inhibit Portal proxy")?;
+
+    // Backends may emit the initial state as soon as CreateMonitor completes.
+    let mut states = proxy
+        .receive_state_changed()
+        .await
+        .context("failed to subscribe to Inhibit Portal state changes")?;
+    let session = proxy
+        .create_monitor(&WindowIdentifier::default())
+        .await
+        .context("failed to create Inhibit Portal monitor")?;
+    let mut closed = session
+        .receive_closed()
+        .await
+        .context("failed to subscribe to Inhibit Portal monitor closure")?;
+
+    log::info!("session_monitor: Portal session monitor active");
+
+    loop {
+        tokio::select! {
+            biased;
+            state = states.next() => {
+                let state = state.ok_or_else(|| anyhow!("Inhibit Portal state stream ended"))?;
+                let action = portal_action(state.session_state());
+
+                if action == PortalAction::AcknowledgeQueryEnd {
+                    // The portal requires this response within one second.
+                    if let Err(error) = proxy.query_end_response(&session).await {
+                        log::error!(
+                            "session_monitor: Inhibit Portal QueryEndResponse failed: {error}"
+                        );
+                    }
+                }
+
+                if action == PortalAction::EndSession {
+                    if tx.send(SessionEvent::PortalSessionEnding).await.is_err() {
+                        return Ok(());
+                    }
+                    return Ok(());
+                }
+
+                if tx
+                    .send(SessionEvent::Locked(state.screensaver_active()))
+                    .await
+                    .is_err()
+                {
+                    return Ok(());
+                }
+            }
+            details = closed.next() => {
+                return match details {
+                    Some(_) => Err(anyhow!("Inhibit Portal closed the monitor session")),
+                    None => Err(anyhow!("Inhibit Portal monitor closure stream ended")),
+                };
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -167,8 +298,7 @@ async fn monitor_screen_saver(conn: zbus::Connection, tx: mpsc::Sender<SessionEv
             let _ = tx.send(SessionEvent::Locked(active)).await;
         }
         Err(e) => {
-            // Service may not be running yet (screen not locked on startup).
-            log::info!("session_monitor: ScreenSaver.GetActive not available yet: {e}");
+            log::warn!("session_monitor: ScreenSaver.GetActive failed: {e}");
         }
     }
 
@@ -198,7 +328,7 @@ async fn monitor_screen_saver(conn: zbus::Connection, tx: mpsc::Sender<SessionEv
         }
     }
 
-    log::info!("session_monitor: ScreenSaver signal stream ended (service stopped?)");
+    log::warn!("session_monitor: ScreenSaver signal stream ended");
 }
 
 // ---------------------------------------------------------------------------
@@ -303,7 +433,7 @@ async fn monitor_login_session(conn: zbus::Connection, tx: mpsc::Sender<SessionE
         }
     }
 
-    log::info!("session_monitor: login1 session streams ended");
+    log::warn!("session_monitor: login1 session streams ended");
 }
 
 fn session_removed_matches(
@@ -318,6 +448,55 @@ fn session_removed_matches(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn portal_query_end_is_acknowledged_without_exiting() {
+        assert_eq!(
+            portal_action(SessionState::QueryEnd),
+            PortalAction::AcknowledgeQueryEnd
+        );
+        assert_ne!(
+            portal_action(SessionState::QueryEnd),
+            PortalAction::EndSession
+        );
+    }
+
+    #[test]
+    fn portal_ending_requests_portal_exit_reason() {
+        let mut state = SessionMonitorState::default();
+
+        assert_eq!(
+            state.handle(SessionEvent::PortalSessionEnding),
+            Some(SessionAction::Exit(ExitReason::PortalSessionEnding))
+        );
+    }
+
+    #[test]
+    fn duplicate_session_end_is_ignored() {
+        let mut state = SessionMonitorState::default();
+
+        assert_eq!(
+            state.handle(SessionEvent::LoginSessionRemoved),
+            Some(SessionAction::Exit(ExitReason::LoginSessionRemoved))
+        );
+        assert_eq!(state.handle(SessionEvent::PortalSessionEnding), None);
+    }
+
+    #[test]
+    fn screen_saver_starts_only_after_portal_is_unavailable() {
+        let mut state = SessionMonitorState::default();
+
+        assert_eq!(
+            state.handle(SessionEvent::Locked(true)),
+            Some(SessionAction::UpdateLocked(true))
+        );
+        assert!(!state.screen_saver_started);
+        assert_eq!(
+            state.handle(SessionEvent::PortalUnavailable),
+            Some(SessionAction::StartScreenSaver)
+        );
+        assert_eq!(state.handle(SessionEvent::PortalUnavailable), None);
+    }
 
     #[test]
     fn session_removed_only_matches_current_session() {
