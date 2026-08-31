@@ -8,6 +8,7 @@ export import :query.plugin;
 export import :query.tag;
 export import :query.library;
 export import :query.health;
+export import :query.log;
 export import :query.display;
 export import :query.gpu;
 export import :query.settings;

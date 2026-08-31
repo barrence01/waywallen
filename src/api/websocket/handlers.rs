@@ -1801,6 +1801,15 @@ pub(super) async fn dispatch_inner(
             })
         }
 
+        Req::LogRead(_) => {
+            let current = crate::logging::read_current_log().await?;
+            Res::LogRead(pb::LogReadResponse {
+                path: current.path.display().to_string(),
+                content: current.content,
+                truncated: current.truncated,
+            })
+        }
+
         Req::SettingsSet(r) => {
             // Full replace. Missing `global` falls back to current
             // values so callers can update only plugin settings.

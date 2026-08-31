@@ -174,6 +174,34 @@
     </message>
 </context>
 <context>
+    <name>DaemonLogDialog</name>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="10"/>
+        <source>Daemon log</source>
+        <translation>后台日志</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="34"/>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="44"/>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="49"/>
+        <source>Copied to clipboard</source>
+        <translation>已复制到剪贴板</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="122"/>
+        <source>The log is empty.</source>
+        <translation>日志为空。</translation>
+    </message>
+</context>
+<context>
     <name>DaemonNotRunDialog</name>
     <message>
         <location filename="../qml/dialog/DaemonNotRunDialog.qml" line="55"/>
@@ -1799,8 +1827,8 @@ Related display: #%1</source>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="756"/>
-        <source>Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.</source>
-        <translation>将调试级别消息写入日志文件（debug,zbus=warn）。立即生效。</translation>
+        <source>Include debug-level messages in the log file. Takes effect immediately.</source>
+        <translation>将调试级别消息写入日志文件。立即生效。</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="789"/>
@@ -2005,21 +2033,26 @@ Related display: #%1</source>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="102"/>
+        <source>Logs</source>
+        <translation>日志</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="115"/>
         <source>Exit</source>
         <translation>退出</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="107"/>
+        <location filename="../qml/page/StatusPage.qml" line="120"/>
         <source>Failed to stop daemon</source>
         <translation>停止守护进程失败</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="183"/>
+        <location filename="../qml/page/StatusPage.qml" line="196"/>
         <source>Kill renderer?</source>
         <translation>终止渲染器？</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="188"/>
+        <location filename="../qml/page/StatusPage.qml" line="201"/>
         <source>Stop the renderer process
 &quot;%1&quot;?
 Unsaved frame state may be lost.</source>
@@ -2028,57 +2061,57 @@ Unsaved frame state may be lost.</source>
 未保存的帧状态可能会丢失。</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="227"/>
+        <location filename="../qml/page/StatusPage.qml" line="240"/>
         <source>Daemon</source>
         <translation>后台</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="244"/>
+        <location filename="../qml/page/StatusPage.qml" line="257"/>
         <source>Service:</source>
         <translation>服务：</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="278"/>
+        <location filename="../qml/page/StatusPage.qml" line="291"/>
         <source>State:</source>
         <translation>状态：</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="309"/>
+        <location filename="../qml/page/StatusPage.qml" line="322"/>
         <source>Renderers</source>
         <translation>渲染器</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="317"/>
+        <location filename="../qml/page/StatusPage.qml" line="330"/>
         <source>Mute all</source>
         <translation>全部静音</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="328"/>
+        <location filename="../qml/page/StatusPage.qml" line="341"/>
         <source>Pause all</source>
         <translation>全部暂停</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="339"/>
+        <location filename="../qml/page/StatusPage.qml" line="352"/>
         <source>Stop all</source>
         <translation>全部停止</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="353"/>
+        <location filename="../qml/page/StatusPage.qml" line="366"/>
         <source>No renderers</source>
         <translation>没有渲染器</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="447"/>
+        <location filename="../qml/page/StatusPage.qml" line="460"/>
         <source>Components</source>
         <translation>组件</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="453"/>
+        <location filename="../qml/page/StatusPage.qml" line="466"/>
         <source>Supported types: %1</source>
         <translation>支持的类型：%1</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="458"/>
+        <location filename="../qml/page/StatusPage.qml" line="471"/>
         <source>No components</source>
         <translation>没有组件</translation>
     </message>

@@ -22,6 +22,8 @@ using proto::ServerFrame;
 
 using proto::HealthRequest;
 using proto::HealthResponse;
+using proto::LogReadRequest;
+using proto::LogReadResponse;
 
 using proto::RendererExit;
 using proto::RendererFailedState;

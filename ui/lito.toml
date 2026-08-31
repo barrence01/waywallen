@@ -62,6 +62,8 @@ sources = [
   "src/query/health_query.cppm",
   "src/query/library_query.cpp",
   "src/query/library_query.cppm",
+  "src/query/log_query.cpp",
+  "src/query/log_query.cppm",
   "src/query/mod.cppm",
   "src/query/playlist_query.cpp",
   "src/query/playlist_query.cppm",

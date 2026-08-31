@@ -5,7 +5,6 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::sync::watch;
 
-const CHILD_LOG_TARGET: &str = "waywallen::child";
 const MAX_LINE_BYTES: usize = 8 * 1024;
 const MAX_TAIL_BYTES: usize = 32 * 1024;
 const MAX_TAIL_LINES: usize = 64;
@@ -17,13 +16,13 @@ pub(crate) struct ChildStderrCapture {
 }
 
 impl ChildStderrCapture {
-    pub(crate) fn spawn<R>(stderr: R, role: String) -> Self
+    pub(crate) fn spawn<R>(stderr: R, target: String) -> Self
     where
         R: AsyncRead + Unpin + Send + 'static,
     {
         let tail = Arc::new(Mutex::new(StderrTail::default()));
         let (done_tx, done) = watch::channel(false);
-        tokio::spawn(read_stderr(stderr, role, Arc::clone(&tail), done_tx));
+        tokio::spawn(read_stderr(stderr, target, Arc::clone(&tail), done_tx));
         Self { tail, done }
     }
 
@@ -91,7 +90,7 @@ impl StderrTail {
 
 async fn read_stderr<R>(
     mut stderr: R,
-    role: String,
+    target: String,
     tail: Arc<Mutex<StderrTail>>,
     done: watch::Sender<bool>,
 ) where
@@ -103,13 +102,13 @@ async fn read_stderr<R>(
     loop {
         match stderr.read(&mut chunk).await {
             Ok(0) => {
-                emit_line(&role, &mut line, truncated, &tail);
+                emit_line(&target, &mut line, truncated, &tail);
                 break;
             }
             Ok(read) => {
                 for byte in &chunk[..read] {
                     if *byte == b'\n' {
-                        emit_line(&role, &mut line, truncated, &tail);
+                        emit_line(&target, &mut line, truncated, &tail);
                         truncated = false;
                     } else if line.len() < MAX_LINE_BYTES {
                         line.push(*byte);
@@ -119,7 +118,7 @@ async fn read_stderr<R>(
                 }
             }
             Err(error) => {
-                log::warn!(target: CHILD_LOG_TARGET, "failed to read {role} stderr: {error}");
+                log::warn!(target: &target, "failed to read stderr: {error}");
                 break;
             }
         }
@@ -127,7 +126,7 @@ async fn read_stderr<R>(
     let _ = done.send(true);
 }
 
-fn emit_line(role: &str, line: &mut Vec<u8>, truncated: bool, tail: &Arc<Mutex<StderrTail>>) {
+fn emit_line(target: &str, line: &mut Vec<u8>, truncated: bool, tail: &Arc<Mutex<StderrTail>>) {
     if line.last() == Some(&b'\r') {
         line.pop();
     }
@@ -139,7 +138,7 @@ fn emit_line(role: &str, line: &mut Vec<u8>, truncated: bool, tail: &Arc<Mutex<S
     if message.trim().is_empty() {
         return;
     }
-    log::info!(target: CHILD_LOG_TARGET, "[{role}] {message}");
+    log::info!(target: target, "{message}");
     tail.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .push(message);

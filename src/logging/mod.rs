@@ -10,6 +10,7 @@ use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::OnceLock;
 
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tracing_appender::non_blocking::{ErrorCounter, NonBlocking, NonBlockingBuilder, WorkerGuard};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::filter::EnvFilter;
@@ -23,6 +24,13 @@ type FilterHandle = reload::Handle<EnvFilter, Registry>;
 static FILTER_HANDLE: OnceLock<FilterHandle> = OnceLock::new();
 const DAILY_LOG_DIR: &str = "daemon";
 const LOG_ENV: &str = "WW_LOG";
+const LOG_VIEW_MAX_BYTES: u64 = 256 * 1024;
+
+pub struct CurrentLog {
+    pub path: std::path::PathBuf,
+    pub content: String,
+    pub truncated: bool,
+}
 
 pub struct LoggingGuard {
     worker: Option<WorkerGuard>,
@@ -88,6 +96,19 @@ pub fn init_in(policy: LoggingPolicy, dir: &Path) -> LoggingGuard {
         );
     }
     guard
+}
+
+pub async fn read_current_log() -> std::io::Result<CurrentLog> {
+    let root = log_dir().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::NotFound, "log directory is unavailable")
+    })?;
+    let path = resolve_current_log(&root.join(DAILY_LOG_DIR)).await?;
+    let (content, truncated) = read_log_tail(&path, LOG_VIEW_MAX_BYTES).await?;
+    Ok(CurrentLog {
+        path,
+        content,
+        truncated,
+    })
 }
 
 pub fn init_stderr(default_filter: &str) {
@@ -172,6 +193,61 @@ fn build_appender(
         builder = builder.latest_symlink(latest);
     }
     builder.build(dir)
+}
+
+async fn resolve_current_log(dir: &Path) -> std::io::Result<std::path::PathBuf> {
+    let current = dir.join(format!("{}-current.log", DEFAULT.file_prefix));
+    match tokio::fs::metadata(&current).await {
+        Ok(_) => return Ok(current),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+
+    let prefix = format!("{}.", DEFAULT.file_prefix);
+    let mut entries = tokio::fs::read_dir(dir).await?;
+    let mut latest = None;
+    while let Some(entry) = entries.next_entry().await? {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.starts_with(&prefix) || !name.ends_with(".log") {
+            continue;
+        }
+        let modified = entry.metadata().await?.modified()?;
+        if latest
+            .as_ref()
+            .is_none_or(|(latest_modified, _)| modified > *latest_modified)
+        {
+            latest = Some((modified, entry.path()));
+        }
+    }
+    latest.map(|(_, path)| path).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "current daemon log is unavailable",
+        )
+    })
+}
+
+async fn read_log_tail(path: &Path, max_bytes: u64) -> std::io::Result<(String, bool)> {
+    let mut file = tokio::fs::File::open(path).await?;
+    let len = file.metadata().await?.len();
+    let truncated = len > max_bytes;
+    if truncated {
+        file.seek(std::io::SeekFrom::Start(len - max_bytes - 1))
+            .await?;
+    }
+
+    let mut bytes = Vec::with_capacity(len.min(max_bytes) as usize);
+    file.read_to_end(&mut bytes).await?;
+    if truncated {
+        match bytes.iter().position(|byte| *byte == b'\n') {
+            Some(newline) => {
+                bytes.drain(..=newline);
+            }
+            None => bytes.clear(),
+        }
+    }
+    Ok((String::from_utf8_lossy(&bytes).into_owned(), truncated))
 }
 
 fn install(policy: LoggingPolicy, file: Option<FileWriter>) -> LoggingGuard {
@@ -323,5 +399,28 @@ mod tests {
             None
         );
         assert_eq!(renderer_log_level(std::ffi::OsStr::new("verbose")), None);
+    }
+
+    #[tokio::test]
+    async fn log_tail_starts_at_a_complete_line() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("waywallen.log");
+        tokio::fs::write(&path, "first line\nsecond line\nlatest line\n")
+            .await
+            .unwrap();
+
+        let (content, truncated) = read_log_tail(&path, 23).await.unwrap();
+        assert!(truncated);
+        assert_eq!(content, "latest line\n");
+
+        tokio::fs::write(&path, "first\nlatest\n").await.unwrap();
+        let (content, truncated) = read_log_tail(&path, 7).await.unwrap();
+        assert!(truncated);
+        assert_eq!(content, "latest\n");
+
+        tokio::fs::write(&path, "one very long line").await.unwrap();
+        let (content, truncated) = read_log_tail(&path, 4).await.unwrap();
+        assert!(truncated);
+        assert!(content.is_empty());
     }
 }

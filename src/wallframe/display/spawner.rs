@@ -420,7 +420,7 @@ pub async fn run_backend(
         let stderr = child.stderr.take().map(|child_stderr| {
             crate::wallframe::process_stdio::ChildStderrCapture::spawn(
                 child_stderr,
-                format!("display {}", def.name),
+                format!("display-{}", def.name),
             )
         });
         let pid = child.id();

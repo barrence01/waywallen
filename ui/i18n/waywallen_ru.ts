@@ -176,6 +176,34 @@
     </message>
 </context>
 <context>
+    <name>DaemonLogDialog</name>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="10"/>
+        <source>Daemon log</source>
+        <translation>Журнал демона</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="34"/>
+        <source>Refresh</source>
+        <translation>Обновить</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="44"/>
+        <source>Copy</source>
+        <translation>Копировать</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="49"/>
+        <source>Copied to clipboard</source>
+        <translation>Скопировано в буфер обмена</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/DaemonLogDialog.qml" line="122"/>
+        <source>The log is empty.</source>
+        <translation>Журнал пуст.</translation>
+    </message>
+</context>
+<context>
     <name>DaemonNotRunDialog</name>
     <message>
         <location filename="../qml/dialog/DaemonNotRunDialog.qml" line="55"/>
@@ -1805,8 +1833,8 @@ Related display: #%1</source>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="756"/>
-        <source>Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.</source>
-        <translation>Включать сообщения уровня отладки в файл журнала (debug,zbus=warn). Изменение применяется сразу.</translation>
+        <source>Include debug-level messages in the log file. Takes effect immediately.</source>
+        <translation>Включать сообщения уровня отладки в файл журнала. Изменение применяется сразу.</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="789"/>
@@ -2011,21 +2039,26 @@ Related display: #%1</source>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="102"/>
+        <source>Logs</source>
+        <translation>Журналы</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="115"/>
         <source>Exit</source>
         <translation>Выход</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="107"/>
+        <location filename="../qml/page/StatusPage.qml" line="120"/>
         <source>Failed to stop daemon</source>
         <translation>Не удалось остановить демон</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="183"/>
+        <location filename="../qml/page/StatusPage.qml" line="196"/>
         <source>Kill renderer?</source>
         <translation>Завершить рендерер?</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="188"/>
+        <location filename="../qml/page/StatusPage.qml" line="201"/>
         <source>Stop the renderer process
 &quot;%1&quot;?
 Unsaved frame state may be lost.</source>
@@ -2034,57 +2067,57 @@ Unsaved frame state may be lost.</source>
 Несохранённое состояние кадров может быть потеряно.</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="227"/>
+        <location filename="../qml/page/StatusPage.qml" line="240"/>
         <source>Daemon</source>
         <translation>Демон</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="244"/>
+        <location filename="../qml/page/StatusPage.qml" line="257"/>
         <source>Service:</source>
         <translation>Служба:</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="278"/>
+        <location filename="../qml/page/StatusPage.qml" line="291"/>
         <source>State:</source>
         <translation>Состояние:</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="309"/>
+        <location filename="../qml/page/StatusPage.qml" line="322"/>
         <source>Renderers</source>
         <translation>Рендереры</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="317"/>
+        <location filename="../qml/page/StatusPage.qml" line="330"/>
         <source>Mute all</source>
         <translation>Заглушить всё</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="328"/>
+        <location filename="../qml/page/StatusPage.qml" line="341"/>
         <source>Pause all</source>
         <translation>Приостановить всё</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="339"/>
+        <location filename="../qml/page/StatusPage.qml" line="352"/>
         <source>Stop all</source>
         <translation>Остановить всё</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="353"/>
+        <location filename="../qml/page/StatusPage.qml" line="366"/>
         <source>No renderers</source>
         <translation>Рендереров нет</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="447"/>
+        <location filename="../qml/page/StatusPage.qml" line="460"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="453"/>
+        <location filename="../qml/page/StatusPage.qml" line="466"/>
         <source>Supported types: %1</source>
         <translation>Поддерживаемые типы: %1</translation>
     </message>
     <message>
-        <location filename="../qml/page/StatusPage.qml" line="458"/>
+        <location filename="../qml/page/StatusPage.qml" line="471"/>
         <source>No components</source>
         <translation>Компонентов нет</translation>
     </message>

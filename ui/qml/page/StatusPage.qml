@@ -97,6 +97,19 @@ MD.Page {
     }
 
     MD.Action {
+        id: logAction
+        icon.name: MD.Token.icon.receipt_long
+        text: qsTr("Logs")
+        displayHint: MD.ToolBarLayout.KeepVisible
+        enabled: W.Notify.daemonPhase === W.Notify.DaemonPhase.Ready
+        property var presentation: null
+        onTriggered: {
+            if (!presentation?.active)
+                presentation = root.Window.window.presentPopup('waywallen.ui/DaemonLogDialog');
+        }
+    }
+
+    MD.Action {
         id: exitAction
         icon.name: MD.Token.icon.exit_to_app
         text: qsTr("Exit")
@@ -234,7 +247,7 @@ MD.Page {
 
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            actions: [exitAction]
+                            actions: [logAction, exitAction]
                         }
                     }
 

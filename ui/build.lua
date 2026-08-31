@@ -72,6 +72,7 @@ qt.qml_module({
     "qml/dialog/PluginActionFormDialog.qml",
     "qml/dialog/DisplayEditDialog.qml",
     "qml/dialog/CanvasDialog.qml",
+    "qml/dialog/DaemonLogDialog.qml",
     "qml/page/WallpaperPage.qml",
     "qml/page/PlaylistEditPage.qml",
     "qml/page/WallpaperDetailPanel.qml",
@@ -223,6 +224,11 @@ qt.qml_module({
       source = "src/query/health_query.cppm",
       mode = "module-split",
       output = "waywallen/query/health_query",
+    },
+    {
+      source = "src/query/log_query.cppm",
+      mode = "module-split",
+      output = "waywallen/query/log_query",
     },
     {
       source = "src/query/display_query.cppm",

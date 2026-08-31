@@ -753,7 +753,7 @@ MD.Page {
                         MD.Text {
                             text: getQ.wwLogActive
                                 ? qsTr("Disabled because WW_LOG is set.")
-                                : qsTr("Include debug-level messages in the log file (debug,zbus=warn). Takes effect immediately.")
+                                : qsTr("Include debug-level messages in the log file. Takes effect immediately.")
                             typescale: MD.Token.typescale.body_small
                             color: MD.Token.color.on_surface_variant
                             wrapMode: Text.WordWrap
