@@ -616,6 +616,55 @@ impl LuaPluginRuntime {
         }]
     }
 
+    fn discover_filter_options(
+        filter: &LuaTable,
+        context: &str,
+    ) -> Result<(Vec<DiscoverFilterOption>, &'static str)> {
+        let options = Self::optional_table(filter, "options", context)?;
+        let values = Self::optional_table(filter, "values", context)?;
+        if options.is_some() && values.is_some() {
+            return Err(Error::Internal(anyhow!(
+                "{context}.options and legacy {context}.values cannot both be present"
+            )));
+        }
+
+        if let Some(options) = options {
+            let mut out = Vec::new();
+            for (idx, option) in options.sequence_values::<LuaTable>().enumerate() {
+                let option_context = format!("{context}.options[{}]", idx + 1);
+                let option = option.map_err(|error| {
+                    Error::Internal(anyhow!("{option_context} must be an object: {error}"))
+                })?;
+                out.push(DiscoverFilterOption {
+                    value: Self::require_string(&option, "value", &option_context)?,
+                    label: Self::require_localized_text(&option, "label", &option_context)?,
+                });
+            }
+            return Ok((out, "options"));
+        }
+
+        if let Some(values) = values {
+            let mut out = Vec::new();
+            for (idx, value) in values.sequence_values::<String>().enumerate() {
+                let value = value.map_err(|error| {
+                    Error::Internal(anyhow!(
+                        "{context}.values[{}] must be a string: {error}",
+                        idx + 1
+                    ))
+                })?;
+                out.push(DiscoverFilterOption {
+                    label: LocalizedText::raw(value.clone()),
+                    value,
+                });
+            }
+            return Ok((out, "values"));
+        }
+
+        Err(Error::Internal(anyhow!(
+            "{context}.options required; legacy {context}.values is also accepted"
+        )))
+    }
+
     fn optional_discover_filters(discover_tbl: &LuaTable) -> Result<Option<Vec<DiscoverFilter>>> {
         let Some(filters_tbl) =
             Self::optional_table(discover_tbl, "filters", "info().capabilities.discover")?
@@ -658,39 +707,26 @@ impl LuaPluginRuntime {
                     )))
                 }
             };
-            let options_tbl: LuaTable = filter
-                .get("options")
-                .map_err(|error| Error::Internal(anyhow!("{context}.options required: {error}")))?;
-            let mut options = Vec::new();
-            for (option_idx, option) in options_tbl.sequence_values::<LuaTable>().enumerate() {
-                let option_context = format!("{context}.options[{}]", option_idx + 1);
-                let option = option.map_err(|error| {
-                    Error::Internal(anyhow!("{option_context} must be an object: {error}"))
-                })?;
-                options.push(DiscoverFilterOption {
-                    value: Self::require_string(&option, "value", &option_context)?,
-                    label: Self::require_localized_text(&option, "label", &option_context)?,
-                });
-            }
+            let (options, option_field) = Self::discover_filter_options(&filter, &context)?;
             if options.is_empty() {
                 return Err(Error::Internal(anyhow!(
-                    "{context}.options must not be empty"
+                    "{context}.{option_field} must not be empty"
                 )));
             }
             if ty == DiscoverFilterType::Toggle && options.len() != 1 {
                 return Err(Error::Internal(anyhow!(
-                    "{context}.options must contain exactly one option for a toggle"
+                    "{context}.{option_field} must contain exactly one value for a toggle"
                 )));
             }
             for option in &options {
                 if option.value.is_empty() {
                     return Err(Error::Internal(anyhow!(
-                        "{context}.options must not contain an empty value"
+                        "{context}.{option_field} must not contain an empty value"
                     )));
                 }
                 if !filter_values.insert(option.value.clone()) {
                     return Err(Error::Internal(anyhow!(
-                        "{context}.options contains duplicate discover value '{}'",
+                        "{context}.{option_field} contains duplicate discover value '{}'",
                         option.value
                     )));
                 }

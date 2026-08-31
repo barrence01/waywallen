@@ -1185,6 +1185,91 @@ return M
 }
 
 #[test]
+fn discover_filters_accept_legacy_values() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("legacy_filters.lua");
+    std::fs::write(
+        &path,
+        r#"
+local M = {}
+function M.info()
+    return {
+        name = "legacy_filters",
+        capabilities = {
+            discover = {
+                search = true,
+                filters = { {
+                    id = "type",
+                    title = "Type",
+                    type = "multi_select",
+                    values = { "Scene", "Video" },
+                } },
+            },
+        },
+    }
+end
+M.discover = {}
+function M.discover.search(ctx, params) return { items = {}, has_more = false } end
+return M
+"#,
+    )
+    .unwrap();
+
+    let mgr = SourceManager::new().unwrap();
+    mgr.load_plugin(&path, "test.plugin", "1.0", ENTRY_VERSION_V3)
+        .unwrap();
+    let options = &mgr.discover_sources().unwrap()[0].filters[0].options;
+    assert_eq!(options.len(), 2);
+    assert_eq!(options[0].value, "Scene");
+    assert_eq!(options[0].label, LocalizedText::raw("Scene"));
+    assert_eq!(options[1].value, "Video");
+    assert_eq!(options[1].label, LocalizedText::raw("Video"));
+    assert!(block_value(async {
+        mgr.call_discover("legacy_filters", "", "", 1, &["Scene".to_string()])
+            .await
+    })
+    .is_ok());
+}
+
+#[test]
+fn discover_filters_reject_options_with_legacy_values() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("ambiguous_filters.lua");
+    std::fs::write(
+        &path,
+        r#"
+local M = {}
+function M.info()
+    return {
+        name = "ambiguous_filters",
+        capabilities = {
+            discover = {
+                search = true,
+                filters = { {
+                    id = "type",
+                    title = "Type",
+                    type = "multi_select",
+                    options = { { value = "Scene", label = "Scene" } },
+                    values = { "Scene" },
+                } },
+            },
+        },
+    }
+end
+M.discover = {}
+function M.discover.search(ctx, params) return { items = {}, has_more = false } end
+return M
+"#,
+    )
+    .unwrap();
+
+    assert!(SourceManager::new()
+        .unwrap()
+        .load_plugin(&path, "test.plugin", "1.0", ENTRY_VERSION_V3)
+        .is_err());
+}
+
+#[test]
 fn remote_discovery_context_omits_filesystem_mutation() {
     let plugin = tempfile::tempdir().unwrap();
     let path = plugin.path().join("guarded.lua");
