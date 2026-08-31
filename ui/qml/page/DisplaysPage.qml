@@ -379,6 +379,28 @@ MD.Page {
 
     readonly property var targets: layoutTargets()
 
+    function targetLeftDecoration(target) {
+        if (target.kind !== "canvas")
+            return 0;
+        return root.canvasPaddingPx + (target.h > target.w ? root.canvasHeaderPx : 0);
+    }
+
+    function targetRightDecoration(target) {
+        return target.kind === "canvas" ? root.canvasPaddingPx : 0;
+    }
+
+    function targetHorizontalShift(index) {
+        let shift = 0;
+        for (let i = 0; i <= index; ++i) {
+            shift += root.targetLeftDecoration(root.targets[i]);
+            if (i < index)
+                shift += root.targetRightDecoration(root.targets[i]);
+        }
+        return shift;
+    }
+
+    readonly property real targetHorizontalDecorationWidth: targets.reduce((width, target) => width + targetLeftDecoration(target) + targetRightDecoration(target), 0)
+
     readonly property real boundsW: {
         if (targets.length === 0)
             return 1;
@@ -585,16 +607,16 @@ MD.Page {
 
                 readonly property bool hasCanvasTargets: root.targets.some(target => target.kind === "canvas")
                 readonly property bool hasHorizontalCanvasTargets: root.targets.some(target => target.kind === "canvas" && target.w >= target.h)
-                readonly property bool hasVerticalCanvasTargets: root.targets.some(target => target.kind === "canvas" && target.h > target.w)
                 readonly property real drawingPadding: hasCanvasTargets ? root.canvasPaddingPx : 0
-                readonly property real drawingLeft: (hasVerticalCanvasTargets ? root.canvasHeaderPx : 0) + drawingPadding
+                readonly property real drawingLeft: 0
                 readonly property real drawingTop: canvasActions.height + 12 + (hasHorizontalCanvasTargets ? root.canvasHeaderPx : 0) + drawingPadding
-                readonly property real drawingWidth: Math.max(1, width - drawingLeft - drawingPadding)
+                readonly property real drawingWidth: Math.max(1, width - drawingLeft)
                 readonly property real drawingHeight: Math.max(1, height - drawingTop - drawingPadding)
                 readonly property real viewScale: {
-                    return Math.min(drawingWidth / root.boundsW, drawingHeight / root.boundsH);
+                    const contentWidth = Math.max(1, drawingWidth - root.targetHorizontalDecorationWidth);
+                    return Math.min(contentWidth / root.boundsW, drawingHeight / root.boundsH);
                 }
-                readonly property real offsetX: drawingLeft + (drawingWidth - root.boundsW * viewScale) / 2
+                readonly property real offsetX: drawingLeft + (drawingWidth - root.boundsW * viewScale - root.targetHorizontalDecorationWidth) / 2
                 readonly property real offsetY: drawingTop + (drawingHeight - root.boundsH * viewScale) / 2
 
                 MouseArea {
@@ -658,7 +680,7 @@ MD.Page {
                         readonly property bool verticalCanvasHeader: isCanvas && modelData.h > modelData.w
                         readonly property real bodyY: canvas.offsetY + (modelData.y - root.boundsY) * canvas.viewScale
                         readonly property real canvasPadding: isCanvas ? root.canvasPaddingPx : 0
-                        readonly property real bodyX: canvas.offsetX + (modelData.x - root.boundsX) * canvas.viewScale
+                        readonly property real bodyX: canvas.offsetX + (modelData.x - root.boundsX) * canvas.viewScale + root.targetHorizontalShift(index)
 
                         z: isDisplay ? 2 : 1
                         x: isCanvas ? bodyX - (verticalCanvasHeader ? root.canvasHeaderPx : 0) - canvasPadding : bodyX
