@@ -259,6 +259,7 @@ ColumnLayout {
             mdState.size: MD.Enum.S
             inputMethodHints: root.schema.type === root.kU32 ? Qt.ImhDigitsOnly : Qt.ImhFormattedNumbersOnly
             validator: root._isIntegerType(root.schema.type) ? intValidator : doubleValidator
+            onTextEdited: root._emit(text)
             onEditingFinished: root._emit(text)
 
             IntValidator {
