@@ -1,3 +1,27 @@
+<release version="0.3.8" date="2026-08-31">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>Daemon file logging with configurable retention and filtering. #231 by @barrence01</li>
+      <li>In-app daemon log viewer.</li>
+      <li>AppImage zsync updates.</li>
+      <li>Layershell display supports COSMIC auto-pause.</li>
+    </ul>
+    <p>Improved:</p>
+    <ul>
+      <li>Plugin update failures show their reason. #235 by @wehrwolfmann</li>
+      <li>Remote filter values support plugin translations. #239 by @CatSema</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Daemon file logging no longer panics during startup. #238 by @barrence01</li>
+      <li>Playlist navigation and position updates stay synchronized.</li>
+      <li>The daemon stops when the desktop login session ends.</li>
+      <li>Mute startup audio when switch wallpaper with mute state.</li>
+      <li>Display backend guidance follows the selected backend.</li>
+    </ul>
+  </description>
+</release>
 <release version="0.3.7" date="2026-08-25">
   <description>
     <p>Added:</p>
