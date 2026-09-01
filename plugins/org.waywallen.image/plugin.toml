@@ -5,7 +5,7 @@ id = "org.waywallen.image"
 name = "Image"
 version = "0.3.7"
 entry = "main.lua"
-entry_version = 2
+entry_version = 4
 
 [plugin.i18n]
 directory = "i18n"

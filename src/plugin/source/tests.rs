@@ -798,7 +798,7 @@ return bad
 }
 
 #[test]
-fn entry_versions_v2_and_v3_are_supported_and_newer_is_rejected() {
+fn entry_versions_v3_and_v4_are_supported_and_other_versions_are_rejected() {
     let dir = tempfile::tempdir().unwrap();
     let plugin_path = dir.path().join("main.lua");
     std::fs::write(
@@ -824,11 +824,15 @@ return M
 
     let mgr = SourceManager::new().unwrap();
     assert!(mgr
-        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V2)
-        .is_ok());
+        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V3 - 1)
+        .is_err());
     let mgr = SourceManager::new().unwrap();
     assert!(mgr
         .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V3)
+        .is_ok());
+    let mgr = SourceManager::new().unwrap();
+    assert!(mgr
+        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V4)
         .is_ok());
     let mgr = SourceManager::new().unwrap();
     assert!(mgr
@@ -843,7 +847,7 @@ fn wallhaven_plugin_supports_optional_api_key_login() {
 
     let mgr = SourceManager::new().unwrap();
     let name = mgr
-        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V3)
+        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V4)
         .unwrap();
     assert_eq!(name, "wallhaven");
     assert!(mgr.plugins().unwrap().is_empty());
@@ -1185,7 +1189,7 @@ return M
 }
 
 #[test]
-fn discover_filters_accept_legacy_values() {
+fn discover_filters_accept_legacy_values_only_for_v3() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("legacy_filters.lua");
     std::fs::write(
@@ -1229,6 +1233,14 @@ return M
             .await
     })
     .is_ok());
+
+    let error = SourceManager::new()
+        .unwrap()
+        .load_plugin(&path, "test.plugin", "1.0", ENTRY_VERSION_V4)
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("values is only supported for entry_version 3"));
 }
 
 #[test]
@@ -1605,7 +1617,7 @@ return M
 }
 
 #[test]
-fn v3_remote_capabilities_are_mutually_exclusive() {
+fn supported_remote_capabilities_are_mutually_exclusive() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("main.lua");
     let script = |flags: &str, api: &str| {
@@ -1637,8 +1649,8 @@ return M
         .is_err());
     assert!(SourceManager::new()
         .unwrap()
-        .load_plugin(&path, "org.test", "1", ENTRY_VERSION_V2)
-        .is_ok());
+        .load_plugin(&path, "org.test", "1", ENTRY_VERSION_V4)
+        .is_err());
 
     let orphan_actions = "M.actions = {}\nfunction M.actions.status(ctx) return {} end";
     std::fs::write(&path, script("", orphan_actions)).unwrap();

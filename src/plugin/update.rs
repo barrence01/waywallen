@@ -369,7 +369,7 @@ mod tests {
         let src = r#"
             {
                 "version": "0.2.0",
-                "entry_version": 2,
+                "entry_version": 4,
                 "spawn_version": 6,
                 "x86_64": {
                     "zip_url": "https://example.org/owe/x86_64.zip",
@@ -382,7 +382,7 @@ mod tests {
             }
         "#;
         let m = PluginUpdateManifest::from_json_str(src).expect("parses");
-        assert_eq!(m.entry_version, 2);
+        assert_eq!(m.entry_version, 4);
         assert_eq!(m.spawn_version, 6);
         let x86_64 = m.package_for_arch("x86_64").expect("x86_64 package");
         assert_eq!(x86_64.zip_url, "https://example.org/owe/x86_64.zip");
@@ -397,7 +397,7 @@ mod tests {
         let src = r#"
             {
                 "version": "0.2.0",
-                "entry_version": [2],
+                "entry_version": [4],
                 "spawn_version": [6],
                 "x86_64": {
                     "zip_url": "https://example.org/owe/x86_64.zip",
@@ -461,7 +461,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_update_manifests_for_entry_v2_and_v3() {
+    fn accepts_update_manifests_for_entry_v3_and_v4() {
         let pkg = PluginPackageMeta {
             id: "org.test".into(),
             name: "Test".into(),
@@ -474,7 +474,7 @@ mod tests {
             zip_url: "https://example.invalid/plugin.zip".into(),
             sha256: "00".repeat(32),
         };
-        for entry_version in [source::ENTRY_VERSION_V2, source::ENTRY_VERSION_V3] {
+        for entry_version in [source::ENTRY_VERSION_V3, source::ENTRY_VERSION_V4] {
             let manifest = PluginUpdateManifest {
                 version: "2.0.0".into(),
                 entry_version,
@@ -487,6 +487,18 @@ mod tests {
                 PluginUpdateState::Available
             );
         }
+
+        let manifest = PluginUpdateManifest {
+            version: "2.0.0".into(),
+            entry_version: source::ENTRY_VERSION_V3 - 1,
+            spawn_version: renderer_manager::SPAWN_VERSION,
+            x86_64: Some(package.clone()),
+            aarch64: Some(package),
+        };
+        assert_eq!(
+            info_from_manifest(&pkg, manifest, 7).state,
+            PluginUpdateState::Unsupported
+        );
     }
 
     #[test]

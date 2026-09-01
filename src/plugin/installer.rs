@@ -47,6 +47,20 @@ fn read_plugin_id(manifest: &Path) -> std::result::Result<String, String> {
 fn read_plugin_info_from_text(text: &str) -> std::result::Result<PluginArchiveInfo, String> {
     let manifest: crate::plugin::renderer_registry::PluginManifest =
         toml::from_str(text).map_err(|e| format!("parse plugin.toml: {e}"))?;
+    match (
+        manifest.plugin.entry.as_ref(),
+        manifest.plugin.entry_version,
+    ) {
+        (Some(_), Some(version)) if crate::plugin::source::supports_entry_version(version) => {}
+        (Some(_), Some(version)) => {
+            return Err(format!(
+                "entry_version {version} is unsupported; supported versions are {:?}",
+                crate::plugin::source::SUPPORTED_ENTRY_VERSIONS
+            ));
+        }
+        (Some(_), None) => return Err("plugin.entry requires plugin.entry_version".into()),
+        (None, _) => {}
+    }
     let mut renderers: Vec<_> = manifest.renderers.keys().cloned().collect();
     renderers.sort();
     Ok(PluginArchiveInfo {
@@ -189,7 +203,8 @@ pub fn install_zip(zip_path: &str) -> Result<String> {
         if !manifest.is_file() {
             return Err(install_fail("archive must contain plugin.toml at root"));
         }
-        let id = read_plugin_id(&manifest).map_err(install_fail)?;
+        let info = read_plugin_info(&manifest).map_err(install_fail)?;
+        let id = info.id;
         validate_plugin_dir_name(&id)?;
         let target = dest_root.join(&id);
         remove_existing(&target)?;
@@ -375,7 +390,7 @@ name = "Inspect"
 version = "2.1.0"
 update = "https://example.org/inspect/update.json"
 entry = "main.lua"
-entry_version = 2
+entry_version = 4
 
 [renderers.scene]
 bin = "bin/renderer"
@@ -397,6 +412,84 @@ types = ["scene"]
         );
         assert!(info.has_source);
         assert_eq!(info.renderers, vec!["scene".to_string()]);
+    }
+
+    #[test]
+    fn install_zip_rejects_unsupported_entry_version_before_overwrite() {
+        let tmp = tempfile::tempdir().unwrap();
+        let current_zip = tmp.path().join("current.zip");
+        let unsupported_zip = tmp.path().join("unsupported.zip");
+        write_zip(
+            &current_zip,
+            &[
+                (
+                    "plugin.toml",
+                    r#"[plugin]
+id = "org.example.version"
+name = "Version"
+entry = "main.lua"
+entry_version = 4
+"#,
+                ),
+                ("files.txt", "plugin.toml\nfiles.txt\nmain.lua\n"),
+                ("main.lua", "return 'current'\n"),
+            ],
+        );
+        write_zip(
+            &unsupported_zip,
+            &[
+                (
+                    "plugin.toml",
+                    r#"[plugin]
+id = "org.example.version"
+name = "Version"
+entry = "main.lua"
+entry_version = 2
+"#,
+                ),
+                ("files.txt", "plugin.toml\nfiles.txt\nmain.lua\n"),
+                ("main.lua", "return 'unsupported'\n"),
+            ],
+        );
+
+        with_xdg_data_home(tmp.path(), || {
+            install_zip(current_zip.to_str().unwrap()).unwrap();
+            let error = install_zip(unsupported_zip.to_str().unwrap()).unwrap_err();
+            assert!(error.to_string().contains("entry_version 2 is unsupported"));
+            let entry = tmp
+                .path()
+                .join("waywallen/plugins/org.example.version/main.lua");
+            assert_eq!(
+                std::fs::read_to_string(entry).unwrap(),
+                "return 'current'\n"
+            );
+        });
+    }
+
+    #[test]
+    fn inspect_zip_rejects_missing_entry_version() {
+        let tmp = tempfile::tempdir().unwrap();
+        let zip_path = tmp.path().join("missing-version.zip");
+        write_zip(
+            &zip_path,
+            &[
+                (
+                    "plugin.toml",
+                    r#"[plugin]
+id = "org.example.missing-version"
+name = "Missing version"
+entry = "main.lua"
+"#,
+                ),
+                ("files.txt", "plugin.toml\nfiles.txt\nmain.lua\n"),
+                ("main.lua", "return {}\n"),
+            ],
+        );
+
+        let error = inspect_zip(zip_path.to_str().unwrap()).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("plugin.entry requires plugin.entry_version"));
     }
 
     #[test]

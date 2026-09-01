@@ -3,7 +3,7 @@ id = "org.waywallen.wallhaven"
 name = "Wallhaven"
 version = "0.1.0"
 entry = "main.lua"
-entry_version = 3
+entry_version = 4
 
 [plugin.i18n]
 directory = "i18n"

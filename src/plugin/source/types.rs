@@ -13,11 +13,11 @@ pub(super) const RUNTIME_ACTIVE: u8 = 0;
 pub(super) const RUNTIME_DRAINING: u8 = 1;
 pub(super) const RUNTIME_INACTIVE: u8 = 2;
 
-pub const ENTRY_VERSION_V2: u32 = 2;
 pub const ENTRY_VERSION_V3: u32 = 3;
-pub const ENTRY_VERSION: u32 = ENTRY_VERSION_V2;
-pub const LATEST_ENTRY_VERSION: u32 = ENTRY_VERSION_V3;
-pub const SUPPORTED_ENTRY_VERSIONS: &[u32] = &[ENTRY_VERSION_V2, ENTRY_VERSION_V3];
+pub const ENTRY_VERSION_V4: u32 = 4;
+pub const ENTRY_VERSION: u32 = ENTRY_VERSION_V4;
+pub const LATEST_ENTRY_VERSION: u32 = ENTRY_VERSION_V4;
+pub const SUPPORTED_ENTRY_VERSIONS: &[u32] = &[ENTRY_VERSION_V3, ENTRY_VERSION_V4];
 
 pub fn supports_entry_version(version: u32) -> bool {
     SUPPORTED_ENTRY_VERSIONS.contains(&version)

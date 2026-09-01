@@ -120,7 +120,7 @@ pub struct LuaPluginRuntime {
     /// plugin name → registry key for the loaded module table.
     plugins: HashMap<String, LuaRegistryKey>,
     callbacks: HashMap<String, PluginCallbacks>,
-    /// source `info().name` → parsed ABI v2 metadata.
+    /// source `info().name` → parsed entry metadata.
     plugin_infos: HashMap<String, LoadedPluginInfo>,
     /// Flattened scan results from all plugins.
     entries: Vec<WallpaperEntry>,
@@ -619,6 +619,7 @@ impl LuaPluginRuntime {
     fn discover_filter_options(
         filter: &LuaTable,
         context: &str,
+        entry_version: u32,
     ) -> Result<(Vec<DiscoverFilterOption>, &'static str)> {
         let options = Self::optional_table(filter, "options", context)?;
         let values = Self::optional_table(filter, "values", context)?;
@@ -644,6 +645,11 @@ impl LuaPluginRuntime {
         }
 
         if let Some(values) = values {
+            if entry_version != ENTRY_VERSION_V3 {
+                return Err(Error::Internal(anyhow!(
+                    "{context}.values is only supported for entry_version {ENTRY_VERSION_V3}; use {context}.options"
+                )));
+            }
             let mut out = Vec::new();
             for (idx, value) in values.sequence_values::<String>().enumerate() {
                 let value = value.map_err(|error| {
@@ -660,12 +666,13 @@ impl LuaPluginRuntime {
             return Ok((out, "values"));
         }
 
-        Err(Error::Internal(anyhow!(
-            "{context}.options required; legacy {context}.values is also accepted"
-        )))
+        Err(Error::Internal(anyhow!("{context}.options required")))
     }
 
-    fn optional_discover_filters(discover_tbl: &LuaTable) -> Result<Option<Vec<DiscoverFilter>>> {
+    fn optional_discover_filters(
+        discover_tbl: &LuaTable,
+        entry_version: u32,
+    ) -> Result<Option<Vec<DiscoverFilter>>> {
         let Some(filters_tbl) =
             Self::optional_table(discover_tbl, "filters", "info().capabilities.discover")?
         else {
@@ -707,7 +714,8 @@ impl LuaPluginRuntime {
                     )))
                 }
             };
-            let (options, option_field) = Self::discover_filter_options(&filter, &context)?;
+            let (options, option_field) =
+                Self::discover_filter_options(&filter, &context, entry_version)?;
             if options.is_empty() {
                 return Err(Error::Internal(anyhow!(
                     "{context}.{option_field} must not be empty"
@@ -903,7 +911,7 @@ impl LuaPluginRuntime {
                 )?;
                 if auto_detect {
                     Self::require_table_function(&source_api, "auto_detect", "module.source")?;
-                } else if entry_version == ENTRY_VERSION_V3 {
+                } else {
                     Self::require_field_absent(&source_api, "auto_detect", "module.source")?;
                 }
                 let types = Self::require_string_sequence(
@@ -974,7 +982,7 @@ impl LuaPluginRuntime {
                 )?;
                 if supports_details {
                     Self::require_table_function(&discover_api, "details", "module.discover")?;
-                } else if entry_version == ENTRY_VERSION_V3 {
+                } else {
                     Self::require_field_absent(&discover_api, "details", "module.discover")?;
                 }
                 if supports_download {
@@ -991,11 +999,6 @@ impl LuaPluginRuntime {
                     }
                     (true, false) => Some(RemoteCapability::Download),
                     (false, true) => {
-                        if entry_version != ENTRY_VERSION_V3 {
-                            return Err(Error::Internal(anyhow!(
-                                "subscription capability requires entry_version {ENTRY_VERSION_V3}"
-                            )));
-                        }
                         let subscription_api =
                             Self::require_module_table(module, "subscription")?;
                         Self::require_table_function(
@@ -1017,32 +1020,28 @@ impl LuaPluginRuntime {
                     }
                     (false, false) => None,
                 };
-                if entry_version == ENTRY_VERSION_V3
-                    && supports_resolve
-                    && remote != Some(RemoteCapability::Download)
-                {
+                if supports_resolve && remote != Some(RemoteCapability::Download) {
                     return Err(Error::Internal(anyhow!(
                         "info().capabilities.discover.resolve requires download capability"
                     )));
                 }
-                if entry_version == ENTRY_VERSION_V3 {
-                    for (callback, declared) in [
-                        ("download", supports_download),
-                        ("resolve", supports_resolve),
-                    ] {
-                        if !declared {
-                            Self::require_field_absent(&discover_api, callback, "module.discover")?;
-                        }
-                    }
-                    let subscription_api = Self::optional_table(module, "subscription", "module")?;
-                    if supports_subscription != subscription_api.is_some() {
-                        return Err(Error::Internal(anyhow!(
-                            "module.subscription presence must match the subscription capability"
-                        )));
+                for (callback, declared) in [
+                    ("download", supports_download),
+                    ("resolve", supports_resolve),
+                ] {
+                    if !declared {
+                        Self::require_field_absent(&discover_api, callback, "module.discover")?;
                     }
                 }
+                let subscription_api = Self::optional_table(module, "subscription", "module")?;
+                if supports_subscription != subscription_api.is_some() {
+                    return Err(Error::Internal(anyhow!(
+                        "module.subscription presence must match the subscription capability"
+                    )));
+                }
                 let sorts = Self::optional_discover_sorts(&discover_tbl)?;
-                let declared_filters = Self::optional_discover_filters(&discover_tbl)?;
+                let declared_filters =
+                    Self::optional_discover_filters(&discover_tbl, entry_version)?;
                 let legacy_tags = Self::optional_string_sequence(
                     &discover_tbl,
                     "tags",
@@ -1094,76 +1093,74 @@ impl LuaPluginRuntime {
             )?;
             if wallpaper.apply {
                 Self::require_table_function(&wallpaper_api, "apply", "module.wallpaper")?;
-            } else if entry_version == ENTRY_VERSION_V3 {
+            } else {
                 Self::require_field_absent(&wallpaper_api, "apply", "module.wallpaper")?;
             }
             if wallpaper.properties {
                 Self::require_table_function(&wallpaper_api, "properties", "module.wallpaper")?;
-            } else if entry_version == ENTRY_VERSION_V3 {
+            } else {
                 Self::require_field_absent(&wallpaper_api, "properties", "module.wallpaper")?;
             }
         }
 
         let settings = Self::parse_source_settings(&info_table)?;
-        let actions = Self::parse_source_actions(&info_table, entry_version)?;
+        let actions = Self::parse_source_actions(&info_table)?;
         let status = Self::parse_source_status(&info_table)?;
         let state_migrations = Self::parse_state_migrations(&info_table)?;
         let lifecycle = Self::optional_table(module, "lifecycle", "module")?;
         let actions_api = Self::optional_table(module, "actions", "module")?;
         let qrlogin = Self::optional_table(module, "qrlogin", "module")?;
-        if entry_version == ENTRY_VERSION_V3 {
-            if let Some(lifecycle) = &lifecycle {
-                Self::require_table_function(lifecycle, "load", "module.lifecycle")?;
-                Self::require_table_function(lifecycle, "save", "module.lifecycle")?;
-                Self::require_table_function(lifecycle, "check", "module.lifecycle")?;
-                if !state_migrations.is_empty() {
-                    Self::require_table_function(lifecycle, "migrate", "module.lifecycle")?;
-                }
-            } else if !state_migrations.is_empty() {
-                return Err(Error::Internal(anyhow!(
-                    "info().state_migrations requires module.lifecycle"
-                )));
+        if let Some(lifecycle) = &lifecycle {
+            Self::require_table_function(lifecycle, "load", "module.lifecycle")?;
+            Self::require_table_function(lifecycle, "save", "module.lifecycle")?;
+            Self::require_table_function(lifecycle, "check", "module.lifecycle")?;
+            if !state_migrations.is_empty() {
+                Self::require_table_function(lifecycle, "migrate", "module.lifecycle")?;
             }
+        } else if !state_migrations.is_empty() {
+            return Err(Error::Internal(anyhow!(
+                "info().state_migrations requires module.lifecycle"
+            )));
+        }
 
-            let has_action_surface = !actions.is_empty() || !status.is_empty();
-            if has_action_surface != actions_api.is_some() {
-                return Err(Error::Internal(anyhow!(
-                    "module.actions presence must match declared actions/status"
-                )));
+        let has_action_surface = !actions.is_empty() || !status.is_empty();
+        if has_action_surface != actions_api.is_some() {
+            return Err(Error::Internal(anyhow!(
+                "module.actions presence must match declared actions/status"
+            )));
+        }
+        if has_action_surface {
+            let actions_api = actions_api.as_ref().ok_or_else(|| {
+                Error::Internal(anyhow!(
+                    "module.actions table required for declared actions/status"
+                ))
+            })?;
+            Self::require_table_function(actions_api, "status", "module.actions")?;
+            if actions.iter().any(|action| {
+                matches!(
+                    action.kind,
+                    SourceActionKind::Invoke | SourceActionKind::Form
+                )
+            }) {
+                Self::require_table_function(actions_api, "invoke", "module.actions")?;
+            } else {
+                Self::require_field_absent(actions_api, "invoke", "module.actions")?;
             }
-            if has_action_surface {
-                let actions_api = actions_api.as_ref().ok_or_else(|| {
-                    Error::Internal(anyhow!(
-                        "module.actions table required for declared actions/status"
-                    ))
-                })?;
-                Self::require_table_function(actions_api, "status", "module.actions")?;
-                if actions.iter().any(|action| {
-                    matches!(
-                        action.kind,
-                        SourceActionKind::Invoke | SourceActionKind::Form
-                    )
-                }) {
-                    Self::require_table_function(actions_api, "invoke", "module.actions")?;
-                } else {
-                    Self::require_field_absent(actions_api, "invoke", "module.actions")?;
-                }
-            }
-            let has_qr_action = actions
-                .iter()
-                .any(|action| action.kind == SourceActionKind::QrLogin);
-            if has_qr_action != qrlogin.is_some() {
-                return Err(Error::Internal(anyhow!(
-                    "module.qrlogin presence must match declared qr_login actions"
-                )));
-            }
-            if has_qr_action {
-                let qrlogin = qrlogin.as_ref().ok_or_else(|| {
-                    Error::Internal(anyhow!("module.qrlogin table required for qr_login action"))
-                })?;
-                Self::require_table_function(qrlogin, "begin", "module.qrlogin")?;
-                Self::require_table_function(qrlogin, "poll", "module.qrlogin")?;
-            }
+        }
+        let has_qr_action = actions
+            .iter()
+            .any(|action| action.kind == SourceActionKind::QrLogin);
+        if has_qr_action != qrlogin.is_some() {
+            return Err(Error::Internal(anyhow!(
+                "module.qrlogin presence must match declared qr_login actions"
+            )));
+        }
+        if has_qr_action {
+            let qrlogin = qrlogin.as_ref().ok_or_else(|| {
+                Error::Internal(anyhow!("module.qrlogin table required for qr_login action"))
+            })?;
+            Self::require_table_function(qrlogin, "begin", "module.qrlogin")?;
+            Self::require_table_function(qrlogin, "poll", "module.qrlogin")?;
         }
         let display_name = {
             let dn = Self::optional_localized_text(&info_table, "display_name", "info()")?;
@@ -1194,7 +1191,7 @@ impl LuaPluginRuntime {
     }
 
     /// Parse the optional `info().actions` sequence.
-    fn parse_source_actions(info: &LuaTable, entry_version: u32) -> Result<Vec<SourceAction>> {
+    fn parse_source_actions(info: &LuaTable) -> Result<Vec<SourceAction>> {
         let mut out = Vec::new();
         let mut ids = HashSet::new();
         for entry in Self::info_sequence(info, "actions")? {
@@ -1213,11 +1210,11 @@ impl LuaPluginRuntime {
             }
             let kind = match Self::optional_string(&entry, "kind", "info().actions")?.as_str() {
                 "" | "invoke" => SourceActionKind::Invoke,
-                "qr_login" if entry_version == ENTRY_VERSION_V3 => SourceActionKind::QrLogin,
-                "form" if entry_version == ENTRY_VERSION_V3 => SourceActionKind::Form,
+                "qr_login" => SourceActionKind::QrLogin,
+                "form" => SourceActionKind::Form,
                 value => {
                     return Err(Error::Internal(anyhow!(
-                        "info().actions kind '{value}' is unsupported for entry_version {entry_version}"
+                        "info().actions kind '{value}' is unsupported"
                     )))
                 }
             };

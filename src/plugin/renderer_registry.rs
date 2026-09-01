@@ -1195,7 +1195,7 @@ directory = "../i18n"
             id = "org.waywallen.mpv"
             name = "mpv"
             entry = "mpv.lua"
-            entry_version = 2
+            entry_version = 4
 
             [renderers.waywallen-mpv]
             bin = "bin/waywallen-mpv-renderer"
@@ -1210,7 +1210,7 @@ directory = "../i18n"
         "#;
         let m: PluginManifest = toml::from_str(src).expect("manifest parses");
         assert_eq!(m.plugin.entry.as_ref().unwrap(), &PathBuf::from("mpv.lua"));
-        assert_eq!(m.plugin.entry_version, Some(2));
+        assert_eq!(m.plugin.entry_version, Some(4));
         let r = &m.renderers["waywallen-mpv"];
         assert_eq!(r.spawn_version, Some(1));
         assert_eq!(r.extras, vec!["subtitle".to_string()]);
