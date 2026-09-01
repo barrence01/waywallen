@@ -8,8 +8,8 @@ pub struct LoggingPolicy {
     pub async_channel_size: usize,
 }
 
-pub const DEFAULT_FILTER: &str = "info,zbus=warn";
-pub const DEBUG_FILTER: &str = "debug,zbus=warn";
+pub const DEFAULT_FILTER: &str = "info,zbus=warn,selectors::matching=warn,html5ever=warn";
+pub const DEBUG_FILTER: &str = "debug,zbus=warn,selectors::matching=warn,html5ever=warn";
 
 pub fn filter_for_debug(enabled: bool) -> &'static str {
     if enabled {

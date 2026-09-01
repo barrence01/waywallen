@@ -133,7 +133,7 @@ pub fn apply_debug_setting(enabled: bool) {
     };
     let filter = filter_for_debug(enabled);
     let parsed = match EnvFilter::try_new(filter) {
-        Ok(parsed) => parsed,
+        Ok(parsed) => force_dependency_warn_levels(parsed),
         Err(error) => {
             log::warn!("failed to parse log filter {filter}: {error}");
             return;
@@ -298,26 +298,29 @@ fn filter_from_environment(default_filter: &str) -> EnvFilter {
 
 fn filter_from_value(default_filter: &str, raw: Option<&std::ffi::OsStr>) -> EnvFilter {
     let Some(raw) = raw else {
-        return EnvFilter::try_new(default_filter).unwrap_or_else(|error| {
-            panic!("invalid built-in log filter {default_filter}: {error}")
-        });
+        return force_dependency_warn_levels(EnvFilter::try_new(default_filter).unwrap_or_else(
+            |error| panic!("invalid built-in log filter {default_filter}: {error}"),
+        ));
     };
     match raw.to_str().and_then(|raw| EnvFilter::try_new(raw).ok()) {
-        Some(filter) => force_zbus_warn(filter),
+        Some(filter) => force_dependency_warn_levels(filter),
         None => {
             eprintln!(
                 "waywallen: invalid WW_LOG filter {:?}; using {default_filter}",
                 raw
             );
-            EnvFilter::try_new(default_filter).unwrap_or_else(|error| {
-                panic!("invalid built-in log filter {default_filter}: {error}")
-            })
+            force_dependency_warn_levels(EnvFilter::try_new(default_filter).unwrap_or_else(
+                |error| panic!("invalid built-in log filter {default_filter}: {error}"),
+            ))
         }
     }
 }
 
-fn force_zbus_warn(filter: EnvFilter) -> EnvFilter {
-    filter.add_directive("zbus=warn".parse().expect("valid zbus log directive"))
+fn force_dependency_warn_levels(mut filter: EnvFilter) -> EnvFilter {
+    for directive in ["zbus=warn", "selectors::matching=warn", "html5ever=warn"] {
+        filter = filter.add_directive(directive.parse().expect("valid dependency log directive"));
+    }
+    filter
 }
 
 fn renderer_log_level(raw: &std::ffi::OsStr) -> Option<log::LevelFilter> {
@@ -374,18 +377,22 @@ mod tests {
     }
 
     #[test]
-    fn environment_filter_supports_targets_and_forces_zbus_warn() {
+    fn environment_filter_supports_targets_and_forces_dependency_warn_levels() {
         let filter = filter_from_value(
             DEFAULT_FILTER,
             Some(std::ffi::OsStr::new(
-                "debug,waywallen::probe=trace,zbus=trace",
+                "debug,waywallen::probe=trace,zbus=trace,selectors::matching=trace,html5ever=trace",
             )),
         );
         let filter = filter.to_string();
         assert!(filter.contains("debug"));
         assert!(filter.contains("waywallen::probe=trace"));
         assert!(filter.contains("zbus=warn"));
+        assert!(filter.contains("selectors::matching=warn"));
+        assert!(filter.contains("html5ever=warn"));
         assert!(!filter.contains("zbus=trace"));
+        assert!(!filter.contains("selectors::matching=trace"));
+        assert!(!filter.contains("html5ever=trace"));
     }
 
     #[test]
