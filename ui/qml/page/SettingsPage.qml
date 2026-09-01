@@ -1170,10 +1170,18 @@ MD.Page {
                         mdState.size: MD.Enum.S
                         placeholderText: qsTr("Interval")
                         inputMethodHints: Qt.ImhDigitsOnly
-                        validator: IntValidator { bottom: 0 }
-                        onEditingFinished: root._mut(g => {
+                        validator: RegularExpressionValidator { regularExpression: /^\d*$/ }
+                        onTextEdited: root._mut(g => {
                             g.rotationSecs = Number(text) || 0;
                         })
+                        onEditingFinished: {
+                            if (text.length === 0) {
+                                text = "0";
+                            }
+                            root._mut(g => {
+                                g.rotationSecs = Number(text) || 0;
+                            });
+                        }
                     }
                     Binding {
                         target: m_rot_field
