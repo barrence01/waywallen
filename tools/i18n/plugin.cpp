@@ -310,7 +310,7 @@ auto extract_sources(const Vec<OwnedSource>& owned) -> ToolResult<luato::i18n::E
     auto options   = luato::i18n::ExtractionOptions { luato::i18n::CallSpec {
         rstd::move(callee),
         usize {},
-        usize(1),
+        None(),
         String::make("TRANSLATORS:"_str),
         Some(String::make("tr"_str)),
     } };

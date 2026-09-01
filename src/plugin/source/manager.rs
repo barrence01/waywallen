@@ -397,7 +397,7 @@ impl LuaPluginRegistry {
         &self,
         plugin_name: &str,
         ids: &[String],
-    ) -> Result<Vec<SubscriptionItemState>> {
+    ) -> Result<SubscriptionStatusResult> {
         self.handle(plugin_name)?
             .runtime
             .lock()
@@ -411,7 +411,7 @@ impl LuaPluginRegistry {
         plugin_name: &str,
         id: &str,
         subscribed: bool,
-    ) -> Result<()> {
+    ) -> Result<SubscriptionSetResult> {
         self.handle(plugin_name)?
             .runtime
             .lock()

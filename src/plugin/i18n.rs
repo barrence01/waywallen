@@ -11,6 +11,7 @@ const MAX_TRANSLATION_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 pub struct PluginMessage {
     pub plugin_id: String,
     pub msgid: String,
+    pub arguments: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,9 +33,18 @@ impl LocalizedText {
     }
 
     pub fn translated(plugin_id: impl Into<String>, msgid: impl Into<String>) -> Self {
+        Self::translated_with_arguments(plugin_id, msgid, Vec::new())
+    }
+
+    pub fn translated_with_arguments(
+        plugin_id: impl Into<String>,
+        msgid: impl Into<String>,
+        arguments: Vec<String>,
+    ) -> Self {
         Self::Message(PluginMessage {
             plugin_id: plugin_id.into(),
             msgid: msgid.into(),
+            arguments,
         })
     }
 
@@ -54,6 +64,12 @@ impl LocalizedText {
             Self::Raw(_) => None,
             Self::Message(value) => Some(value),
         }
+    }
+}
+
+impl std::fmt::Display for LocalizedText {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.text())
     }
 }
 

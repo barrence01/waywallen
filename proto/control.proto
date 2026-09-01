@@ -269,6 +269,7 @@ message Empty {}
 message PluginMessage {
   string plugin_id = 1;
   string msgid = 2;
+  repeated string arguments = 3;
 }
 
 // ---------------------------------------------------------------------------
@@ -1063,6 +1064,7 @@ message PluginStatusRow {
   string value = 5;
   PluginMessage label_text = 6;
   PluginMessage group_label = 7;
+  PluginMessage value_text = 8;
 }
 
 // Trigger a plugin-declared action. The daemon routes `action_id` to the
@@ -1174,6 +1176,7 @@ message SubscriptionStatusRequest {
 message SubscriptionStatusResponse {
   repeated SubscriptionItemState items = 1;
   string error = 2;
+  PluginMessage error_text = 3;
 }
 
 message SubscriptionSetRequest {
@@ -1184,6 +1187,7 @@ message SubscriptionSetRequest {
 message SubscriptionSetResponse {
   bool accepted = 1;
   string error = 2;
+  PluginMessage error_text = 3;
 }
 
 message QrLoginCancelRequest {
@@ -1221,6 +1225,10 @@ message QrLoginProgress {
   string error = 7;
   string title = 8;
   string instruction = 9;
+  PluginMessage display_value_text = 10;
+  PluginMessage error_text = 11;
+  PluginMessage title_text = 12;
+  PluginMessage instruction_text = 13;
 }
 
 message DisplayListRequest {}

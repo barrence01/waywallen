@@ -10,6 +10,7 @@ use tokio_util::sync::CancellationToken;
 use crate::control_proto::QrLoginState;
 use crate::events::GlobalEvent;
 
+use super::i18n::LocalizedText;
 use super::source::{QrLoginPollState, SourceManager};
 
 const DEFAULT_DEADLINE: Duration = Duration::from_secs(180);
@@ -116,7 +117,7 @@ impl QrLoginManager {
                             self.finish_before_run(
                                 &session_id, &active_key, &done, plugin_id, action_id,
                                 state,
-                                if state == QrLoginState::Failed { &message } else { "" },
+                                if state == QrLoginState::Failed { message.as_str() } else { "" },
                                 "",
                                 "",
                             ).await;
@@ -141,9 +142,9 @@ impl QrLoginManager {
                     plugin_id,
                     action_id,
                     QrLoginState::Failed,
-                    &error.to_string(),
-                    &begin.title,
-                    &begin.instruction,
+                    error.to_string(),
+                    begin.title.clone(),
+                    begin.instruction.clone(),
                 )
                 .await;
                 return Err(error);
@@ -162,8 +163,8 @@ impl QrLoginManager {
                 action_id,
                 QrLoginState::Cancelled,
                 "",
-                &begin.title,
-                &begin.instruction,
+                begin.title.clone(),
+                begin.instruction.clone(),
             )
             .await;
             anyhow::bail!("QR login was cancelled");
@@ -176,8 +177,8 @@ impl QrLoginManager {
             &qr_image,
             "",
             "",
-            &begin.title,
-            &begin.instruction,
+            begin.title.clone(),
+            begin.instruction.clone(),
         );
 
         let deadline = Duration::from_millis(
@@ -217,9 +218,9 @@ impl QrLoginManager {
         plugin_id: &str,
         action_id: &str,
         state: QrLoginState,
-        error: &str,
-        title: &str,
-        instruction: &str,
+        error: impl Into<LocalizedText>,
+        title: impl Into<LocalizedText>,
+        instruction: impl Into<LocalizedText>,
     ) {
         self.sessions.lock().await.remove(session_id);
         self.active_actions.lock().await.remove(active_key);
@@ -285,15 +286,15 @@ impl QrLoginManager {
                 biased;
                 _ = cancel.cancelled() => {
                     let _ = self.source_manager.cancel_qr_login(&plugin_id, operation_id).await;
-                    break (QrLoginState::Cancelled, String::new(), String::new());
+                    break (QrLoginState::Cancelled, LocalizedText::default(), LocalizedText::default());
                 }
                 _ = wait_for_shutdown(&mut shutdown) => {
                     let _ = self.source_manager.cancel_qr_login(&plugin_id, operation_id).await;
-                    break (QrLoginState::Cancelled, String::new(), String::new());
+                    break (QrLoginState::Cancelled, LocalizedText::default(), LocalizedText::default());
                 }
                 _ = &mut deadline => {
                     let _ = self.source_manager.cancel_qr_login(&plugin_id, operation_id).await;
-                    break (QrLoginState::Expired, String::new(), "QR login expired".into());
+                    break (QrLoginState::Expired, LocalizedText::default(), "QR login expired".into());
                 }
                 _ = tokio::time::sleep(poll_interval) => {
                     match self.source_manager.poll_qr_login(&plugin_id, operation_id).await {
@@ -314,8 +315,8 @@ impl QrLoginManager {
                                                     .await;
                                                 break (
                                                     QrLoginState::Failed,
-                                                    String::new(),
-                                                    error.to_string(),
+                                                    LocalizedText::default(),
+                                                    error.to_string().into(),
                                                 );
                                             }
                                         }
@@ -326,8 +327,8 @@ impl QrLoginManager {
                                         &action_id,
                                         QrLoginState::AwaitingScan,
                                         &qr_image,
-                                        &update.display_value,
-                                        &update.error,
+                                        update.display_value.clone(),
+                                        update.error.clone(),
                                         "",
                                         "",
                                     );
@@ -338,8 +339,8 @@ impl QrLoginManager {
                                     &action_id,
                                     QrLoginState::AwaitingConfirmation,
                                     "",
-                                    &update.display_value,
-                                    &update.error,
+                                    update.display_value.clone(),
+                                    update.error.clone(),
                                     "",
                                     "",
                                 ),
@@ -350,7 +351,7 @@ impl QrLoginManager {
                                             .await;
                                         break (
                                             QrLoginState::Failed,
-                                            String::new(),
+                                            LocalizedText::default(),
                                             "QR login provider returned an empty replacement challenge".into(),
                                         );
                                     }
@@ -362,8 +363,8 @@ impl QrLoginManager {
                                                 .await;
                                             break (
                                                 QrLoginState::Failed,
-                                                String::new(),
-                                                error.to_string(),
+                                                LocalizedText::default(),
+                                                error.to_string().into(),
                                             );
                                         }
                                     };
@@ -373,8 +374,8 @@ impl QrLoginManager {
                                         &action_id,
                                         QrLoginState::ChallengeChanged,
                                         &qr_image,
-                                        &update.display_value,
-                                        &update.error,
+                                        update.display_value.clone(),
+                                        update.error.clone(),
                                         "",
                                         "",
                                     );
@@ -392,7 +393,11 @@ impl QrLoginManager {
                         }
                         Err(error) => {
                             let _ = self.source_manager.cancel_qr_login(&plugin_id, operation_id).await;
-                            break (QrLoginState::Failed, String::new(), error.to_string());
+                            break (
+                                QrLoginState::Failed,
+                                LocalizedText::default(),
+                                error.to_string().into(),
+                            );
                         }
                     }
                 }
@@ -405,8 +410,8 @@ impl QrLoginManager {
             &action_id,
             state,
             "",
-            &display_value,
-            &error,
+            display_value,
+            error,
             "",
             "",
         );
@@ -430,10 +435,10 @@ impl QrLoginManager {
         action_id: &str,
         state: QrLoginState,
         qr_image: &str,
-        display_value: &str,
-        error: &str,
-        title: &str,
-        instruction: &str,
+        display_value: impl Into<LocalizedText>,
+        error: impl Into<LocalizedText>,
+        title: impl Into<LocalizedText>,
+        instruction: impl Into<LocalizedText>,
     ) {
         let _ = self.events.send(GlobalEvent::QrLoginProgress {
             session_id: session_id.to_string(),
@@ -441,10 +446,10 @@ impl QrLoginManager {
             action_id: action_id.to_string(),
             state: state as i32,
             qr_image: qr_image.to_string(),
-            display_value: display_value.to_string(),
-            error: error.to_string(),
-            title: title.to_string(),
-            instruction: instruction.to_string(),
+            display_value: display_value.into(),
+            error: error.into(),
+            title: title.into(),
+            instruction: instruction.into(),
         });
     }
 }

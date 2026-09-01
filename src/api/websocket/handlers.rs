@@ -1709,6 +1709,7 @@ pub(super) async fn dispatch_inner(
                     return Ok(Res::SubscriptionStatus(pb::SubscriptionStatusResponse {
                         items: Vec::new(),
                         error: query_error("subscription status", error),
+                        error_text: None,
                     }));
                 }
             };
@@ -1719,6 +1720,7 @@ pub(super) async fn dispatch_inner(
                         "subscription status",
                         "subscription status accepts at most 200 item ids",
                     ),
+                    error_text: None,
                 }));
             }
             match state
@@ -1726,8 +1728,9 @@ pub(super) async fn dispatch_inner(
                 .subscription_status(&source_id, &r.item_ids)
                 .await
             {
-                Ok(items) => Res::SubscriptionStatus(pb::SubscriptionStatusResponse {
-                    items: items
+                Ok(result) => Res::SubscriptionStatus(pb::SubscriptionStatusResponse {
+                    items: result
+                        .items
                         .into_iter()
                         .map(|item| pb::SubscriptionItemState {
                             id: item.id,
@@ -1744,11 +1747,13 @@ pub(super) async fn dispatch_inner(
                             } as i32,
                         })
                         .collect(),
-                    error: String::new(),
+                    error: result.error.text().to_string(),
+                    error_text: crate::control_proto::plugin_message_to_proto(&result.error),
                 }),
                 Err(error) => Res::SubscriptionStatus(pb::SubscriptionStatusResponse {
                     items: Vec::new(),
                     error: query_error("subscription status", error),
+                    error_text: None,
                 }),
             }
         }
@@ -1760,6 +1765,7 @@ pub(super) async fn dispatch_inner(
                     return Ok(Res::SubscriptionSet(pb::SubscriptionSetResponse {
                         accepted: false,
                         error: query_error("subscription update", error),
+                        error_text: None,
                     }));
                 }
             };
@@ -1767,6 +1773,7 @@ pub(super) async fn dispatch_inner(
                 return Ok(Res::SubscriptionSet(pb::SubscriptionSetResponse {
                     accepted: false,
                     error: query_error("subscription update", "subscription item id is empty"),
+                    error_text: None,
                 }));
             }
             match state
@@ -1774,13 +1781,15 @@ pub(super) async fn dispatch_inner(
                 .set_subscription(&source_id, &r.item_id, r.subscribed)
                 .await
             {
-                Ok(()) => Res::SubscriptionSet(pb::SubscriptionSetResponse {
-                    accepted: true,
-                    error: String::new(),
+                Ok(result) => Res::SubscriptionSet(pb::SubscriptionSetResponse {
+                    accepted: result.accepted,
+                    error: result.error.text().to_string(),
+                    error_text: crate::control_proto::plugin_message_to_proto(&result.error),
                 }),
                 Err(error) => Res::SubscriptionSet(pb::SubscriptionSetResponse {
                     accepted: false,
                     error: query_error("subscription update", error),
+                    error_text: None,
                 }),
             }
         }

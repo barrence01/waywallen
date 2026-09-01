@@ -57,7 +57,7 @@ void expect_workflow(Checks& checks) {
             "[renderers.test.settings]\n"
             "shared = { type = \"string\", default = \"\", label = { msgid = \"Shared\" } }\n"_str),
         "plugin manifest should be written");
-    checks.expect(write(root, "main.lua"_str, "return { value = tr(\"Shared\") }\n"_str),
+    checks.expect(write(root, "main.lua"_str, "return { value = tr(\"Shared\", 503) }\n"_str),
                   "Lua source should be written");
     checks.expect(
         write(root, "files.txt"_str, "plugin.toml\nfiles.txt\nmain.lua\ni18n/ru.po\n"_str),

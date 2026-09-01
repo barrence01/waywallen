@@ -14,10 +14,14 @@ MD.Popup {
     property string actionId: ""
     property int loginState: 0
     property string qrImage: ""
-    property string displayValue: ""
-    property string errorText: ""
-    property string dialogTitle: ""
-    property string instruction: ""
+    property var displayValueSource: ""
+    property var errorSource: ""
+    property var titleSource: ""
+    property var instructionSource: ""
+    readonly property string displayValue: W.I18n.tr(displayValueSource)
+    readonly property string errorText: W.I18n.tr(errorSource)
+    readonly property string dialogTitle: W.I18n.tr(titleSource)
+    readonly property string instruction: W.I18n.tr(instructionSource)
 
     closePolicy: T.Popup.CloseOnEscape
     dim: true
@@ -48,32 +52,32 @@ MD.Popup {
                 root.pluginId = pluginId;
                 root.actionId = actionId;
                 root.qrImage = "";
-                root.displayValue = "";
-                root.errorText = "";
-                root.dialogTitle = "";
-                root.instruction = "";
+                root.displayValueSource = "";
+                root.errorSource = "";
+                root.titleSource = "";
+                root.instructionSource = "";
             }
             root.loginState = state;
             if (qrImage.length > 0)
                 root.qrImage = qrImage;
-            if (displayValue.length > 0)
-                root.displayValue = displayValue;
-            if (error.length > 0)
-                root.errorText = error;
-            if (title.length > 0)
-                root.dialogTitle = title;
-            if (instruction.length > 0)
-                root.instruction = instruction;
+            if (W.I18n.tr(displayValue).length > 0)
+                root.displayValueSource = displayValue;
+            if (W.I18n.tr(error).length > 0)
+                root.errorSource = error;
+            if (W.I18n.tr(title).length > 0)
+                root.titleSource = title;
+            if (W.I18n.tr(instruction).length > 0)
+                root.instructionSource = instruction;
             if (state >= 1 && state <= 4 && !root.visible)
                 root.open();
             if (state === 5) {
-                W.Action.toast(displayValue.length > 0
-                    ? qsTr("Signed in as %1").arg(displayValue)
+                W.Action.toast(root.displayValue.length > 0
+                    ? qsTr("Signed in as %1").arg(root.displayValue)
                     : qsTr("Signed in"));
                 root.close();
             } else if (state === 6 || state === 7) {
-                W.Global.toastError(error.length > 0
-                    ? error
+                W.Global.toastError(root.errorText.length > 0
+                    ? root.errorText
                     : (state === 6 ? qsTr("Sign-in expired") : qsTr("Sign-in failed")));
                 root.close();
             } else if (state === 8) {

@@ -178,9 +178,9 @@ public:
     Q_INVOKABLE void setSubscribed(const QString& sourceId, const QString& id, bool subscribed);
 
     Q_SIGNAL void stateLoaded(const QString& sourceId, const QString& id, int state,
-                              const QString& error);
+                              const QVariant& error);
     Q_SIGNAL void setFinished(const QString& sourceId, const QString& id, bool subscribed,
-                              bool accepted, const QString& error);
+                              bool accepted, const QVariant& error);
 
 private:
     quint64 m_refresh_generation { 0 };

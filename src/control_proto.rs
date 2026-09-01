@@ -8,6 +8,7 @@ pub fn plugin_message_to_proto(
     value.message().map(|value| PluginMessage {
         plugin_id: value.plugin_id.clone(),
         msgid: value.msgid.clone(),
+        arguments: value.arguments.clone(),
     })
 }
 
@@ -112,9 +113,10 @@ pub fn source_status_to_proto(s: &crate::plugin::source::SourceStatus) -> Plugin
         label: s.label.text().to_string(),
         group: s.group.clone(),
         order: s.order,
-        value: s.value.clone(),
+        value: s.value.text().to_string(),
         label_text: plugin_message_to_proto(&s.label),
         group_label: plugin_message_to_proto(&s.group_label),
+        value_text: plugin_message_to_proto(&s.value),
     }
 }
 

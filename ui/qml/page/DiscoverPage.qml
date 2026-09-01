@@ -378,8 +378,9 @@ MD.Page {
     Connections {
         target: subscriptionQuery
         function onStateLoaded(sourceId, id, state, error) {
-            if (error.length > 0)
-                W.Action.toast(qsTr("Couldn't load subscription status: ") + error);
+            const message = W.I18n.tr(error);
+            if (message.length > 0)
+                W.Action.toast(qsTr("Couldn't load subscription status: ") + message);
         }
         function onSetFinished(sourceId, id, subscribed, accepted, error) {
             if (accepted) {
@@ -387,7 +388,7 @@ MD.Page {
                 const hint = root.sourceRemoteHint(sourceId);
                 W.Action.toast(hint.length > 0 ? message + "\n" + hint : message);
             } else {
-                W.Action.toast(qsTr("Subscription update failed: ") + error);
+                W.Action.toast(qsTr("Subscription update failed: ") + W.I18n.tr(error));
             }
         }
     }

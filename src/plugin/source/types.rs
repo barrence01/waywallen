@@ -141,7 +141,7 @@ pub struct SourceStatus {
     pub group: String,
     pub group_label: LocalizedText,
     pub order: i32,
-    pub value: String,
+    pub value: LocalizedText,
 }
 
 /// One sort option a discover-capable plugin advertises via
@@ -266,13 +266,25 @@ pub struct SubscriptionItemState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubscriptionStatusResult {
+    pub items: Vec<SubscriptionItemState>,
+    pub error: LocalizedText,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubscriptionSetResult {
+    pub accepted: bool,
+    pub error: LocalizedText,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QrLoginBegin {
     pub operation_id: u64,
     pub challenge: String,
     pub poll_after_ms: u64,
     pub expires_in_ms: Option<u64>,
-    pub title: String,
-    pub instruction: String,
+    pub title: LocalizedText,
+    pub instruction: LocalizedText,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -290,8 +302,8 @@ pub struct QrLoginPoll {
     pub state: QrLoginPollState,
     pub challenge: String,
     pub poll_after_ms: Option<u64>,
-    pub display_value: String,
-    pub error: String,
+    pub display_value: LocalizedText,
+    pub error: LocalizedText,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -305,8 +317,8 @@ pub enum PluginLifecycleState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginLifecycleCheck {
     pub state: PluginLifecycleState,
-    pub display_value: String,
-    pub error: String,
+    pub display_value: LocalizedText,
+    pub error: LocalizedText,
     pub avatar_url: String,
 }
 

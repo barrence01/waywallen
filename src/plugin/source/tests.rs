@@ -504,7 +504,7 @@ function M.info()
                 types = {"image"},
                 scan = true,
                 library_label = text.library_label(),
-                library_hint = "Choose a directory",
+                library_hint = tr("Request failed with HTTP %1", 503),
             },
             wallpaper = { properties = true },
         },
@@ -544,8 +544,19 @@ return M
         plugins[0].library_label.message().unwrap().plugin_id,
         "org.test.localized"
     );
-    assert_eq!(plugins[0].library_hint.text(), "Choose a directory");
-    assert!(plugins[0].library_hint.message().is_none());
+    assert_eq!(
+        plugins[0].library_hint.text(),
+        "Request failed with HTTP %1"
+    );
+    assert_eq!(
+        plugins[0]
+            .library_hint
+            .message()
+            .unwrap()
+            .arguments
+            .as_slice(),
+        ["503"]
+    );
     assert_eq!(plugins[0].settings[0].label.text(), "Enabled");
     assert_eq!(
         plugins[0].settings[0].label.message().unwrap().plugin_id,
@@ -590,12 +601,7 @@ return M
 fn tr_rejects_invalid_runtime_arguments() {
     let dir = tempfile::tempdir().unwrap();
     let plugin_path = dir.path().join("main.lua");
-    for expression in [
-        r#"tr("Message", "extra")"#,
-        r#"tr()"#,
-        r#"tr({})"#,
-        r#"tr("")"#,
-    ] {
+    for expression in [r#"tr("Message", {})"#, r#"tr()"#, r#"tr({})"#, r#"tr("")"#] {
         std::fs::write(
             &plugin_path,
             format!(
@@ -1415,7 +1421,7 @@ end
 M.actions = {}
 function M.actions.status(ctx)
     return {
-        status = { account = display },
+        status = { account = tr("Account: %1", display) },
         actions = {
             sign_in = { visible = not signed_in, enabled = not signed_in },
             sign_out = { visible = signed_in, enabled = signed_in },
@@ -1440,14 +1446,17 @@ function M.qrlogin.begin(ctx, action_id)
         challenge = "https://example.invalid/challenge",
         poll_after_ms = 25,
         expires_in_ms = 1000,
-        title = "Sign in",
-        instruction = "Scan",
+        title = tr("Sign in"),
+        instruction = tr("Scan with %1", "phone"),
     }
 end
 function M.qrlogin.poll(ctx, key)
     key.polls = key.polls + 1
     if key.polls == 1 then
-        return { state = "awaiting_confirmation", display_value = "phone" }
+        return {
+            state = "awaiting_confirmation",
+            display_value = tr("Approve on %1", "phone"),
+        }
     end
     signed_in = true
     display = "alice"
@@ -1466,10 +1475,15 @@ M.subscription = {}
 function M.subscription.status(ctx, ids)
     local result = {}
     for _, id in ipairs(ids) do result[id] = subscriptions[id] or "unknown" end
+    if ids[1] == "status-error" then
+        return { items = result, error = tr("Request failed with HTTP %1", 503) }
+    end
     return result
 end
 function M.subscription.subscribe(ctx, id)
-    if id == "rejected" then return { accepted = false, error = "denied" } end
+    if id == "rejected" then
+        return { accepted = false, error = tr("Denied %1", id) }
+    end
     subscriptions[id] = "subscribed"
     return { accepted = true }
 end
@@ -1497,7 +1511,11 @@ return M
     );
 
     let sources = block_value(async { manager.discover_sources_with_status().await }).unwrap();
-    assert_eq!(sources[0].status[0].value, "migrated");
+    assert_eq!(sources[0].status[0].value.text(), "Account: %1");
+    assert_eq!(
+        sources[0].status[0].value.message().unwrap().arguments,
+        ["migrated"]
+    );
     assert_eq!(sources[0].avatar_url, "https://example.invalid/avatar.png");
     assert_eq!(sources[0].actions[0].label.text(), "Log in");
     assert_eq!(
@@ -1518,6 +1536,8 @@ return M
         block_value(async { manager.begin_qr_login("account_provider", "sign_in").await }).unwrap();
     assert_eq!(begin.challenge, "https://example.invalid/challenge");
     assert_eq!(begin.poll_after_ms, 25);
+    assert_eq!(begin.title.message().unwrap().msgid, "Sign in");
+    assert_eq!(begin.instruction.message().unwrap().arguments, ["phone"]);
     let first = block_value(async {
         manager
             .poll_qr_login("account_provider", begin.operation_id)
@@ -1525,6 +1545,7 @@ return M
     })
     .unwrap();
     assert_eq!(first.state, QrLoginPollState::AwaitingConfirmation);
+    assert_eq!(first.display_value.message().unwrap().arguments, ["phone"]);
     let second = block_value(async {
         manager
             .poll_qr_login("account_provider", begin.operation_id)
@@ -1544,29 +1565,47 @@ return M
         "1|alice"
     );
 
-    let ids = vec!["item".to_string(), "missing".to_string()];
+    let ids = vec![
+        "item".to_string(),
+        "missing".to_string(),
+        "items".to_string(),
+    ];
     let before =
         block_value(async { manager.subscription_status("account_provider", &ids).await }).unwrap();
     assert!(before
+        .items
         .iter()
         .all(|item| item.state == SubscriptionState::Unknown));
-    block_value(async {
+    assert!(
+        block_value(async {
+            manager
+                .set_subscription("account_provider", "item", true)
+                .await
+        })
+        .unwrap()
+        .accepted
+    );
+    let subscribed =
+        block_value(async { manager.subscription_status("account_provider", &ids).await }).unwrap();
+    assert_eq!(subscribed.items[0].state, SubscriptionState::Subscribed);
+    assert_eq!(subscribed.items[1].state, SubscriptionState::Unknown);
+    let status_error_ids = vec!["status-error".to_string()];
+    let status_error = block_value(async {
         manager
-            .set_subscription("account_provider", "item", true)
+            .subscription_status("account_provider", &status_error_ids)
             .await
     })
     .unwrap();
-    let subscribed =
-        block_value(async { manager.subscription_status("account_provider", &ids).await }).unwrap();
-    assert_eq!(subscribed[0].state, SubscriptionState::Subscribed);
-    assert_eq!(subscribed[1].state, SubscriptionState::Unknown);
+    assert_eq!(status_error.error.message().unwrap().arguments, ["503"]);
     let rejected = block_value(async {
         manager
             .set_subscription("account_provider", "rejected", true)
             .await
     })
-    .unwrap_err();
-    assert!(rejected.to_string().contains("denied"));
+    .unwrap();
+    assert!(!rejected.accepted);
+    assert_eq!(rejected.error.text(), "Denied %1");
+    assert_eq!(rejected.error.message().unwrap().arguments, ["rejected"]);
     block_value(async {
         manager
             .set_subscription("account_provider", "item", false)
@@ -1575,7 +1614,7 @@ return M
     .unwrap();
     let unsubscribed =
         block_value(async { manager.subscription_status("account_provider", &ids).await }).unwrap();
-    assert_eq!(unsubscribed[0].state, SubscriptionState::Unsubscribed);
+    assert_eq!(unsubscribed.items[0].state, SubscriptionState::Unsubscribed);
 
     let missing = block_value(async {
         manager
@@ -1597,7 +1636,8 @@ return M
         block_value(async { manager.check_lifecycle("account_provider").await })
             .unwrap()
             .unwrap()
-            .display_value,
+            .display_value
+            .text(),
         "configured"
     );
 

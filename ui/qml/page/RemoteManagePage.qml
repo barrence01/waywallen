@@ -294,7 +294,7 @@ MD.Page {
                                 }
                                 MD.Text {
                                     Layout.maximumWidth: accountColumn.width * 0.65
-                                    text: statusRow.modelData.value
+                                    text: W.I18n.tr(statusRow.modelData.valueText)
                                     color: MD.Token.color.on_surface
                                     typescale: MD.Token.typescale.body_medium
                                     horizontalAlignment: Text.AlignRight

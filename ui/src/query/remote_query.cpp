@@ -178,6 +178,7 @@ void RemoteAvailabilityQuery::reload() {
                     sm[u"group"_s]      = st.group();
                     sm[u"order"_s]      = static_cast<int>(st.order());
                     sm[u"value"_s]      = st.value();
+                    sm[u"valueText"_s]  = pluginMessageFromPb(st.valueText(), st.value());
                     statusRows.append(sm);
                 }
                 m[u"status"_s] = statusRows;
@@ -528,7 +529,8 @@ void RemoteSubscriptionQuery::refresh(const QString& sourceId, const QString& id
                 }
             }
             AppStore::instance()->setRemoteAcquisitionState(sourceId, id, state);
-            Q_EMIT self->stateLoaded(sourceId, id, state, status.error());
+            Q_EMIT self->stateLoaded(
+                sourceId, id, state, pluginMessageFromPb(status.errorText(), status.error()));
         });
         co_return;
     });
@@ -566,7 +568,11 @@ void RemoteSubscriptionQuery::setSubscribed(const QString& sourceId, const QStri
             const auto& update = rsp.subscriptionSet();
             const auto  state  = update.accepted() ? (subscribed ? 2 : 1) : (subscribed ? 1 : 2);
             AppStore::instance()->setRemoteAcquisitionState(sourceId, id, state);
-            Q_EMIT self->setFinished(sourceId, id, subscribed, update.accepted(), update.error());
+            Q_EMIT self->setFinished(sourceId,
+                                     id,
+                                     subscribed,
+                                     update.accepted(),
+                                     pluginMessageFromPb(update.errorText(), update.error()));
         });
         co_return;
     });

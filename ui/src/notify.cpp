@@ -115,10 +115,10 @@ Notify::Notify(QObject* parent): QObject(parent) {
                                        p.actionId(),
                                        static_cast<int>(p.state()),
                                        p.qrImage(),
-                                       p.displayValue(),
-                                       p.error(),
-                                       p.title(),
-                                       p.instruction());
+                                       pluginMessageFromPb(p.displayValueText(), p.displayValue()),
+                                       pluginMessageFromPb(p.errorText(), p.error()),
+                                       pluginMessageFromPb(p.titleText(), p.title()),
+                                       pluginMessageFromPb(p.instructionText(), p.instruction()));
             } else if (evt.hasPluginStateChanged()) {
                 Q_EMIT pluginStateChanged();
             } else if (evt.hasPlaylistChanged()) {

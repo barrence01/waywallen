@@ -124,8 +124,8 @@ Q_SIGNALS:
     void remoteDownloadProgress(const QString& sourceId, const QString& id, int state,
                                 const QString& error);
     void qrLoginProgress(const QString& sessionId, const QString& pluginId, const QString& actionId,
-                         int state, const QString& qrImage, const QString& displayValue,
-                         const QString& error, const QString& title, const QString& instruction);
+                         int state, const QString& qrImage, const QVariant& displayValue,
+                         const QVariant& error, const QVariant& title, const QVariant& instruction);
     void pluginStateChanged();
     void playlistChanged();
     void pluginChanged();

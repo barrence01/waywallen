@@ -2,6 +2,8 @@ use super::parsing::{parse_lua_string_map, redact_secrets};
 use super::*;
 use crate::plugin::i18n::LocalizedText;
 
+const MAX_LOCALIZED_ARGUMENTS: usize = 16;
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(transparent)]
 struct LuaLocalizedText(LocalizedText);
@@ -405,10 +407,10 @@ impl LuaPluginRuntime {
         let tr_fn = self
             .lua
             .create_function(move |lua, mut arguments: LuaMultiValue| {
-                if arguments.len() != 1 {
-                    return Err(LuaError::RuntimeError(
-                        "tr requires exactly one argument".to_string(),
-                    ));
+                if arguments.is_empty() || arguments.len() > MAX_LOCALIZED_ARGUMENTS + 1 {
+                    return Err(LuaError::RuntimeError(format!(
+                        "tr requires a msgid and at most {MAX_LOCALIZED_ARGUMENTS} arguments"
+                    )));
                 }
                 let msgid = match arguments.pop_front().expect("argument count checked") {
                     LuaValue::String(value) => value.to_str().map(|value| value.to_string()),
@@ -422,9 +424,26 @@ impl LuaPluginRuntime {
                         "tr msgid must not be empty".to_string(),
                     ));
                 }
-                lua.create_ser_userdata(LuaLocalizedText(LocalizedText::translated(
+                let arguments = arguments
+                    .into_iter()
+                    .map(|argument| match argument {
+                        LuaValue::String(value) => value
+                            .to_str()
+                            .map(|value| value.to_string())
+                            .map_err(LuaError::external),
+                        LuaValue::Integer(value) => Ok(value.to_string()),
+                        LuaValue::Number(value) => Ok(value.to_string()),
+                        LuaValue::Boolean(value) => Ok(value.to_string()),
+                        other => Err(LuaError::RuntimeError(format!(
+                            "tr arguments must be strings, numbers, or booleans, got {}",
+                            other.type_name()
+                        ))),
+                    })
+                    .collect::<LuaResult<Vec<_>>>()?;
+                lua.create_ser_userdata(LuaLocalizedText(LocalizedText::translated_with_arguments(
                     plugin_id.clone(),
                     msgid,
+                    arguments,
                 )))
             })?;
         env.set("tr", tr_fn)?;
@@ -534,6 +553,19 @@ impl LuaPluginRuntime {
                 "{context}.{key} must be a string, got {}",
                 other.type_name()
             ))),
+        }
+    }
+
+    fn redact_localized_text(value: LocalizedText) -> LocalizedText {
+        match value {
+            LocalizedText::Raw(value) => LocalizedText::raw(redact_secrets(&value)),
+            LocalizedText::Message(mut message) => {
+                message.msgid = redact_secrets(&message.msgid);
+                for argument in &mut message.arguments {
+                    *argument = redact_secrets(argument);
+                }
+                LocalizedText::Message(message)
+            }
         }
     }
 
@@ -1401,7 +1433,7 @@ impl LuaPluginRuntime {
                     .get::<Option<i32>>("order")
                     .unwrap_or(None)
                     .unwrap_or(0),
-                value: String::new(),
+                value: LocalizedText::default(),
             });
         }
         Ok(out)
@@ -2761,12 +2793,12 @@ impl LuaPluginRuntime {
         };
         let checked = PluginLifecycleCheck {
             state,
-            display_value: Self::optional_string(
+            display_value: Self::optional_localized_text(
                 &result,
                 "display_value",
                 "module.lifecycle.check result",
             )?,
-            error: redact_secrets(&Self::optional_string(
+            error: Self::redact_localized_text(Self::optional_localized_text(
                 &result,
                 "error",
                 "module.lifecycle.check result",
@@ -2818,7 +2850,11 @@ impl LuaPluginRuntime {
             Self::optional_table(&result, "status", "module.actions.status result")?
         {
             for row in &mut status {
-                row.value = values.get::<String>(row.id.as_str()).unwrap_or_default();
+                row.value = Self::optional_localized_text(
+                    &values,
+                    row.id.as_str(),
+                    "module.actions.status result.status",
+                )?;
             }
         }
         if let Some(values) =
@@ -2974,8 +3010,9 @@ impl LuaPluginRuntime {
         let challenge = Self::require_string(&result, "challenge", "qrlogin.begin result")?;
         let poll_after_ms = result.get::<Option<u64>>("poll_after_ms")?.unwrap_or(1000);
         let expires_in_ms = result.get::<Option<u64>>("expires_in_ms")?;
-        let title = Self::optional_string(&result, "title", "qrlogin.begin result")?;
-        let instruction = Self::optional_string(&result, "instruction", "qrlogin.begin result")?;
+        let title = Self::optional_localized_text(&result, "title", "qrlogin.begin result")?;
+        let instruction =
+            Self::optional_localized_text(&result, "instruction", "qrlogin.begin result")?;
         let operation_id = self.next_qr_operation_id;
         self.next_qr_operation_id = self.next_qr_operation_id.wrapping_add(1).max(1);
         self.qr_operations
@@ -3047,8 +3084,12 @@ impl LuaPluginRuntime {
             state,
             challenge: Self::optional_string(&result, "challenge", "qrlogin.poll result")?,
             poll_after_ms: result.get::<Option<u64>>("poll_after_ms")?,
-            display_value: Self::optional_string(&result, "display_value", "qrlogin.poll result")?,
-            error: redact_secrets(&Self::optional_string(
+            display_value: Self::optional_localized_text(
+                &result,
+                "display_value",
+                "qrlogin.poll result",
+            )?,
+            error: Self::redact_localized_text(Self::optional_localized_text(
                 &result,
                 "error",
                 "qrlogin.poll result",
@@ -3087,7 +3128,7 @@ impl LuaPluginRuntime {
         &mut self,
         plugin_name: &str,
         ids: &[String],
-    ) -> Result<Vec<SubscriptionItemState>> {
+    ) -> Result<SubscriptionStatusResult> {
         self.require_remote_capability(plugin_name, RemoteCapability::Subscription)?;
         let callbacks = self
             .callbacks
@@ -3111,9 +3152,25 @@ impl LuaPluginRuntime {
                 plugin: plugin_name.to_string(),
                 message: redact_secrets(&error.to_string()),
             })?;
+        let wrapped_items = match result.get::<LuaValue>("items").map_err(|error| {
+            Error::Internal(anyhow!("module.subscription.status result.items: {error}"))
+        })? {
+            LuaValue::Table(items) => Some(items),
+            _ => None,
+        };
+        let (items, error) = if let Some(items) = wrapped_items {
+            let error = Self::redact_localized_text(Self::optional_localized_text(
+                &result,
+                "error",
+                "module.subscription.status result",
+            )?);
+            (items, error)
+        } else {
+            (result, LocalizedText::default())
+        };
         let mut states = Vec::with_capacity(ids.len());
         for id in ids {
-            let value = result.get::<String>(id.as_str()).unwrap_or_default();
+            let value = items.get::<String>(id.as_str()).unwrap_or_default();
             let state = match value.as_str() {
                 "subscribed" => SubscriptionState::Subscribed,
                 "unsubscribed" => SubscriptionState::Unsubscribed,
@@ -3125,7 +3182,10 @@ impl LuaPluginRuntime {
             });
         }
         self.persist_state(plugin_name)?;
-        Ok(states)
+        Ok(SubscriptionStatusResult {
+            items: states,
+            error,
+        })
     }
 
     pub async fn set_subscription(
@@ -3133,7 +3193,7 @@ impl LuaPluginRuntime {
         plugin_name: &str,
         id: &str,
         subscribed: bool,
-    ) -> Result<()> {
+    ) -> Result<SubscriptionSetResult> {
         self.require_remote_capability(plugin_name, RemoteCapability::Subscription)?;
         let callbacks = self
             .callbacks
@@ -3160,19 +3220,13 @@ impl LuaPluginRuntime {
                 plugin: plugin_name.to_string(),
                 message: format!("subscription mutation result.accepted required: {error}"),
             })?;
-        if !accepted {
-            let message =
-                Self::optional_string(&result, "error", "module.subscription mutation result")?;
-            return Err(Error::DiscoverFailed {
-                plugin: plugin_name.to_string(),
-                message: if message.is_empty() {
-                    "subscription mutation was not accepted".into()
-                } else {
-                    redact_secrets(&message)
-                },
-            });
-        }
-        self.persist_state(plugin_name)
+        let error = Self::redact_localized_text(Self::optional_localized_text(
+            &result,
+            "error",
+            "module.subscription mutation result",
+        )?);
+        self.persist_state(plugin_name)?;
+        Ok(SubscriptionSetResult { accepted, error })
     }
 
     fn require_remote_capability(

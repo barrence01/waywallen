@@ -8,8 +8,9 @@ namespace waywallen
 auto pluginMessageFromPb(const proto::PluginMessage& message, const QString& fallback) -> QVariant {
     if (message.pluginId().isEmpty() || message.msgid().isEmpty()) return fallback;
     QVariantMap value;
-    value[u"pluginId"_s] = message.pluginId();
-    value[u"msgid"_s]    = message.msgid();
+    value[u"pluginId"_s]  = message.pluginId();
+    value[u"msgid"_s]     = message.msgid();
+    value[u"arguments"_s] = message.arguments();
     return value;
 }
 

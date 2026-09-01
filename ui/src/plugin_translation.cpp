@@ -40,6 +40,30 @@ auto localeFallbacks(const QString& locale) -> QStringList {
     return result;
 }
 
+auto formatMessage(const QString& text, const QStringList& arguments) -> QString {
+    if (arguments.isEmpty()) return text;
+    QString result;
+    result.reserve(text.size());
+    for (qsizetype offset = 0; offset < text.size();) {
+        if (text.at(offset) != u'%' || offset + 1 >= text.size() ||
+            ! text.at(offset + 1).isDigit()) {
+            result.append(text.at(offset++));
+            continue;
+        }
+        auto end = offset + 1;
+        while (end < text.size() && text.at(end).isDigit()) ++end;
+        bool       valid = false;
+        const auto index = QStringView(text).mid(offset + 1, end - offset - 1).toInt(&valid);
+        if (valid && index > 0 && index <= arguments.size()) {
+            result.append(arguments.at(index - 1));
+        } else {
+            result.append(QStringView(text).mid(offset, end - offset));
+        }
+        offset = end;
+    }
+    return result;
+}
+
 } // namespace
 
 auto PluginTranslationStore::parseDocument(const QByteArray& po, const QString& expected_locale,
@@ -128,22 +152,26 @@ void PluginTranslationStore::setLocale(const QString& locale) {
 
 auto PluginTranslationStore::translate(const QVariant& text) const -> QString {
     if (text.metaType().id() == QMetaType::QString) return text.toString();
-    const auto value     = text.toMap();
-    const auto plugin_id = value.value(u"pluginId"_s).toString();
-    const auto msgid     = value.value(u"msgid"_s).toString();
-    if (plugin_id.isEmpty() || msgid.isEmpty() || QLocale(m_locale).language() == QLocale::English)
-        return msgid;
-
-    const auto plugin_it = m_translations.constFind(plugin_id);
-    if (plugin_it == m_translations.constEnd()) return msgid;
-    for (const auto& locale : localeFallbacks(m_locale)) {
-        const auto locale_it = plugin_it->constFind(locale);
-        if (locale_it == plugin_it->constEnd()) continue;
-        const auto message_it = locale_it->constFind(msgid);
-        if (message_it == locale_it->constEnd()) continue;
-        if (! message_it->isEmpty()) return *message_it;
+    const auto value      = text.toMap();
+    const auto plugin_id  = value.value(u"pluginId"_s).toString();
+    const auto msgid      = value.value(u"msgid"_s).toString();
+    const auto arguments  = value.value(u"arguments"_s).toStringList();
+    auto       translated = msgid;
+    if (! plugin_id.isEmpty() && ! msgid.isEmpty() &&
+        QLocale(m_locale).language() != QLocale::English) {
+        const auto plugin_it = m_translations.constFind(plugin_id);
+        if (plugin_it != m_translations.constEnd()) {
+            for (const auto& locale : localeFallbacks(m_locale)) {
+                const auto locale_it = plugin_it->constFind(locale);
+                if (locale_it == plugin_it->constEnd()) continue;
+                const auto message_it = locale_it->constFind(msgid);
+                if (message_it == locale_it->constEnd() || message_it->isEmpty()) continue;
+                translated = *message_it;
+                break;
+            }
+        }
     }
-    return msgid;
+    return formatMessage(translated, arguments);
 }
 
 void PluginTranslationStore::scheduleRefresh() {
