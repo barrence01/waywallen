@@ -338,6 +338,10 @@ MD.Page {
 
     W.RemoteSearchQuery {
         id: searchQuery
+        prefetchNextPage: {
+            const w = root.Window.window
+            return !!w && (w.width > 948 * 1.5 || w.height > 632 * 1.5)
+        }
     }
 
     W.RemoteFilterDialog {
@@ -497,6 +501,7 @@ MD.Page {
                     W.SearchChip {
                         id: m_search_field
                         Layout.preferredWidth: 120
+                        debounceMs: 1000
                         placeholderText: qsTr("Search")
                         onTextEdited: searchQuery.query = text
                     }
@@ -523,9 +528,9 @@ MD.Page {
                         id: m_grid
                         anchors.fill: parent
                         clip: true
-                        cacheBuffer: 300
-                        displayMarginBeginning: 300
-                        displayMarginEnd: 300
+                        cacheBuffer: 324
+                        displayMarginBeginning: 162
+                        displayMarginEnd: 162
                         currentIndex: -1
                         topMargin: 2
                         bottomMargin: 8
@@ -540,8 +545,41 @@ MD.Page {
                         readonly property real _displayItemHeight: _displayItemWidth / Math.max(root.discoverTweakState.itemAspectRatio, 0.1)
                         cellWidth: _stretchedItemWidth
                         cellHeight: _fillCell ? _displayItemHeight : root.discoverTweakState.itemHeight
+                        readonly property bool _canScroll: contentHeight > height + topMargin + bottomMargin
 
                         model: searchQuery.model
+
+                        function _ensureFilled() {
+                            Qt.callLater(function () {
+                                // status 3 is Error: retrying here would spin while the request keeps failing.
+                                if (searchQuery.querying || searchQuery.status === 3 || !searchQuery.hasMore)
+                                    return;
+                                if (m_grid._canScroll)
+                                    return;
+                                searchQuery.loadMore();
+                            });
+                        }
+
+                        onContentYChanged: {
+                            if (!_canScroll || searchQuery.querying)
+                                return;
+                            if (contentY + height >= contentHeight - displayMarginEnd)
+                                searchQuery.loadMore();
+                        }
+
+                        onContentHeightChanged: _ensureFilled()
+                        onHeightChanged: _ensureFilled()
+
+                        Connections {
+                            target: searchQuery
+                            function onStateChanged() {
+                                m_grid._ensureFilled();
+                            }
+                            function onQueryingChanged() {
+                                if (!searchQuery.querying)
+                                    m_grid._ensureFilled();
+                            }
+                        }
 
                         delegate: RemoteCard {
                             remoteCapability: root.sourceCapability(root.sourceId)

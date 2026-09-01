@@ -20,6 +20,69 @@ Item {
     width: GridView.view ? GridView.view.cellWidth : 0
     height: GridView.view ? GridView.view.cellHeight : 0
 
+    readonly property real _preloadMargin: 400
+    readonly property int _unloadDelayMs: 500
+
+    readonly property var _view: GridView.view
+
+    readonly property bool _viewBusy:
+        !!root._view && (root._view.flicking || root._view.moving)
+
+    readonly property int _rawZone: {
+        const view = root._view
+        if (!view)
+            return 2
+
+        const margin = root._preloadMargin
+        const top = view.contentY
+        const bottom = top + view.height
+        const itemBottom = y + height
+
+        if (itemBottom <= top - margin || y >= bottom + margin)
+            return 0
+
+        if (itemBottom <= top || y >= bottom)
+            return 1
+
+        return 2
+    }
+
+    property bool _imageWanted: true
+
+    function _syncImageWanted() {
+        switch (root._rawZone) {
+        case 2:
+            unloadTimer.stop()
+            root._imageWanted = true
+            break
+
+        case 1:
+            unloadTimer.stop()
+            if (!root._viewBusy)
+                root._imageWanted = true
+            break
+
+        case 0:
+            if (!unloadTimer.running)
+                unloadTimer.restart()
+            break
+        }
+    }
+
+    on_RawZoneChanged: _syncImageWanted()
+    on_ViewBusyChanged: _syncImageWanted()
+
+    Timer {
+        id: unloadTimer
+        interval: root._unloadDelayMs
+        onTriggered: {
+            if (root._rawZone === 0)
+                root._imageWanted = false
+        }
+    }
+
+    Component.onCompleted: _syncImageWanted()
+
     readonly property int _radius: MD.Token.shape.corner.extra_small
     readonly property real cardWidth: Math.min(root.itemWidth, root.width)
     readonly property real cardHeight: Math.min(root.itemHeight, root.height)
@@ -36,22 +99,29 @@ Item {
             anchors.margins: 6
             clip: true
 
-            AnimatedImage {
-                id: m_thumb
+            Loader {
                 anchors.fill: parent
-                source: root.previewUrl
-                fillMode: Image.PreserveAspectCrop
-                horizontalAlignment: Image.AlignHCenter
-                verticalAlignment: Image.AlignVCenter
-                smooth: true
-                cache: true
-                playing: true
-                asynchronous: true
-                onStatusChanged: if (status === AnimatedImage.Ready) playing = true
-                layer.enabled: true
-                layer.effect: MD.RoundClip {
-                    corners: MD.Util.corners(root._radius)
-                    size: Qt.vector2d(m_thumb.width, m_thumb.height)
+                active: root._imageWanted
+                sourceComponent: Component {
+                    AnimatedImage {
+                        id: m_thumb
+                        anchors.fill: parent
+                        source: root.previewUrl
+                        fillMode: Image.PreserveAspectCrop
+                        horizontalAlignment: Image.AlignHCenter
+                        verticalAlignment: Image.AlignVCenter
+                        smooth: true
+                        cache: true
+                        asynchronous: true
+                        playing: root._rawZone === 2
+                        sourceSize: Qt.size(Math.ceil(width), Math.ceil(height))
+                        
+                        layer.enabled: root._rawZone === 2
+                        layer.effect: MD.RoundClip {
+                            corners: MD.Util.corners(root._radius)
+                            size: Qt.vector2d(m_thumb.width, m_thumb.height)
+                        }
+                    }
                 }
             }
 
@@ -59,8 +129,8 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: Math.max(0, parent.height - m_title.y)
-                visible: height > 0
+                anchors.top: m_title.top
+                anchors.topMargin: -12 // Margem para suavizar a transição acima do texto
                 radius: root._radius
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "transparent" }

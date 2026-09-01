@@ -7,6 +7,7 @@ module;
 
 export module waywallen:query.remote;
 export import :query.query;
+export import :query.remote_page_window;
 export import :model.remote;
 
 namespace waywallen
@@ -47,6 +48,8 @@ export class RemoteSearchQuery : public QueryList,
     Q_PROPERTY(QStringList tags READ tags WRITE setTags NOTIFY tagsChanged FINAL)
     Q_PROPERTY(bool browsingEnabled READ browsingEnabled WRITE setBrowsingEnabled NOTIFY
                    browsingEnabledChanged FINAL)
+    Q_PROPERTY(bool prefetchNextPage READ prefetchNextPage WRITE setPrefetchNextPage NOTIFY
+                   prefetchNextPageChanged FINAL)
     Q_PROPERTY(waywallen::model::RemoteListModel* model READ model CONSTANT FINAL)
     Q_PROPERTY(bool hasMore READ hasMore NOTIFY stateChanged FINAL)
     Q_PROPERTY(QString errorText READ errorText NOTIFY stateChanged FINAL)
@@ -69,6 +72,9 @@ public:
     auto browsingEnabled() const -> bool;
     void setBrowsingEnabled(bool);
 
+    auto prefetchNextPage() const -> bool;
+    void setPrefetchNextPage(bool);
+
     auto model() const -> model::RemoteListModel*;
     auto hasMore() const -> bool;
     auto errorText() const -> const QString&;
@@ -82,19 +88,28 @@ public:
     Q_SIGNAL void sortKeyChanged();
     Q_SIGNAL void tagsChanged();
     Q_SIGNAL void browsingEnabledChanged();
+    Q_SIGNAL void prefetchNextPageChanged();
     Q_SIGNAL void stateChanged();
 
 private:
-    void clearResults();
-    void fetchPage(quint32 page, bool append);
+    using FetchMode = RemoteSearchPageWindow::FetchMode;
 
-    QString     m_source_id;
-    QString     m_query;
-    QString     m_sort_key;
-    QStringList m_tags;
-    QString     m_error;
-    bool        m_browsing_enabled { false };
-    quint64     m_generation { 0 };
+    void clearResults();
+    void fetchPage(quint32 page, FetchMode mode, quint64 generation = 0);
+    void prefetchPage(quint32 page, quint64 generation);
+    void applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows, bool more);
+    auto tryApplyCached(quint32 page, FetchMode mode) -> bool;
+
+    QString                m_source_id;
+    QString                m_query;
+    QString                m_sort_key;
+    QStringList            m_tags;
+    QString                m_error;
+    bool                   m_browsing_enabled { false };
+    bool                   m_prefetch_next_page { false };
+    quint64                m_generation { 0 };
+    RemoteSearchPageWindow m_window;
+    QHash<quint32, bool>   m_inflight_pages;
 };
 
 export class RemoteDetailsQuery : public Query,

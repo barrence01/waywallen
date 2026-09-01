@@ -96,6 +96,9 @@ MD.Dialog {
     function setFilterValues(filter, values) {
         root.apply(collect(filter, values));
     }
+    function removeFilterValue(filter, value) {
+        setFilterValues(filter, selectedFor(filter).filter(v => v !== value));
+    }
     function selectOptions(filter) {
         return [qsTr("Any")].concat(filterValues(filter).map(value => valueLabel(filter, value)));
     }
@@ -264,6 +267,8 @@ MD.Dialog {
                                 delegate: W.Tag {
                                     required property var modelData
                                     text: root.valueLabel(filterRow.modelData, modelData)
+                                    removable: true
+                                    onRemoved: root.removeFilterValue(filterRow.modelData, modelData)
                                 }
                             }
                         }

@@ -76,6 +76,8 @@ sources = [
   "src/query/qr_login_query.cpp",
   "src/query/qr_login_query.cppm",
   "src/query/query.cppm",
+  "src/query/remote_page_window.cpp",
+  "src/query/remote_page_window.cppm",
   "src/query/remote_query.cpp",
   "src/query/remote_query.cppm",
   "src/query/renderer_query.cpp",

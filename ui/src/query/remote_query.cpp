@@ -246,6 +246,13 @@ void RemoteSearchQuery::setBrowsingEnabled(bool v) {
     }
 }
 
+auto RemoteSearchQuery::prefetchNextPage() const -> bool { return m_prefetch_next_page; }
+void RemoteSearchQuery::setPrefetchNextPage(bool v) {
+    if (m_prefetch_next_page == v) return;
+    m_prefetch_next_page = v;
+    Q_EMIT prefetchNextPageChanged();
+}
+
 auto RemoteSearchQuery::model() const -> model::RemoteListModel* { return tdata(); }
 auto RemoteSearchQuery::hasMore() const -> bool {
     const auto t = model();
@@ -258,22 +265,28 @@ void RemoteSearchQuery::reload() {
         clearResults();
         return;
     }
+    m_window.clear();
+    m_inflight_pages.clear();
     setOffset(0);
     setNoMore(false);
-    fetchPage(1, false);
+    const auto generation = ++m_generation;
+    fetchPage(1, FetchMode::Reset, generation);
+    if (m_prefetch_next_page) prefetchPage(2, generation);
 }
 
 void RemoteSearchQuery::loadMore() {
     if (! m_browsing_enabled || noMore() || querying()) return;
-    fetchPage(static_cast<quint32>(offset() + 2), true);
+    fetchPage(static_cast<quint32>(offset() + 2), FetchMode::Append);
 }
 
 void RemoteSearchQuery::fetchMore(qint32) {
     if (! m_browsing_enabled || noMore()) return;
-    fetchPage(static_cast<quint32>(offset() + 2), true);
+    fetchPage(static_cast<quint32>(offset() + 2), FetchMode::Append);
 }
 
 void RemoteSearchQuery::clearResults() {
+    m_window.clear();
+    m_inflight_pages.clear();
     setOffset(0);
     setNoMore(true);
     m_error.clear();
@@ -283,10 +296,83 @@ void RemoteSearchQuery::clearResults() {
     Q_EMIT stateChanged();
 }
 
-void RemoteSearchQuery::fetchPage(quint32 page, bool append) {
+void RemoteSearchQuery::applyPage(quint32 page, FetchMode mode, const QList<model::RemoteRow>& rows,
+                                  bool more) {
+    const auto result = m_window.applyPage(model(), page, mode, rows, more, noMore(), offset());
+    if (! result.ok) return;
+    setOffset(result.offset);
+    setNoMore(result.noMore);
+    Q_EMIT stateChanged();
+}
+
+auto RemoteSearchQuery::tryApplyCached(quint32 page, FetchMode mode) -> bool {
+    const auto result = m_window.tryApplyCached(model(), page, mode, noMore(), offset());
+    if (! result.ok) return false;
+    setOffset(result.offset);
+    setNoMore(result.noMore);
+    Q_EMIT stateChanged();
+    return true;
+}
+
+void RemoteSearchQuery::prefetchPage(quint32 page, quint64 generation) {
+    if (m_window.containsCache(page) || m_inflight_pages.contains(page)) return;
+
+    m_inflight_pages.insert(page, true);
+    auto backend = App::instance()->backend();
+
+    auto req   = proto::Request {};
+    auto inner = proto::RemoteSearchRequest {};
+    inner.setSourceId(m_source_id);
+    inner.setQuery(m_query);
+    inner.setSortKey(m_sort_key);
+    inner.setPage(page);
+    inner.setRequiredTags(m_tags);
+    req.setRemoteSearch(std::move(inner));
+
+    auto self = QWatcher { this };
+    (void)QAsyncResult::runtime_handle().spawn(qextra::own_task(
+        [self, backend, req = std::move(req), page, generation]() mutable -> task<void> {
+            auto result = co_await backend->send(std::move(req));
+            if (! co_await QAsyncResult::qexecutor()) co_return;
+            if (! self) co_return;
+            self->m_inflight_pages.remove(page);
+            if (self->m_generation != generation) co_return;
+            if (! result) co_return;
+
+            result.inspect([self, page](const proto::Response& rsp) {
+                const auto&             sr = rsp.remoteSearch();
+                QList<model::RemoteRow> rows;
+                rows.reserve(sr.items().size());
+                for (const auto& it : sr.items()) {
+                    rows.push_back(model::RemoteRow {
+                        it.sourceId(),
+                        it.id_proto(),
+                        it.title(),
+                        it.previewUrl(),
+                        it.author(),
+                        it.wpType(),
+                        it.downloaded() ? 3 : 0,
+                    });
+                }
+                if (! self->model()) return;
+
+                const bool more = sr.hasMore() && ! rows.isEmpty();
+                self->m_window.putCache(page, rows, more);
+                self->tryApplyCached(page, FetchMode::Append);
+            });
+            co_return;
+        }));
+}
+
+void RemoteSearchQuery::fetchPage(quint32 page, FetchMode mode, quint64 generation) {
     auto t = model();
     if (! t) return;
-    t->setHasMore(false);
+
+    if (m_window.containsCache(page)) {
+        tryApplyCached(page, mode);
+        return;
+    }
+    if (m_inflight_pages.contains(page)) return;
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
 
@@ -299,15 +385,17 @@ void RemoteSearchQuery::fetchPage(quint32 page, bool append) {
     inner.setRequiredTags(m_tags);
     req.setRemoteSearch(std::move(inner));
 
-    const auto generation = ++m_generation;
-    auto       self       = QWatcher { this };
-    spawn([self, backend, req = std::move(req), page, append, generation]() mutable -> task<void> {
+    if (generation == 0) generation = ++m_generation;
+    m_inflight_pages.insert(page, true);
+    auto self = QWatcher { this };
+    spawn([self, backend, req = std::move(req), page, mode, generation]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
         if (! self) co_return;
+        self->m_inflight_pages.remove(page);
         if (self->m_generation != generation) co_return;
 
-        self->inspect_set(result, [self, page, append](const proto::Response& rsp) {
+        self->inspect_set(result, [self, page, mode](const proto::Response& rsp) {
             const auto&             sr = rsp.remoteSearch();
             QList<model::RemoteRow> rows;
             rows.reserve(sr.items().size());
@@ -322,17 +410,19 @@ void RemoteSearchQuery::fetchPage(quint32 page, bool append) {
                     it.downloaded() ? 3 : 0,
                 });
             }
-            auto t = self->model();
-            if (! t) return;
+            if (! self->model()) return;
+
             const bool more = sr.hasMore() && ! rows.isEmpty();
-            self->setOffset(static_cast<qint32>(page - 1));
-            self->setNoMore(! more);
-            self->m_error = sr.error();
-            if (append)
-                t->append(rows, more);
-            else
-                t->reset(std::move(rows), more);
-            Q_EMIT self->stateChanged();
+            self->m_error   = sr.error();
+            self->m_window.putCache(page, rows, more);
+
+            const bool skipped = (mode == FetchMode::Append && self->m_window.slicesEmpty()) ||
+                                 (mode == FetchMode::Append && self->noMore()) ||
+                                 self->m_window.pageApplied(page);
+            if (skipped) return;
+
+            self->applyPage(page, mode, rows, more);
+            if (mode == FetchMode::Reset && more) self->tryApplyCached(page + 1, FetchMode::Append);
         });
         co_return;
     });
