@@ -1861,6 +1861,11 @@ Related display: #%1</source>
         <translation>自动重播</translation>
     </message>
     <message>
+        <location filename="../qml/page/SettingsPage.qml" line="584"/>
+        <source>Resume delay</source>
+        <translation>恢复延迟</translation>
+    </message>
+    <message>
         <location filename="../qml/page/SettingsPage.qml" line="411"/>
         <source>Appearance</source>
         <translation>外观</translation>
@@ -2874,6 +2879,27 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/filter/WpTypeFilter.qml" line="19"/>
         <source>any</source>
         <translation>任意</translation>
+    </message>
+</context>
+<context>
+    <name>waywallen::PresentationManager</name>
+    <message>
+        <location filename="../src/objmodel/presentation.cpp" line="70"/>
+        <source>Display #%1</source>
+        <translation>显示器 #%1</translation>
+    </message>
+    <message>
+        <location filename="../src/objmodel/presentation.cpp" line="74"/>
+        <source>Canvas %1</source>
+        <translation>画布 %1</translation>
+    </message>
+</context>
+<context>
+    <name>SidebarNowPlaying</name>
+    <message>
+        <location filename="../qml/component/SidebarNowPlaying.qml" line="33"/>
+        <source>Current wallpapers</source>
+        <translation>当前壁纸</translation>
     </message>
 </context>
 </TS>

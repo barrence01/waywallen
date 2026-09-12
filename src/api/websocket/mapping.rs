@@ -601,6 +601,7 @@ pub(super) fn auto_replay_to_pb(p: &crate::settings::AutoReplayPolicy) -> pb::Au
         fullscreen: auto_action_to_pb(p.fullscreen) as i32,
         session_locked: auto_action_to_pb(p.session_locked) as i32,
         session_inactive: auto_action_to_pb(p.session_inactive) as i32,
+        resume_delay_ms: Some(p.effective_resume_delay_ms()),
     }
 }
 
@@ -612,6 +613,10 @@ pub(super) fn auto_replay_from_pb(p: &pb::AutoReplayPolicy) -> crate::settings::
         fullscreen: auto_action_from_pb(p.fullscreen),
         session_locked: auto_action_from_pb(p.session_locked),
         session_inactive: auto_action_from_pb(p.session_inactive),
+        resume_delay_ms: p
+            .resume_delay_ms
+            .unwrap_or(crate::settings::DEFAULT_AUTO_REPLAY_RESUME_DELAY_MS)
+            .min(crate::settings::MAX_AUTO_REPLAY_RESUME_DELAY_MS),
     }
 }
 
@@ -902,6 +907,60 @@ pub(super) fn router_event_to_pb(e: RouterEvent, settings: &SettingsStore) -> pb
         },
         RouterEvent::LibrariesReplace(list) => libraries_replace_event(list),
     }
+}
+
+pub(super) fn wallpaper_presentations_event(
+    presentations: &[crate::wallframe::routing::WallpaperPresentationInfo],
+) -> pb::Event {
+    use crate::wallframe::routing::{
+        WallpaperPresentationState as State, WallpaperPresentationTarget as Target,
+    };
+
+    pb::Event {
+        payload: Some(pb::event::Payload::WallpaperPresentationSnapshot(
+            pb::WallpaperPresentationSnapshot {
+                presentations: presentations
+                    .iter()
+                    .map(|presentation| pb::WallpaperPresentationInfo {
+                        wallpaper_id: presentation.wallpaper_id.clone(),
+                        targets: presentation
+                            .targets
+                            .iter()
+                            .map(|target| pb::WallpaperPresentationTarget {
+                                target: Some(match target {
+                                    Target::Display(display_id) => {
+                                        pb::wallpaper_presentation_target::Target::DisplayId(
+                                            *display_id,
+                                        )
+                                    }
+                                    Target::Canvas(canvas_id) => {
+                                        pb::wallpaper_presentation_target::Target::CanvasId(
+                                            canvas_id.clone(),
+                                        )
+                                    }
+                                }),
+                            })
+                            .collect(),
+                        state: match presentation.state {
+                            State::Starting => pb::WallpaperPresentationState::Starting as i32,
+                            State::Playing => pb::WallpaperPresentationState::Playing as i32,
+                            State::Paused => pb::WallpaperPresentationState::Paused as i32,
+                            State::Stopped => pb::WallpaperPresentationState::Stopped as i32,
+                        },
+                    })
+                    .collect(),
+            },
+        )),
+    }
+}
+
+pub(super) fn router_event_affects_wallpaper_presentations(event: &RouterEvent) -> bool {
+    !matches!(
+        event,
+        RouterEvent::LibraryUpsert(_)
+            | RouterEvent::LibraryRemoved(_)
+            | RouterEvent::LibrariesReplace(_)
+    )
 }
 
 /// Snapshot daemon-side runtime state into a `StatusSync` server event.

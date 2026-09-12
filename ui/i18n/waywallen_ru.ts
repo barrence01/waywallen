@@ -26,7 +26,7 @@
     <message>
         <location filename="../qml/page/AboutPage.qml" line="108"/>
         <source>Issues</source>
-        <translation>Баг-трекер</translation>
+        <translation>Сообщить о проблеме</translation>
     </message>
     <message>
         <location filename="../qml/page/AboutPage.qml" line="115"/>
@@ -712,12 +712,12 @@
     <message>
         <location filename="../qml/component/LayerShellDisplaysHelp.qml" line="40"/>
         <source>%1 uses the &lt;b&gt;waywallen-layer-shell&lt;/b&gt; display backend. The daemon is running inside Flatpak%2, where layer-shell Wayland protocols are not available. Start and keep &lt;b&gt;waywallen-layer-shell&lt;/b&gt; running outside Flatpak.</source>
-        <translation>%1 использует бэкенд вывода &lt;b&gt;waywallen-layer-shell&lt;/b&gt;. Демон работает внутри Flatpak%2, где протоколы layer-shell для Wayland недоступны. Запустите &lt;b&gt;waywallen-layer-shell&lt;/b&gt; вне Flatpak и не завершайте его.</translation>
+        <translation>%1 выводит обои через &lt;b&gt;waywallen-layer-shell&lt;/b&gt;. Демон работает внутри Flatpak%2, где протоколы layer-shell для Wayland недоступны. Запустите &lt;b&gt;waywallen-layer-shell&lt;/b&gt; вне Flatpak и не завершайте его.</translation>
     </message>
     <message>
         <location filename="../qml/component/LayerShellDisplaysHelp.qml" line="41"/>
         <source>%1 uses the &lt;b&gt;waywallen-layer-shell&lt;/b&gt; display backend, but the daemon could not find its binary. Install it from GitHub:</source>
-        <translation>%1 использует бэкенд вывода &lt;b&gt;waywallen-layer-shell&lt;/b&gt;, но демон не нашёл его исполняемый файл. Установите его с GitHub:</translation>
+        <translation>%1 выводит обои через &lt;b&gt;waywallen-layer-shell&lt;/b&gt;, но демон не нашёл его исполняемый файл. Установите его с GitHub:</translation>
     </message>
     <message>
         <location filename="../qml/component/LayerShellDisplaysHelp.qml" line="51"/>
@@ -1789,12 +1789,12 @@ Related display: #%1</source>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="618"/>
         <source>Single UI instance</source>
-        <translation>Один экземпляр интерфейса</translation>
+        <translation>Только одно окно</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="621"/>
         <source>When enabled, launching Waywallen again focuses the existing window.</source>
-        <translation>При повторном запуске Waywallen фокусируется уже открытое окно.</translation>
+        <translation>Повторный запуск Waywallen просто вернёт на экран уже открытое окно.</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="652"/>
@@ -1824,7 +1824,7 @@ Related display: #%1</source>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="751"/>
         <source>Debug logging</source>
-        <translation>Отладочное логирование</translation>
+        <translation>Подробный журнал</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="755"/>
@@ -1854,7 +1854,7 @@ Related display: #%1</source>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="838"/>
         <source>Mouse forwarding</source>
-        <translation>Передача событий мыши</translation>
+        <translation>Передавать мышь обоям</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="865"/>
@@ -1865,6 +1865,11 @@ Related display: #%1</source>
         <location filename="../qml/page/SettingsPage.qml" line="532"/>
         <source>Auto replay</source>
         <translation>Автоповтор</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="584"/>
+        <source>Resume delay</source>
+        <translation>Задержка возобновления</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="411"/>
@@ -2637,7 +2642,7 @@ Unsaved frame state may be lost.</source>
     <message>
         <location filename="../qml/page/WallpaperInfoPage.qml" line="216"/>
         <source>Overrides</source>
-        <translation>Переопределения</translation>
+        <translation>Изменённые свойства</translation>
     </message>
 </context>
 <context>
@@ -2884,6 +2889,27 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/filter/WpTypeFilter.qml" line="19"/>
         <source>any</source>
         <translation>любой</translation>
+    </message>
+</context>
+<context>
+    <name>waywallen::PresentationManager</name>
+    <message>
+        <location filename="../src/objmodel/presentation.cpp" line="70"/>
+        <source>Display #%1</source>
+        <translation>Монитор #%1</translation>
+    </message>
+    <message>
+        <location filename="../src/objmodel/presentation.cpp" line="74"/>
+        <source>Canvas %1</source>
+        <translation>Холст %1</translation>
+    </message>
+</context>
+<context>
+    <name>SidebarNowPlaying</name>
+    <message>
+        <location filename="../qml/component/SidebarNowPlaying.qml" line="33"/>
+        <source>Current wallpapers</source>
+        <translation>Текущие обои</translation>
     </message>
 </context>
 </TS>
