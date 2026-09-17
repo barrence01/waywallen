@@ -17,7 +17,7 @@ Tag {
         ? W.App.gpuManager.find(root.drmRenderMajor, root.drmRenderMinor)
         : null
 
-    readonly property var palette: root.gpu ? W.Global.gpu.forVendor(root.gpu.vendorId) : null
+    readonly property var gpuPalette: root.gpu ? W.Global.gpu.forVendor(root.gpu.vendorId) : null
 
     text: {
         if (!root.gpu) return "";
@@ -26,8 +26,8 @@ Tag {
     }
 
     visible: root.gpu !== null
-    bgColor: root.palette ? root.palette.primary_container : MD.Token.color.surface_container_high
-    fgColor: root.palette ? root.palette.on_primary_container : MD.Token.color.on_surface
+    bgColor: root.gpuPalette ? root.gpuPalette.primary_container : MD.Token.color.surface_container_high
+    fgColor: root.gpuPalette ? root.gpuPalette.on_primary_container : MD.Token.color.on_surface
 
     HoverHandler {
         id: hover

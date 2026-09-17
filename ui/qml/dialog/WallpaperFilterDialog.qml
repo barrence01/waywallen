@@ -21,6 +21,8 @@ MD.Dialog {
     // empty = no constraint (all). Edited via the tag picker, applied as a
     // whole list.
     property var filterTags: []
+    // Source-declared labels for tag and content-rating values, display only.
+    property var valueLabels: ({})
     signal applyFilterTags(var tags)
     // Quick content-rating toggles (like Types): chips show all ratings;
     // checked = shown, unchecked ones are recorded as skipped.
@@ -45,6 +47,7 @@ MD.Dialog {
 
         W.TagPickerDialog {
             allTags: tagListQuery.tags
+            tagLabels: root.valueLabels
             selected: root.filterTags
             onCommit: function (tags) {
                 root.applyFilterTags(tags);
@@ -133,7 +136,7 @@ MD.Dialog {
                         model: root.filterTags
                         delegate: W.Tag {
                             required property var modelData
-                            text: modelData
+                            text: W.I18n.valueLabel(root.valueLabels, modelData)
                             removable: true
                             onRemoved: root.applyFilterTags((root.filterTags || []).filter(t => t !== modelData))
                         }
@@ -160,7 +163,7 @@ MD.Dialog {
                         delegate: MD.FilterChip {
                             required property var modelData
                             checkable: false
-                            text: modelData
+                            text: W.I18n.valueLabel(root.valueLabels, modelData)
                             checked: (root.skipContentRatings || []).indexOf(modelData) < 0
                             onClicked: root.toggleSkipRating(modelData)
                         }
@@ -208,6 +211,7 @@ MD.Dialog {
             popupWindow: root.popupWindow
             supportedTypes: root.supportedTypes
             allTags: tagListQuery.tags
+            valueLabels: root.valueLabels
             allContentRatings: ratingListQuery.ratings
         }
 

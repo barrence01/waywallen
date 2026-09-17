@@ -41,13 +41,11 @@ fn publishes_position_change(source: PlaylistApplySource) -> bool {
     )
 }
 
-/// Whether the port publishes once the assignments are done. A failed
-/// apply publishes too: the session moves its cursors before the port
-/// runs, so the status changed even when an assignment failed — and on
-/// a partial apply the remaining displays did take the new wallpaper.
-/// Without this, subscribers keep rendering a position the daemon left.
+// Activation publishes in the caller after the engine finishes any rollback.
+// Other failed applies retain their cursor changes and must notify subscribers.
 fn publishes_after_apply(source: PlaylistApplySource, apply_failed: bool) -> bool {
-    publishes_position_change(source) || apply_failed
+    publishes_position_change(source)
+        || (apply_failed && !matches!(source, PlaylistApplySource::Activation))
 }
 
 fn apply_port(app: &Arc<DaemonContext>, activation_source: ApplySource) -> ApplyPort {
@@ -291,7 +289,8 @@ async fn activate_inner(
     } else {
         HashMap::new()
     };
-    app.playlists
+    let result = app
+        .playlists
         .activate(
             Activation {
                 definition,
@@ -302,7 +301,11 @@ async fn activate_inner(
             apply_port(app, activation_source),
             app.shutdown_subscribe(),
         )
-        .await?;
+        .await;
+    if let Err(error) = result {
+        publish_changed(app);
+        return Err(error);
+    }
     persist_assignments(app, &targets, Some(playlist_id), AutoAttachUpdate::Inherit).await;
     publish_changed(app);
     Ok(())
@@ -481,9 +484,13 @@ mod tests {
     ];
 
     #[test]
-    fn failed_apply_publishes_for_every_source() {
+    fn failed_apply_defers_activation_publication_to_caller() {
         for source in SOURCES {
-            assert!(publishes_after_apply(source, true), "{source:?}");
+            assert_eq!(
+                publishes_after_apply(source, true),
+                !matches!(source, PlaylistApplySource::Activation),
+                "{source:?}"
+            );
         }
     }
 

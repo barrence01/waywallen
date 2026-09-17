@@ -49,6 +49,7 @@ Item {
             required property string targetSummary
 
             accessibilityTitle: wallpaper?.name || wallpaperId
+            cornerRadius: root.cardRadius
             showBackground: false
 
             W.ThumbnailImage {
@@ -58,7 +59,7 @@ Item {
                 resource: card.wallpaper?.resource ?? ""
                 wpType: card.wallpaper?.wpType ?? ""
                 fillMode: Image.PreserveAspectCrop
-                radius: root.cardRadius
+                radius: card.effectiveCornerRadius
             }
 
             Rectangle {
@@ -67,7 +68,7 @@ Item {
                 anchors.right: thumbnail.right
                 anchors.bottom: thumbnail.bottom
                 height: Math.min(thumbnail.height, textColumn.implicitHeight + 28)
-                radius: root.cardRadius
+                radius: card.effectiveCornerRadius
                 gradient: Gradient {
                     GradientStop { position: 0; color: "transparent" }
                     GradientStop { position: 1; color: MD.Util.transparent(MD.Token.color.scrim, 0.78) }

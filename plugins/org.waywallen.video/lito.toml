@@ -34,3 +34,7 @@ workspace = true
 
 [runtime-dependencies.waywallen-bridge]
 workspace = true
+
+[external-dependencies.cmake.vulkan-loader]
+package = "Vulkan"
+targets = [{ name = "Vulkan::Vulkan" }]
