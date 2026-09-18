@@ -95,6 +95,7 @@ package = "waywallen"
 
 [workspace.external-sources.qml-material]
 git = "https://github.com/hypengw/QmlMaterial.git"
+commit = "24213ed33c7efeb0d35c1cbd5d6b4e474f58e8b4"
 
 [workspace.external-dependencies.cmake.qml-material]
 package = "qml_material"
