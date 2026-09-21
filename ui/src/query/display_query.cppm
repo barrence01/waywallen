@@ -12,6 +12,27 @@ export import :query.query;
 namespace waywallen
 {
 
+export class DisplayPauseSetQuery : public Query,
+                                    public QueryExtra<control::v1::Response, DisplayPauseSetQuery> {
+    Q_OBJECT
+    QML_ELEMENT
+    Q_PROPERTY(quint64 displayId READ displayId WRITE setDisplayId NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(bool paused READ paused WRITE setPaused NOTIFY paramsChanged FINAL)
+
+public:
+    DisplayPauseSetQuery(QObject* parent = nullptr);
+    auto          displayId() const -> quint64 { return m_display_id; }
+    auto          paused() const -> bool { return m_paused; }
+    void          setDisplayId(quint64 value);
+    void          setPaused(bool value);
+    void          reload() override;
+    Q_SIGNAL void paramsChanged();
+
+private:
+    quint64 m_display_id { 0 };
+    bool    m_paused { false };
+};
+
 export class DisplayListQuery : public Query,
                                 public QueryExtra<control::v1::Response, DisplayListQuery> {
     Q_OBJECT

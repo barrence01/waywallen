@@ -19,7 +19,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.3.9"
+version = "0.4.0"
 
 [workspace.dependencies.waywallen-bridge]
 path = "bridge"
@@ -94,7 +94,6 @@ package = "waywallen"
 
 [workspace.external-sources.qml-material]
 git = "https://github.com/hypengw/QmlMaterial.git"
-tag = "v0.3.0"
 
 [workspace.external-dependencies.cmake.qml-material]
 package = "qml_material"

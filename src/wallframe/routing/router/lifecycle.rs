@@ -323,183 +323,21 @@ impl Router {
         Ok(())
     }
 
-    /// Update the session-level state driven by the
-    /// `session_monitor` task. `None` leaves that flag unchanged.
-    pub async fn update_session_state(
-        self: &Arc<Self>,
-        locked: Option<bool>,
-        inactive: Option<bool>,
-    ) {
-        let display_ids = {
-            let mut inner = self.inner.lock().await;
-            let mut changed = false;
-            if let Some(v) = locked {
-                if inner.session_locked != v {
-                    inner.session_locked = v;
-                    changed = true;
-                }
-            }
-            if let Some(v) = inactive {
-                if inner.session_inactive != v {
-                    inner.session_inactive = v;
-                    changed = true;
-                }
-            }
-            if !changed {
-                Vec::new()
-            } else {
-                inner.displays.keys().copied().collect()
-            }
-        };
-        for display_id in display_ids {
-            let action = self.update_auto_state(display_id, None).await;
-            self.run_auto_state_action(action).await;
-        }
-    }
-
-    pub(super) async fn update_auto_state(
-        self: &Arc<Self>,
-        display_id: DisplayId,
-        flags: Option<u32>,
-    ) -> AutoStateAction {
-        let mut inner = self.inner.lock().await;
-        let session_locked = inner.session_locked;
-        let session_inactive = inner.session_inactive;
-        let Some(state) = inner.displays.get_mut(&display_id) else {
-            return AutoStateAction::Noop;
-        };
-        let next_flags = flags.unwrap_or(state.auto_replay.last_flags);
-        let policy = self.resolved_auto_replay(&state.info);
-        let new_raw = auto_replay::decide(
-            &policy,
-            auto_replay::Facts {
-                flags: next_flags,
-                session_locked,
-                session_inactive,
-            },
-        );
-        let same_input = flags.is_some_and(|v| v == state.auto_replay.last_flags);
-        if flags.is_some() {
-            state.auto_replay.last_flags = next_flags;
-        }
-        if same_input && new_raw == state.auto_replay.raw {
-            return AutoStateAction::Noop;
-        }
-        state.auto_replay.raw = new_raw;
-        if new_raw.is_active() {
-            let cancel_resume = state.auto_replay.pending_resume.take().is_some();
-            let reconcile = state.auto_replay.requested != new_raw;
-            if reconcile {
-                state.auto_replay.requested = new_raw;
-            }
-            if cancel_resume {
-                AutoStateAction::CancelResume {
-                    display_id,
-                    reconcile,
-                }
-            } else if reconcile {
-                AutoStateAction::Reconcile
-            } else {
-                AutoStateAction::Noop
-            }
-        } else if state.auto_replay.requested.is_active() {
-            let delay = Duration::from_millis(u64::from(policy.effective_resume_delay_ms()));
-            if delay.is_zero() {
-                let cancel_resume = state.auto_replay.pending_resume.take().is_some();
-                state.auto_replay.requested = new_raw;
-                if cancel_resume {
-                    AutoStateAction::CancelResume {
-                        display_id,
-                        reconcile: true,
-                    }
-                } else {
-                    AutoStateAction::Reconcile
-                }
-            } else if state.auto_replay.pending_resume.is_some() {
-                AutoStateAction::Noop
-            } else {
-                state.auto_replay.resume_token = state
-                    .auto_replay
-                    .resume_token
-                    .checked_add(1)
-                    .expect("auto replay resume token exhausted");
-                let token = state.auto_replay.resume_token;
-                state.auto_replay.pending_resume = Some(token);
-                AutoStateAction::ScheduleResume {
-                    display_id,
-                    token,
-                    delay,
-                }
-            }
-        } else {
-            state.auto_replay.requested = new_raw;
-            AutoStateAction::Noop
-        }
-    }
-
-    pub(super) async fn run_auto_state_action(self: &Arc<Self>, action: AutoStateAction) {
-        match action {
-            AutoStateAction::Noop => {}
-            AutoStateAction::Reconcile => {
-                self.apply_auto_stop_links().await;
-                self.reconcile_lifecycle().await;
-            }
-            AutoStateAction::ScheduleResume {
-                display_id,
-                token,
-                delay,
-            } => {
-                self.deadlines.schedule(
-                    deadline::DeadlineKey::auto_replay_resume(display_id),
-                    token,
-                    tokio::time::Instant::now() + delay,
-                );
-            }
-            AutoStateAction::CancelResume {
-                display_id,
-                reconcile,
-            } => {
-                self.deadlines
-                    .cancel(deadline::DeadlineKey::auto_replay_resume(display_id));
-                if reconcile {
-                    self.apply_auto_stop_links().await;
-                    self.reconcile_lifecycle().await;
-                }
-            }
-        }
-    }
-
-    async fn finish_auto_replay_resume(self: &Arc<Self>, display_id: DisplayId, token: u64) {
-        let reconcile = {
-            let mut inner = self.inner.lock().await;
-            let Some(state) = inner.displays.get_mut(&display_id) else {
-                return;
-            };
-            if state.auto_replay.pending_resume != Some(token) {
-                return;
-            }
-            state.auto_replay.pending_resume = None;
-            if state.auto_replay.raw.is_active() || !state.auto_replay.requested.is_active() {
-                false
-            } else {
-                state.auto_replay.requested = state.auto_replay.raw;
-                true
-            }
-        };
-        if reconcile {
-            self.apply_auto_stop_links().await;
-            self.reconcile_lifecycle().await;
-        }
-    }
-
     pub(super) async fn apply_auto_stop_links(self: &Arc<Self>) {
         {
             let mut inner = self.inner.lock().await;
+            inner.auto_stopped_renderers = inner
+                .renderer_slots
+                .keys()
+                .filter(|id| inner.auto_stops_renderer(id))
+                .cloned()
+                .collect();
             let plans: Vec<(DisplayId, bool)> = inner
                 .displays
                 .iter()
                 .filter_map(|(display_id, state)| {
-                    let should_stop = state.auto_replay.requested.action == AutoAction::Stop;
+                    let should_stop =
+                        inner.auto_effects.stop || state.auto_replay.effects().stop_local;
                     (state.auto_replay.stop_applied != should_stop)
                         .then_some((*display_id, should_stop))
                 })
@@ -522,12 +360,14 @@ impl Router {
             let mut reenabled_renderers = Vec::new();
             for display_id in display_ids {
                 let enabled = !inner.manual_stopped
+                    && !inner.auto_effects.stop
                     && !inner
                         .displays
                         .get(&display_id)
                         .is_some_and(|display| display.auto_replay.stop_applied);
                 let mut changed = false;
                 for link in inner.table.links_for_display(display_id) {
+                    let enabled = enabled && !inner.auto_stops_renderer(&link.renderer_id);
                     if inner.table.set_link_enabled(link.id, enabled) {
                         changed = true;
                         if enabled {
@@ -548,6 +388,7 @@ impl Router {
                 .filter(|renderer_id| {
                     let links = inner.table.links_for_renderer(renderer_id);
                     inner.manual_stopped
+                        || inner.auto_effects.stop
                         || (!links.is_empty() && links.iter().all(|link| !link.enabled))
                 })
                 .cloned()

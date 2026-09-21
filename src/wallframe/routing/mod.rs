@@ -5,7 +5,7 @@ pub mod table;
 pub use router::{
     ActiveRenderer, ApplyAssignment, ApplyReceipt, AssignmentActivation, AssignmentTarget,
     BlurEffectConfig, CanvasCollectionSnapshot, CanvasMemberSnapshot, CanvasSnapshot,
-    ConfigTargetId, ConsumerImportFailureKind, ConsumerImportFailureOutcome,
+    ConfigTargetId, ConsumerImportFailureKind, ConsumerImportFailureOutcome, ContentToken,
     DisplayConsumptionPermit, DisplayHandle, DisplayLinkSnapshot, DisplayOutEvent,
     DisplayRegistration, DisplaySnapshot, LayoutSource, LibrarySnapshot, PauseEffectConfig,
     PauseEffectState, PresentationConfig, PresentationSnapshot, PresentationState,

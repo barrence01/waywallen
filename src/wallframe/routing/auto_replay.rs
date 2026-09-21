@@ -1,86 +1,133 @@
-use crate::settings::{AutoAction, AutoCondition, AutoReplayPolicy};
+use crate::settings::{AutoAction, AutoCondition, AutoReplayPolicy, AutoScope};
+use tokio::time::Instant;
 
-/// Some mapped (non-minimized) window covers this display.
 pub const FLAG_NON_MINIMIZED: u32 = 1 << 0;
-/// Some window on this display has keyboard focus.
 pub const FLAG_ACTIVE: u32 = 1 << 1;
-/// Some window is H+V maximized (and NOT fullscreen).
 pub const FLAG_MAXIMIZED: u32 = 1 << 2;
-/// Some window is fullscreen.
 pub const FLAG_FULLSCREEN: u32 = 1 << 3;
-
-/// Bits the daemon understands. Higher bits are reserved and ignored.
 pub const FLAGS_KNOWN: u32 = FLAG_NON_MINIMIZED | FLAG_ACTIVE | FLAG_MAXIMIZED | FLAG_FULLSCREEN;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Facts {
     pub flags: u32,
     pub session_locked: bool,
     pub session_inactive: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Decision {
-    pub action: AutoAction,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Source {
+    Display(u64),
+    Session,
 }
 
-impl Default for Decision {
-    fn default() -> Self {
-        Self {
-            action: AutoAction::None,
-        }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Effects {
+    pub pause: bool,
+    pub pause_all: bool,
+    pub stop: bool,
+    pub stop_local: bool,
+    pub mute: bool,
+}
+
+impl Effects {
+    pub fn merge(&mut self, other: Self) {
+        self.pause |= other.pause;
+        self.pause_all |= other.pause_all;
+        self.stop |= other.stop;
+        self.stop_local |= other.stop_local;
+        self.mute |= other.mute;
     }
 }
 
-impl Decision {
-    pub fn from_action(action: AutoAction) -> Self {
-        Self { action }
-    }
-
-    pub fn is_active(self) -> bool {
-        self.action != AutoAction::None
-    }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct Contribution {
+    action: AutoAction,
+    scope: AutoScope,
 }
 
-/// Per-display auto replay state held by the router.
+#[derive(Debug, Clone, Copy, Default)]
+struct RuleState {
+    requested: Contribution,
+    resume_at: Option<Instant>,
+}
+
+/// Each condition retains its own release deadline and contribution.
 #[derive(Debug, Default)]
 pub struct State {
     pub last_flags: u32,
-    pub raw: Decision,
-    pub requested: Decision,
     pub stop_applied: bool,
+    rules: [RuleState; 6],
     pub resume_token: u64,
-    pub pending_resume: Option<u64>,
 }
 
 impl State {
     pub fn new() -> Self {
         Self::default()
     }
-}
 
-pub fn decide(policy: &AutoReplayPolicy, facts: Facts) -> Decision {
-    let mut best = Decision::from_action(AutoAction::None);
-    for condition in AUTO_CONDITIONS {
-        if !condition_matches(condition, facts) {
-            continue;
+    pub fn update(
+        &mut self,
+        policy: AutoReplayPolicy,
+        facts: Facts,
+        session: bool,
+        now: Instant,
+        reset: bool,
+    ) {
+        self.last_flags = facts.flags;
+        for (condition, state) in AutoCondition::ALL.into_iter().zip(&mut self.rules) {
+            let contribution =
+                if condition.is_session() == session && condition_matches(condition, facts) {
+                    Contribution {
+                        action: policy.action_for(condition),
+                        scope: policy.scope_for(condition),
+                    }
+                } else {
+                    Contribution::default()
+                };
+            if reset || contribution.action != AutoAction::None {
+                state.requested = contribution;
+                state.resume_at = None;
+            } else if state.requested.action != AutoAction::None {
+                let at = *state.resume_at.get_or_insert(
+                    now + std::time::Duration::from_millis(u64::from(
+                        policy.effective_resume_delay_ms(),
+                    )),
+                );
+                if now >= at {
+                    state.requested = Contribution::default();
+                    state.resume_at = None;
+                }
+            }
         }
-        let action = policy.action_for(condition);
-        if action.priority() > best.action.priority() {
-            best = Decision::from_action(action);
-        }
+        self.resume_token = self
+            .resume_token
+            .checked_add(1)
+            .expect("auto replay token exhausted");
     }
-    best
-}
 
-const AUTO_CONDITIONS: [AutoCondition; 6] = [
-    AutoCondition::AnyWindow,
-    AutoCondition::Focused,
-    AutoCondition::Maximized,
-    AutoCondition::Fullscreen,
-    AutoCondition::SessionLocked,
-    AutoCondition::SessionInactive,
-];
+    pub fn next_deadline(&self) -> Option<Instant> {
+        self.rules.iter().filter_map(|r| r.resume_at).min()
+    }
+
+    pub fn effects(&self) -> Effects {
+        let mut effects = Effects::default();
+        for rule in self.rules {
+            match rule.requested.action {
+                AutoAction::None => {}
+                AutoAction::Pause if rule.requested.scope == AutoScope::CurrentDisplay => {
+                    effects.pause = true
+                }
+                AutoAction::Pause => effects.pause_all = true,
+                AutoAction::Stop if rule.requested.scope == AutoScope::CurrentDisplay => {
+                    effects.stop_local = true
+                }
+                AutoAction::Stop => effects.stop = true,
+                AutoAction::Mute => effects.mute = true,
+            }
+        }
+        effects
+    }
+}
 
 fn condition_matches(condition: AutoCondition, facts: Facts) -> bool {
     let has = |b: u32| facts.flags & b != 0;
@@ -98,76 +145,134 @@ fn condition_matches(condition: AutoCondition, facts: Facts) -> bool {
 mod tests {
     use super::*;
 
-    fn policy(actions: &[(AutoCondition, AutoAction)]) -> AutoReplayPolicy {
-        let mut policy = AutoReplayPolicy::default();
-        for (condition, action) in actions {
-            policy.set_action(*condition, *action);
+    fn facts(flags: u32) -> Facts {
+        Facts {
+            flags,
+            session_locked: false,
+            session_inactive: false,
         }
-        policy
     }
 
     #[test]
-    fn decide_selects_matching_action() {
-        let policy = policy(&[(AutoCondition::Fullscreen, AutoAction::Pause)]);
-        let decision = decide(
-            &policy,
-            Facts {
-                flags: FLAG_FULLSCREEN,
-                session_locked: false,
-                session_inactive: false,
-            },
+    fn simultaneous_conditions_preserve_mute_and_pause() {
+        let policy = AutoReplayPolicy {
+            focused: AutoAction::Mute,
+            ..Default::default()
+        };
+        let mut state = State::new();
+        state.update(
+            policy,
+            facts(FLAG_ACTIVE | FLAG_FULLSCREEN),
+            false,
+            Instant::now(),
+            false,
         );
-        assert_eq!(decision.action, AutoAction::Pause);
+        assert_eq!(
+            state.effects(),
+            Effects {
+                pause: true,
+                mute: true,
+                ..Default::default()
+            }
+        );
     }
 
     #[test]
-    fn action_priority_selects_stronger_action() {
-        let policy = policy(&[
-            (AutoCondition::Focused, AutoAction::Mute),
-            (AutoCondition::Fullscreen, AutoAction::Pause),
-        ]);
-        let decision = decide(
-            &policy,
-            Facts {
-                flags: FLAG_ACTIVE | FLAG_FULLSCREEN,
-                session_locked: false,
-                session_inactive: false,
-            },
+    fn scope_and_session_have_separate_owners() {
+        let policy = AutoReplayPolicy {
+            fullscreen_scope: AutoScope::AllDisplays,
+            ..Default::default()
+        };
+        let mut state = State::new();
+        let mut input = facts(FLAG_FULLSCREEN);
+        input.session_locked = true;
+        state.update(policy, input, false, Instant::now(), false);
+        assert_eq!(
+            state.effects(),
+            Effects {
+                pause_all: true,
+                ..Default::default()
+            }
         );
-        assert_eq!(decision.action, AutoAction::Pause);
+        state.update(policy, input, true, Instant::now(), true);
+        assert_eq!(
+            state.effects(),
+            Effects {
+                stop: true,
+                ..Default::default()
+            }
+        );
     }
 
     #[test]
-    fn stop_wins_over_pause() {
-        let policy = policy(&[
-            (AutoCondition::Focused, AutoAction::Pause),
-            (AutoCondition::Fullscreen, AutoAction::Stop),
-        ]);
-        let decision = decide(
-            &policy,
-            Facts {
-                flags: FLAG_ACTIVE | FLAG_FULLSCREEN,
-                session_locked: false,
-                session_inactive: false,
-            },
+    fn conditions_release_independently_and_retrigger_cancels_deadline() {
+        let policy = AutoReplayPolicy {
+            focused: AutoAction::Mute,
+            resume_delay_ms: 100,
+            ..Default::default()
+        };
+        let mut state = State::new();
+        let now = Instant::now();
+        state.update(
+            policy,
+            facts(FLAG_ACTIVE | FLAG_FULLSCREEN),
+            false,
+            now,
+            false,
         );
-        assert_eq!(decision.action, AutoAction::Stop);
+        state.update(policy, facts(FLAG_ACTIVE), false, now, false);
+        assert!(state.effects().pause && state.effects().mute);
+        let later = now + std::time::Duration::from_millis(100);
+        state.update(policy, facts(FLAG_ACTIVE), false, later, false);
+        assert!(!state.effects().pause && state.effects().mute);
+        state.update(policy, facts(0), false, later, false);
+        state.update(policy, facts(FLAG_ACTIVE), false, later, false);
+        assert!(state.next_deadline().is_none());
+        assert!(state.effects().mute);
     }
 
     #[test]
-    fn none_does_not_override_stronger_actions() {
-        let policy = policy(&[
-            (AutoCondition::Focused, AutoAction::Pause),
-            (AutoCondition::Fullscreen, AutoAction::None),
-        ]);
-        let decision = decide(
-            &policy,
-            Facts {
-                flags: FLAG_ACTIVE | FLAG_FULLSCREEN,
-                session_locked: false,
-                session_inactive: false,
-            },
+    fn local_stop_retains_its_scope_until_resume_deadline() {
+        let mut state = State::new();
+        let policy = AutoReplayPolicy {
+            fullscreen: AutoAction::Stop,
+            fullscreen_scope: AutoScope::CurrentDisplay,
+            resume_delay_ms: 100,
+            ..Default::default()
+        };
+        let now = Instant::now();
+        state.update(policy, facts(FLAG_FULLSCREEN), false, now, false);
+        assert!(state.effects().stop_local);
+        assert!(!state.effects().stop);
+        state.update(policy, facts(0), false, now, false);
+        assert!(state.effects().stop_local);
+        state.update(
+            policy,
+            facts(0),
+            false,
+            now + std::time::Duration::from_millis(100),
+            false,
         );
-        assert_eq!(decision.action, AutoAction::Pause);
+        assert!(!state.effects().stop_local);
+    }
+
+    #[test]
+    fn settings_reset_removes_old_delayed_contributions() {
+        let mut state = State::new();
+        let now = Instant::now();
+        state.update(
+            AutoReplayPolicy::default(),
+            facts(FLAG_FULLSCREEN),
+            false,
+            now,
+            false,
+        );
+        let policy = AutoReplayPolicy {
+            fullscreen: AutoAction::None,
+            ..Default::default()
+        };
+        state.update(policy, facts(FLAG_FULLSCREEN), false, now, true);
+        assert_eq!(state.effects(), Effects::default());
+        assert!(state.next_deadline().is_none());
     }
 }

@@ -175,7 +175,7 @@ dependencies = [
 [[packages]]
 name = "vvk"
 version = "0.1.0"
-source = "git+https://github.com/litocpp/vvk.git#1f158d1b3d9907e77f76874a5b605f0a149d393f"
+source = "git+https://github.com/litocpp/vvk.git#2761d59430d57945ac40f77c91eea445ab074fb3"
 dependencies = [
   "rstd-dlopn",
   "rstd-log",
@@ -198,11 +198,11 @@ dependencies = [
 
 [[packages]]
 name = "waywallen-bridge"
-version = "0.3.9"
+version = "0.4.0"
 
 [[packages]]
 name = "waywallen-i18n"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
   "luato",
   "rstd-argparse",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[packages]]
 name = "waywallen-image-plugin"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
   "rstd-argparse",
   "rstd-cppstd",
@@ -228,7 +228,7 @@ runtime-dependencies = [
 
 [[packages]]
 name = "waywallen-plugin-common"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
   "rstd-cppstd",
   "rstd-log",
@@ -238,14 +238,14 @@ dependencies = [
 
 [[packages]]
 name = "waywallen-plugin-i18n"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
   "rstd-std",
 ]
 
 [[packages]]
 name = "waywallen-ui"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
   "ncrequest",
   "qextra",
@@ -257,11 +257,11 @@ dependencies = [
 
 [[packages.externals]]
 name = "qml-material"
-source = "git+https://github.com/hypengw/QmlMaterial.git#24213ed33c7efeb0d35c1cbd5d6b4e474f58e8b4"
+source = "git+https://github.com/hypengw/QmlMaterial.git#001a2704a9ba14b9a615ed57bd0e7ede8fff0b32"
 
 [[packages]]
 name = "waywallen-video-plugin"
-version = "0.3.9"
+version = "0.4.0"
 dependencies = [
   "rstd-argparse",
   "rstd-cppstd",
@@ -276,4 +276,4 @@ runtime-dependencies = [
 
 [[packages]]
 name = "waywallen-wallhaven-plugin"
-version = "0.3.9"
+version = "0.4.0"

@@ -14,16 +14,17 @@ impl Router {
             display_links.iter().filter(|l| l.enabled).count() <= 1,
             "display {display_id} has multiple enabled links — invariant violated"
         );
-        let target: Option<(Link, Arc<RendererHandle>, Arc<PublishedPool>)> =
+        let target: Option<(Link, Arc<RendererHandle>, Arc<PublishedPool>, ContentToken)> =
             display_links.into_iter().find(|l| l.enabled).and_then(|l| {
                 let renderer = inner.table.get_renderer(&l.renderer_id)?;
                 let pool = renderer.published_pool()?;
-                Some((l, renderer, pool))
+                let content_token = inner.content_token_for_renderer(&l.renderer_id);
+                Some((l, renderer, pool, content_token))
             });
 
         // When both producer and consumer have caps, only bind a snapshot
         // that satisfies the last negotiated scheme.
-        if let Some((_, ref renderer, ref pool)) = target {
+        if let Some((_, ref renderer, ref pool, _)) = target {
             if renderer.format_caps().is_some() && !renderer.scheme_satisfied_by(pool) {
                 log::debug!(
                     "router: sync_display({display_id}) gated — renderer {} \
@@ -41,8 +42,10 @@ impl Router {
         };
 
         let needs_update = match (&last_binding, &target) {
-            (Some(old), Some((link, _, pool))) => {
-                old.renderer.id != link.renderer_id || old.pool.generation != pool.generation
+            (Some(old), Some((link, _, pool, content_token))) => {
+                old.renderer.id != link.renderer_id
+                    || old.pool.generation != pool.generation
+                    || old.content_token != *content_token
             }
             (None, None) => false,
             _ => true,
@@ -71,7 +74,7 @@ impl Router {
         }
 
         // Bind the new pool if a target renderer is ready.
-        if let Some((link, renderer, pool)) = target {
+        if let Some((link, renderer, pool, content_token)) = target {
             inner.next_config_generation += 1;
             let cfg_gen = inner.next_config_generation;
             let layout = self.resolved_layout_for_renderer(&info, &link.renderer_id, &inner);
@@ -81,22 +84,14 @@ impl Router {
                 .then(|| renderer.latest_frame())
                 .flatten()
                 .filter(|frame| frame.buffer_generation == pool.generation);
-            // A new pool from the same renderer spec (resize, renegotiation,
-            // restart) keeps showing the same wallpaper and binds without
-            // a transition.
-            let content = (
-                link.renderer_id.clone(),
-                inner
-                    .renderer_slots
-                    .get(&link.renderer_id)
-                    .map_or(0, |slot| slot.spec_revision),
-            );
+            let presentation_config_generation = inner
+                .displays
+                .get(&display_id)
+                .unwrap()
+                .presentation
+                .config
+                .generation;
             let s = inner.displays.get_mut(&display_id).unwrap();
-            let transition = s.presentation.config.transition.kind != TransitionKind::None
-                && s.presented_content
-                    .as_ref()
-                    .is_some_and(|presented| *presented != content);
-            s.presented_content = Some(content);
             s.next_wire_buffer_generation = s
                 .next_wire_buffer_generation
                 .checked_add(1)
@@ -108,9 +103,10 @@ impl Router {
                 pool: Arc::clone(&pool),
                 buffer_generation: wire_generation,
                 initial_config: cfg,
-                transition,
+                content_token,
+                presentation_config_generation,
             });
-            if let Some(frame) = replay {
+            if let Some(frame) = replay.filter(|_| !s.display_paused()) {
                 let _ = s.tx.send(DisplayOutEvent::Frame {
                     renderer: renderer.clone(),
                     buffer_generation: wire_generation,
@@ -124,6 +120,7 @@ impl Router {
                 renderer,
                 pool,
                 wire_generation,
+                content_token,
             });
             s.failed_binding_generation = None;
         } else {

@@ -9,7 +9,7 @@ use crate::wallframe::scheduler::DisplayId;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) enum DeadlineKey {
     RendererStart(RendererId),
-    AutoReplayResume(DisplayId),
+    AutoReplayResume(super::auto_replay::Source),
 }
 
 impl DeadlineKey {
@@ -18,7 +18,7 @@ impl DeadlineKey {
     }
 
     pub fn auto_replay_resume(display_id: DisplayId) -> Self {
-        Self::AutoReplayResume(display_id)
+        Self::AutoReplayResume(super::auto_replay::Source::Display(display_id))
     }
 }
 

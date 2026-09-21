@@ -1233,6 +1233,16 @@ pub(super) async fn dispatch_inner(
             Res::CanvasDelete(pb::Empty {})
         }
 
+        Req::DisplayPauseSet(r) => {
+            let display = state
+                .router
+                .set_display_paused(r.display_id, r.paused)
+                .await?;
+            Res::DisplayPauseSet(pb::DisplayPauseSetResponse {
+                display: Some(display_snapshot_to_pb(display, &state.settings)),
+            })
+        }
+
         Req::DisplayRename(r) => {
             let new_alias = if r.clear || r.alias.trim().is_empty() {
                 None
@@ -1904,6 +1914,12 @@ pub(super) async fn dispatch_inner(
                 }
             }
 
+            let new_auto_replay = r
+                .global
+                .as_ref()
+                .and_then(|g| g.auto_replay.as_ref())
+                .map(auto_replay_from_pb)
+                .transpose()?;
             let previous_settings = state.settings.snapshot();
             let previous_filter = previous_settings.global.wallpaper_filter.clone();
             let prev_layout = previous_settings.global.layout.clone();
@@ -1953,8 +1969,8 @@ pub(super) async fn dispatch_inner(
                             s.global.layout.rotation = rt;
                         }
                     }
-                    if let Some(policy) = g.auto_replay.as_ref() {
-                        s.global.auto_replay = Some(auto_replay_from_pb(policy));
+                    if let Some(policy) = new_auto_replay {
+                        s.global.auto_replay = Some(policy);
                     }
                     if let Some(config) = g.pause_effect.as_ref() {
                         s.global.pause_effect = pause_effect_from_pb(config);

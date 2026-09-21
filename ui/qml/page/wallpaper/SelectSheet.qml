@@ -11,7 +11,6 @@ MD.BottomSheet {
     property var currentWallpaperSelect: null
 
     parent: popupParent
-    anchors.fill: parent
     z: 20
     sheetType: MD.Enum.BottomSheetStandard
     dim: false

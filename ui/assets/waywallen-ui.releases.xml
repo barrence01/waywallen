@@ -1,3 +1,29 @@
+<release version="0.4.0" date="2026-09-21">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>Wallpaper transitions with configurable effects, duration and direction. #264 by @OctaNebula</li>
+      <li>A sidebar carousel shows currently playing wallpapers.</li>
+      <li>Displays can pause independently while sharing a renderer.</li>
+      <li>Automatic playback actions support current-display and all-display scopes.</li>
+    </ul>
+    <p>Improved:</p>
+    <ul>
+      <li>Display controls use compact status tags.</li>
+      <li>Video playback speed can be adjusted in one-percent steps. #273 by @ales-drnz</li>
+      <li>Library tags and content ratings use source-provided labels. #257 by @wehrwolfmann</li>
+      <li>Plugins can provide wallpaper type labels. #266 by @wehrwolfmann</li>
+      <li>The UI checks daemon capabilities instead of version strings. #256 by @wehrwolfmann</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Playlist status updates after a wallpaper activation fails. #258 by @wehrwolfmann</li>
+      <li>Incompatible plugin entry versions are reported clearly. #260 by @wehrwolfmann</li>
+      <li>The display demo supports timeline-only renderers. #265 by @wehrwolfmann</li>
+      <li>Content bindings distinguish wallpaper changes from presentation configuration updates.</li>
+    </ul>
+  </description>
+</release>
 <release version="0.3.9" date="2026-09-08">
   <description>
     <p>Improved:</p>

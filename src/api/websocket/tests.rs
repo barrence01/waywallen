@@ -1,14 +1,72 @@
 use super::*;
 
 #[test]
+fn auto_replay_scope_roundtrip_and_invalid_writes() {
+    for scope in [
+        crate::settings::AutoScope::CurrentDisplay,
+        crate::settings::AutoScope::AllDisplays,
+    ] {
+        let policy = crate::settings::AutoReplayPolicy {
+            fullscreen: crate::settings::AutoAction::Stop,
+            fullscreen_scope: scope,
+            ..Default::default()
+        };
+        assert_eq!(
+            auto_replay_from_pb(&auto_replay_to_pb(&policy)).unwrap(),
+            policy
+        );
+    }
+    let policy = crate::settings::AutoReplayPolicy {
+        fullscreen_scope: crate::settings::AutoScope::AllDisplays,
+        ..Default::default()
+    };
+    assert_eq!(
+        auto_replay_from_pb(&auto_replay_to_pb(&policy)).unwrap(),
+        policy
+    );
+    for invalid in [
+        pb::AutoReplayPolicy {
+            focused: pb::AutoAction::Stop as i32,
+            ..Default::default()
+        },
+        pb::AutoReplayPolicy {
+            any_window: pb::AutoAction::Stop as i32,
+            ..Default::default()
+        },
+        pb::AutoReplayPolicy {
+            fullscreen_scope: 99,
+            ..Default::default()
+        },
+        pb::AutoReplayPolicy {
+            fullscreen: 99,
+            ..Default::default()
+        },
+    ] {
+        assert!(auto_replay_from_pb(&invalid).is_err());
+    }
+    let normalized = auto_replay_from_pb(&pb::AutoReplayPolicy {
+        fullscreen: pb::AutoAction::Mute as i32,
+        ..Default::default()
+    })
+    .unwrap();
+    assert_eq!(
+        normalized.fullscreen_scope,
+        crate::settings::AutoScope::AllDisplays
+    );
+}
+
+#[test]
 fn auto_replay_resume_delay_round_trips_defaults_and_clamps() {
     let policy = crate::settings::AutoReplayPolicy {
         resume_delay_ms: 750,
         ..Default::default()
     };
-    assert_eq!(auto_replay_from_pb(&auto_replay_to_pb(&policy)), policy);
+    assert_eq!(
+        auto_replay_from_pb(&auto_replay_to_pb(&policy)).unwrap(),
+        policy
+    );
 
-    let defaulted = auto_replay_from_pb(&pb::AutoReplayPolicy::default());
+    let defaulted = auto_replay_from_pb(&pb::AutoReplayPolicy::default()).unwrap();
     assert_eq!(
         defaulted.resume_delay_ms,
         crate::settings::DEFAULT_AUTO_REPLAY_RESUME_DELAY_MS
@@ -17,7 +75,8 @@ fn auto_replay_resume_delay_round_trips_defaults_and_clamps() {
     let clamped = auto_replay_from_pb(&pb::AutoReplayPolicy {
         resume_delay_ms: Some(u32::MAX),
         ..Default::default()
-    });
+    })
+    .unwrap();
     assert_eq!(
         clamped.resume_delay_ms,
         crate::settings::MAX_AUTO_REPLAY_RESUME_DELAY_MS

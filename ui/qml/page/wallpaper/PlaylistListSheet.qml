@@ -11,7 +11,6 @@ MD.BottomSheet {
     required property var sheetState
 
     parent: popupParent
-    anchors.fill: parent
     z: 30
     sheetType: MD.Enum.BottomSheetModal
     dismissOnDragDown: true

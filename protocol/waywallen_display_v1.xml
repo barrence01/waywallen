@@ -41,11 +41,14 @@
 
   Buffer/release contract:
     - `bind_buffers` atomically carries one pool and its initial composition.
-    - `bind_buffers.transition` is set only when the pool shows different
-      wallpaper content than the one it replaces and the current
-      presentation config names a transition kind. The consumer keeps the
-      content it last presented and animates from it to the pool's first
-      presented frame.
+    - `bind_buffers.content_token` is an opaque, non-zero equality token for
+      logical wallpaper content. Technical pool or renderer replacement keeps
+      the token unchanged. It is not ordered and is not a generation.
+    - The consumer owns committed presentation state. It compares a binding's
+      content token with the target of its last compositor-accepted present and
+      decides whether to animate when the binding's first frame is submitted.
+    - `bind_buffers.presentation_config_generation` names the already-published
+      presentation config current when the binding was produced.
     - A later `set_composition_config` may only target the current pool.
     - `frame_ready` carries acquire sync_file then release syncobj fds.
     - The consumer attaches or signals the release fence, then sends
@@ -322,9 +325,9 @@
     Atomically publish one imported pool and its initial composition.
     The attached DMA-BUF fds are buffer-major, plane-minor. stride,
     plane_offset and size have count * planes_per_buffer entries.
-    `transition` asks the consumer to animate from its presented content
-    to this pool using the current presentation transition config. It is
-    never set while that config's kind is none.
+    `content_token` identifies the logical wallpaper content by equality only.
+    `presentation_config_generation` names the presentation config already
+    published on this connection when the binding was produced.
   -->
   <event name="bind_buffers" opcode="3">
     <arg name="buffer_generation" type="u64"/>
@@ -338,7 +341,8 @@
     <arg name="plane_offset" type="array" element="u32"/>
     <arg name="size" type="array" element="u64"/>
     <arg name="initial_config" type="composition_config"/>
-    <arg name="transition" type="bool"/>
+    <arg name="content_token" type="u64"/>
+    <arg name="presentation_config_generation" type="u64"/>
     <fds count_expr="count * planes_per_buffer"/>
   </event>
 

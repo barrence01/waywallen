@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Window
-import QtQuick.Templates as T
 
 import Qcm.Material as MD
 import waywallen.ui as W
@@ -16,23 +15,22 @@ MD.Popup {
 
     MD.Presentation.ready: false
     readyForOpen: MD.Presentation.ready
-    parent: T.Overlay.overlay
-    width: Math.min(Math.max(400, implicitWidth), parent.width)
-    height: Math.min(implicitHeight, parent.height * 0.8)
+    positioningItem: overlayItem
+    x: Math.round((overlayWidth - width) / 2)
+    y: Math.round((overlayHeight - height) / 2)
+    width: Math.min(Math.max(400, implicitWidth), overlayWidth)
+    height: Math.min(implicitHeight, overlayHeight * 0.8)
 
     mdState.textColor: MD.MProp.color.on_surface
     mdState.backgroundColor: MD.MProp.color.surface
     MD.MProp.backgroundColor: MD.MProp.color.surface
 
-    x: Math.round((parent.width - width) / 2)
-    y: Math.round((parent.height - height) / 2)
-
     Binding on height {
-        value: root.parent.height
+        value: root.overlayHeight
         when: root.fillHeight
     }
     Binding on width {
-        value: root.parent.width
+        value: root.overlayWidth
         when: root.fillWidth
     }
 
@@ -47,91 +45,148 @@ MD.Popup {
         root.verticalPadding: 0
     }
 
-    function acceptPage(request, operation) {
-        const object = request.object;
-        const item = m_stack.push(object, operation) as Item;
-        if (item !== object)
+    QtObject {
+        id: d
+        property var leases: ({})
+        property var accepting: null
+        property bool changing: false
+        property bool destroying: false
+    }
+
+    function acceptPage(request, mode) {
+        const item = request.object as Item;
+        if (!item)
             return null;
-
-        const attach = item.T.StackView;
-        attach.removed.connect(request, function () {
-            request.release();
-        });
-        attach.statusChanged.connect(item, function () {
-            if (!attach || !m_stack)
-                return;
-
-            if (attach.status === T.StackView.Active) {
-                m_stack.lastImplicitWidth = 0;
-                m_stack.lastImplicitHeight = 0;
-            } else if (attach.status === T.StackView.Deactivating) {
-                m_stack.lastImplicitWidth = Qt.binding(function () {
-                    return item.implicitWidth;
-                });
-                m_stack.lastImplicitHeight = Qt.binding(function () {
-                    return item.implicitHeight;
-                });
-            }
-        });
-        m_stack.lastImplicitWidth = m_stack.implicitWidth;
-        m_stack.lastImplicitHeight = m_stack.implicitHeight;
-        return item;
+        m_stack.completeTransition();
+        m_stack.outgoingItem = m_stack.currentItem;
+        d.accepting = request;
+        try {
+            return m_stack.pushItem(item, mode) && m_stack.currentItem === item ? item : null;
+        } finally {
+            d.accepting = null;
+            if (!m_stack.busy)
+                m_stack.outgoingItem = null;
+        }
     }
 
     function rejectInitialRequest(request, error) {
         root.initialRequest = null;
         request.release();
+        const pending = root.pendingRequest;
+        root.pendingRequest = null;
+        if (pending)
+            pending.cancel();
         root.MD.Presentation.fail(error);
         root.rejectOpen(error);
     }
 
     function handleInitialRequest() {
+        if (d.destroying)
+            return;
+        if (d.changing) {
+            Qt.callLater(root.handleInitialRequest);
+            return;
+        }
         const request = root.initialRequest;
         if (!request)
             return;
+        d.changing = true;
+        try {
+            if (request.status === MD.PoolRequest.Ready) {
+                root.initialRequest = null;
+                const item = root.acceptPage(request, MD.PageStack.Immediate);
+                if (!item) {
+                    root.rejectInitialRequest(request, qsTr("Failed to open page"));
+                    return;
+                }
 
-        if (request.status === MD.PoolRequest.Ready) {
-            root.initialRequest = null;
-            const item = root.acceptPage(request, T.StackView.Immediate);
-            if (!item) {
-                root.rejectInitialRequest(request, qsTr("Failed to open page"));
-                return;
+                Qt.callLater(function () {
+                    if (!d.destroying && m_stack.depth > 0)
+                        root.MD.Presentation.ready = true;
+                });
+            } else if (request.status === MD.PoolRequest.Error) {
+                root.rejectInitialRequest(request, request.errorString || qsTr("Failed to load page"));
             }
-
-            Qt.callLater(function () {
-                if (m_stack.currentItem === item)
-                    root.MD.Presentation.ready = true;
-            });
-        } else if (request.status === MD.PoolRequest.Error) {
-            root.rejectInitialRequest(request, request.errorString || qsTr("Failed to load page"));
+        } finally {
+            d.changing = false;
         }
+        root.handlePendingRequest();
     }
 
     function handlePendingRequest() {
+        if (d.destroying)
+            return;
+        if (d.changing) {
+            Qt.callLater(root.handlePendingRequest);
+            return;
+        }
+        if (root.initialRequest)
+            return;
         const request = root.pendingRequest;
         if (!request)
             return;
 
-        if (request.status === MD.PoolRequest.Ready) {
-            root.pendingRequest = null;
-            if (!root.acceptPage(request, T.StackView.PushTransition)) {
-                W.Global.toastError(qsTr("Failed to open page"));
+        d.changing = true;
+        try {
+            if (request.status === MD.PoolRequest.Ready) {
+                root.pendingRequest = null;
+                if (!root.acceptPage(request, MD.PageStack.Animated)) {
+                    W.Global.toastError(qsTr("Failed to open page"));
+                    request.release();
+                }
+            } else if (request.status === MD.PoolRequest.Error) {
+                root.pendingRequest = null;
+                W.Global.toastError(request.errorString || qsTr("Failed to load page"));
                 request.release();
+            } else if (request.status === MD.PoolRequest.Cancelled) {
+                root.pendingRequest = null;
             }
-        } else if (request.status === MD.PoolRequest.Error) {
-            root.pendingRequest = null;
-            W.Global.toastError(request.errorString || qsTr("Failed to load page"));
-            request.release();
-        } else if (request.status === MD.PoolRequest.Cancelled) {
-            root.pendingRequest = null;
+        } finally {
+            d.changing = false;
         }
     }
 
     function pushPage(source, properties) {
-        if (root.pendingRequest)
-            root.pendingRequest.cancel();
-        root.pendingRequest = m_pool.request(source, properties, null, MD.Pool.AsynchronousIfNested);
+        if (d.destroying)
+            return;
+        if (d.changing) {
+            Qt.callLater(root.pushPage, source, properties);
+            return;
+        }
+        d.changing = true;
+        try {
+            const previous = root.pendingRequest;
+            root.pendingRequest = null;
+            if (previous)
+                previous.cancel();
+            root.pendingRequest = m_pool.request(source, properties, null, MD.Pool.AsynchronousIfNested);
+        } finally {
+            d.changing = false;
+        }
         root.handlePendingRequest();
+    }
+
+    function popPage() {
+        if (d.destroying)
+            return;
+        if (d.changing) {
+            Qt.callLater(root.popPage);
+            return;
+        }
+        d.changing = true;
+        try {
+            const previous = root.pendingRequest;
+            root.pendingRequest = null;
+            if (previous)
+                previous.cancel();
+            m_stack.completeTransition();
+            m_stack.outgoingItem = m_stack.currentItem;
+            m_stack.popCurrentItem();
+            if (!m_stack.busy)
+                m_stack.outgoingItem = null;
+        } finally {
+            d.changing = false;
+        }
     }
 
     MD.PageContext {
@@ -146,7 +201,7 @@ MD.Popup {
                 if (cur?.canBack) {
                     cur.back();
                 } else if (m_stack.depth > 1) {
-                    m_stack.pop();
+                    root.popPage();
                 } else {
                     root.close();
                 }
@@ -175,11 +230,17 @@ MD.Popup {
     }
 
     Component.onCompleted: {
-        root.initialRequest = m_pool.request(source, props, null, MD.Pool.Asynchronous);
+        d.changing = true;
+        try {
+            root.initialRequest = m_pool.request(source, props, null, MD.Pool.Asynchronous);
+        } finally {
+            d.changing = false;
+        }
         root.handleInitialRequest();
     }
 
     Component.onDestruction: {
+        d.destroying = true;
         if (root.initialRequest)
             root.initialRequest.cancel();
         if (root.pendingRequest)
@@ -193,12 +254,33 @@ MD.Popup {
 
     onAboutToHide: root.preparePageClose(m_stack.currentItem)
 
-    contentItem: MD.StackView {
+    contentItem: MD.PageStack {
         id: m_stack
-        property real lastImplicitWidth: 0
-        property real lastImplicitHeight: 0
-        implicitWidth: Math.max(lastImplicitWidth, currentItem?.implicitWidth ?? 0)
-        implicitHeight: Math.max(lastImplicitHeight, currentItem?.implicitHeight ?? 0)
+        property Item outgoingItem: null
+        implicitWidth: Math.max(outgoingItem?.implicitWidth ?? 0, currentItem?.implicitWidth ?? 0)
+        implicitHeight: Math.max(outgoingItem?.implicitHeight ?? 0, currentItem?.implicitHeight ?? 0)
+
+        onBusyChanged: {
+            if (!busy)
+                outgoingItem = null;
+        }
+        onEntryAdded: (id, item) => {
+            if (d.accepting && d.accepting.object === item)
+                d.leases[id] = d.accepting;
+        }
+        onEntryRemoved: id => {
+            const request = d.leases[id];
+            delete d.leases[id];
+            if (!request)
+                return;
+            const changing = d.changing;
+            d.changing = true;
+            try {
+                request.release();
+            } finally {
+                d.changing = changing;
+            }
+        }
 
         MD.MProp.page: m_page_context
         Connections {
@@ -209,9 +291,9 @@ MD.Popup {
             }
 
             function onPop() {
-                m_stack.pop();
+                root.popPage();
             }
         }
     }
-    closePolicy: T.Popup.CloseOnEscape | T.Popup.CloseOnPressOutside
+    closePolicy: MD.Popup.CloseOnEscape | MD.Popup.CloseOnPressOutside
 }

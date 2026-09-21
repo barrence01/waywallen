@@ -101,7 +101,8 @@ mod tests {
                     a: 1.0,
                 },
             },
-            transition: true,
+            content_token: 9,
+            presentation_config_generation: 3,
         };
         // expected fds = count * planes_per_buffer = 3 * 1 = 3
         assert_eq!(evt.expected_fds(), 3);

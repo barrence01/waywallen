@@ -23,6 +23,14 @@ const STATE_PLAYING: u32 = 1;
 const STATE_PAUSED: u32 = 2;
 const LOG_TEXT_MAX_CHARS: usize = 80;
 
+/// Maximum allowed size for a single art_url field. Paths, file:// URLs,
+/// and typical https:// URLs fit comfortably. Large data: URIs are rejected.
+const MAX_ART_URL_BYTES: usize = 4096;
+
+/// Maximum combined size for art_url + previous_art_url to ensure the
+/// MPRIS snapshot stays well under the IPC frame limit (~65KB).
+const MAX_COMBINED_ART_BYTES: usize = 8192;
+
 enum PlayerMsg {
     Snapshot {
         name: String,
@@ -332,14 +340,17 @@ async fn read_player_snapshot(
         .get_property::<HashMap<String, OwnedValue>>("Metadata")
         .await
         .unwrap_or_default();
-    let art_url = normalize_art_url(&metadata_string(&metadata, "mpris:artUrl"));
+    
+    // Sanitize art URL to prevent oversized IPC frames
+    let art_url = sanitize_art_url(&metadata_string(&metadata, "mpris:artUrl"));
     if art_url != *last_art_url {
         if !last_art_url.is_empty() {
             *previous_art_url = last_art_url.clone();
         }
         *last_art_url = art_url.clone();
     }
-    Some(MprisSnapshot {
+    
+    let mut snapshot = MprisSnapshot {
         state: playback_state_from_status(&status),
         title: metadata_string(&metadata, "xesam:title"),
         artist: metadata_string_list(&metadata, "xesam:artist"),
@@ -347,7 +358,12 @@ async fn read_player_snapshot(
         album_artist: metadata_string_list(&metadata, "xesam:albumArtist"),
         art_url,
         previous_art_url: previous_art_url.clone(),
-    })
+    };
+    
+    // Final safety check: ensure combined art size doesn't exceed limit
+    ensure_mpris_art_fits(&mut snapshot);
+    
+    Some(snapshot)
 }
 
 fn choose_snapshot(players: &BTreeMap<String, MprisSnapshot>) -> MprisSnapshot {
@@ -513,6 +529,66 @@ fn normalize_art_url(raw: &str) -> String {
     percent_decode(&path).unwrap_or(path)
 }
 
+/// Sanitize art URLs to prevent oversized IPC frames from crashing the renderer.
+/// Rejects data: URIs (which the renderer can't load anyway) and oversized URLs.
+/// For valid URLs, applies normalize_art_url to handle file:// paths.
+fn sanitize_art_url(raw: &str) -> String {
+    if raw.is_empty() {
+        return String::new();
+    }
+
+    // data: URIs are not supported by the renderer's texture loader and
+    // are often very large (base64-encoded images). Always reject them.
+    if raw.starts_with("data:") {
+        log::debug!(
+            "rejecting data: art URL ({} bytes): {}",
+            raw.len(),
+            art_url_summary(raw)
+        );
+        return String::new();
+    }
+
+    // Reject any URL exceeding the single-field size limit.
+    if raw.len() > MAX_ART_URL_BYTES {
+        log::debug!(
+            "rejecting oversized art URL ({} bytes, max {}): {}",
+            raw.len(),
+            MAX_ART_URL_BYTES,
+            art_url_summary(raw)
+        );
+        return String::new();
+    }
+
+    // Valid URL: normalize file:// paths, pass through others (https://, etc.)
+    normalize_art_url(raw)
+}
+
+/// Ensure the combined size of art URLs doesn't exceed the limit.
+/// Prefers keeping the current `art_url` and drops `previous_art_url` first.
+/// Only clears `art_url` if it alone still exceeds the combined budget.
+fn ensure_mpris_art_fits(snapshot: &mut MprisSnapshot) {
+    let combined = snapshot.art_url.len() + snapshot.previous_art_url.len();
+    if combined <= MAX_COMBINED_ART_BYTES {
+        return;
+    }
+
+    log::warn!(
+        "combined art URLs too large ({} bytes, max {}): dropping previous_art_url",
+        combined,
+        MAX_COMBINED_ART_BYTES
+    );
+    snapshot.previous_art_url.clear();
+
+    if snapshot.art_url.len() > MAX_COMBINED_ART_BYTES {
+        log::warn!(
+            "art_url alone still too large ({} bytes, max {}): clearing art_url",
+            snapshot.art_url.len(),
+            MAX_COMBINED_ART_BYTES
+        );
+        snapshot.art_url.clear();
+    }
+}
+
 fn percent_decode(raw: &str) -> Option<String> {
     let bytes = raw.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
@@ -637,5 +713,144 @@ mod tests {
             LOG_TEXT_MAX_CHARS + 1
         );
         assert!(truncate_log_text(&snapshot.title).ends_with('…'));
+    }
+
+    #[test]
+    fn sanitize_rejects_data_uris_small() {
+        let small_data = "data:image/png;base64,iVBORw0KGgo=";
+        assert_eq!(sanitize_art_url(small_data), "");
+    }
+
+    #[test]
+    fn sanitize_rejects_data_uris_large() {
+        let large_payload = "A".repeat(100_000);
+        let large_data = format!("data:image/jpeg;base64,{large_payload}");
+        assert_eq!(sanitize_art_url(&large_data), "");
+    }
+
+    #[test]
+    fn sanitize_preserves_file_urls() {
+        assert_eq!(
+            sanitize_art_url("file:///home/user/cover.jpg"),
+            "/home/user/cover.jpg"
+        );
+        assert_eq!(
+            sanitize_art_url("file://localhost/tmp/art.png"),
+            "/tmp/art.png"
+        );
+    }
+
+    #[test]
+    fn sanitize_preserves_https_urls() {
+        let spotify_url = "https://i.scdn.co/image/ab67616d0000b273xyz";
+        assert_eq!(sanitize_art_url(spotify_url), spotify_url);
+    }
+
+    #[test]
+    fn sanitize_rejects_oversized_non_data_urls() {
+        let huge_url = format!("https://example.com/{}", "x".repeat(MAX_ART_URL_BYTES + 1));
+        assert_eq!(sanitize_art_url(&huge_url), "");
+    }
+
+    #[test]
+    fn sanitize_accepts_url_at_limit() {
+        // Create a URL exactly at the limit (minus the prefix)
+        let path = "x".repeat(MAX_ART_URL_BYTES - 20);
+        let url = format!("https://ex.co/{path}");
+        assert!(url.len() <= MAX_ART_URL_BYTES);
+        assert_eq!(sanitize_art_url(&url), url);
+    }
+
+    #[test]
+    fn sanitize_handles_empty_string() {
+        assert_eq!(sanitize_art_url(""), "");
+    }
+
+    #[test]
+    fn ensure_art_fits_allows_small_combined() {
+        let mut snapshot = MprisSnapshot {
+            art_url: "https://example.com/art.jpg".to_string(),
+            previous_art_url: "/tmp/previous.jpg".to_string(),
+            ..MprisSnapshot::default()
+        };
+        ensure_mpris_art_fits(&mut snapshot);
+        assert!(!snapshot.art_url.is_empty());
+        assert!(!snapshot.previous_art_url.is_empty());
+    }
+
+    #[test]
+    fn ensure_art_fits_drops_previous_when_combined_too_large() {
+        let large_url =
+            "https://example.com/".to_string() + &"x".repeat(MAX_COMBINED_ART_BYTES / 2 + 100);
+        let mut snapshot = MprisSnapshot {
+            art_url: large_url.clone(),
+            previous_art_url: large_url.clone(),
+            ..MprisSnapshot::default()
+        };
+        ensure_mpris_art_fits(&mut snapshot);
+        assert_eq!(snapshot.art_url, large_url);
+        assert!(snapshot.previous_art_url.is_empty());
+    }
+
+    #[test]
+    fn ensure_art_fits_clears_art_when_alone_too_large() {
+        let alone = "x".repeat(MAX_COMBINED_ART_BYTES + 1);
+        let mut snapshot = MprisSnapshot {
+            art_url: alone,
+            previous_art_url: String::new(),
+            ..MprisSnapshot::default()
+        };
+        ensure_mpris_art_fits(&mut snapshot);
+        assert!(snapshot.art_url.is_empty());
+        assert!(snapshot.previous_art_url.is_empty());
+    }
+
+    #[test]
+    fn ensure_art_fits_at_exactly_limit() {
+        // Create URLs that sum to exactly MAX_COMBINED_ART_BYTES
+        let url1 = "x".repeat(MAX_COMBINED_ART_BYTES / 2);
+        let url2 = "y".repeat(MAX_COMBINED_ART_BYTES / 2);
+        let mut snapshot = MprisSnapshot {
+            art_url: url1.clone(),
+            previous_art_url: url2.clone(),
+            ..MprisSnapshot::default()
+        };
+        ensure_mpris_art_fits(&mut snapshot);
+        // At exactly the limit, should be accepted
+        assert_eq!(snapshot.art_url, url1);
+        assert_eq!(snapshot.previous_art_url, url2);
+    }
+
+    #[test]
+    fn sanitize_integration_elisa_like_data_uri() {
+        // Simulate Elisa sending a base64-encoded album cover
+        let base64_image = "A".repeat(50_000);
+        let elisa_art = format!("data:image/jpeg;base64,{base64_image}");
+        
+        let sanitized = sanitize_art_url(&elisa_art);
+        assert_eq!(sanitized, "");
+    }
+
+    #[test]
+    fn sanitize_integration_lollypop_file_url() {
+        // Simulate Lollypop/VLC sending a file path
+        let lollypop_art = "file:///home/user/.cache/lollypop/album_art.jpg";
+        let sanitized = sanitize_art_url(lollypop_art);
+        assert_eq!(sanitized, "/home/user/.cache/lollypop/album_art.jpg");
+    }
+
+    #[test]
+    fn sanitize_integration_prevents_previous_data_retention() {
+        // Simulate track change where previous was data: URI
+        let data_uri = "data:image/png;base64,".to_string() + &"x".repeat(1000);
+        let file_uri = "file:///tmp/new.jpg";
+        
+        // First sanitize should reject data:
+        let sanitized1 = sanitize_art_url(&data_uri);
+        assert_eq!(sanitized1, "");
+        
+        // Second sanitize should accept file:
+        let sanitized2 = sanitize_art_url(file_uri);
+        assert_eq!(sanitized2, "/tmp/new.jpg");
     }
 }

@@ -477,7 +477,8 @@ async fn run_frame_loop(
                     pool,
                     buffer_generation,
                     initial_config,
-                    transition,
+                    content_token,
+                    presentation_config_generation,
                 }) => {
                     bound_renderer = Some(Arc::clone(&renderer));
                     latest_config = Some(initial_config.clone());
@@ -486,7 +487,8 @@ async fn run_frame_loop(
                         &pool,
                         buffer_generation,
                         &initial_config,
-                        transition,
+                        content_token,
+                        presentation_config_generation,
                     ).await {
                         break Err(e);
                     }
@@ -1019,9 +1021,16 @@ async fn send_bind(
     pool: &PublishedPool,
     buffer_generation: u64,
     initial_config: &CompositionConfig,
-    transition: bool,
+    content_token: crate::wallframe::routing::ContentToken,
+    presentation_config_generation: u64,
 ) -> Result<()> {
-    let (event, dup_fds) = build_bind_event(pool, buffer_generation, initial_config, transition)?;
+    let (event, dup_fds) = build_bind_event(
+        pool,
+        buffer_generation,
+        initial_config,
+        content_token,
+        presentation_config_generation,
+    )?;
     let s = stream.try_clone().context("clone for bind")?;
     let event_for_send = event.clone();
     let dup_for_send = dup_fds.clone();
@@ -1044,7 +1053,8 @@ fn build_bind_event(
     pool: &PublishedPool,
     buffer_generation: u64,
     initial_config: &CompositionConfig,
-    transition: bool,
+    content_token: crate::wallframe::routing::ContentToken,
+    presentation_config_generation: u64,
 ) -> Result<(Event, Vec<RawFd>)> {
     if initial_config.buffer_generation != buffer_generation {
         return Err(Error::Internal(anyhow!(
@@ -1095,11 +1105,12 @@ fn build_bind_event(
         plane_offset: pool.plane_offset.clone(),
         size: pool.size.clone(),
         initial_config: composition_to_wire(initial_config),
-        transition,
+        content_token: content_token.get(),
+        presentation_config_generation,
     };
     log::debug!(
         "display::endpoint: build_bind_event gen={} count={} planes={} {}x{} \
-         fourcc=0x{:08x} mod=0x{:016x} transition={}",
+         fourcc=0x{:08x} mod=0x{:016x} content_token={} presentation_config_generation={}",
         buffer_generation,
         count,
         planes_per_buffer,
@@ -1107,7 +1118,8 @@ fn build_bind_event(
         pool.height,
         pool.fourcc,
         pool.modifier,
-        transition,
+        content_token.get(),
+        presentation_config_generation,
     );
     for i in 0..n {
         let bi = i / (planes_per_buffer as usize).max(1);
@@ -1305,7 +1317,14 @@ mod tests {
             transform: 0,
             clear_rgba: [0.0, 0.0, 0.0, 1.0],
         };
-        let (event, dup_fds) = build_bind_event(&pool, 11, &config, false).unwrap();
+        let (event, dup_fds) = build_bind_event(
+            &pool,
+            11,
+            &config,
+            crate::wallframe::routing::ContentToken::new(17),
+            5,
+        )
+        .unwrap();
         assert_eq!(dup_fds.len(), 2);
         match event {
             Event::BindBuffers {
@@ -1320,10 +1339,12 @@ mod tests {
                 plane_offset,
                 size,
                 initial_config,
-                transition,
+                content_token,
+                presentation_config_generation,
             } => {
                 assert_eq!(buffer_generation, 11);
-                assert!(!transition);
+                assert_eq!(content_token, 17);
+                assert_eq!(presentation_config_generation, 5);
                 assert_eq!(count, 2);
                 assert_eq!(width, 800);
                 assert_eq!(height, 600);

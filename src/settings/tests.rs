@@ -665,6 +665,60 @@ fn auto_replay_default_actions() {
 }
 
 #[test]
+fn auto_replay_migrates_legacy_rules_once_and_round_trips_scopes() {
+    let mut settings: Settings = toml::from_str(
+        r#"
+        [global.auto_replay]
+        any_window = "stop"
+        focused = "mute"
+        fullscreen = "pause"
+        [display.A.auto_replay]
+        focused = "stop"
+        session_locked = "none"
+    "#,
+    )
+    .unwrap();
+    assert!(settings.migrate_auto_replay());
+    let policy = settings.global.effective_auto_replay();
+    assert_eq!(policy.any_window, AutoAction::Pause);
+    assert_eq!(policy.any_window_scope, AutoScope::AllDisplays);
+    assert_eq!(policy.focused_scope, AutoScope::AllDisplays);
+    assert_eq!(policy.fullscreen_scope, AutoScope::CurrentDisplay);
+    let display = settings.displays["A"].auto_replay.unwrap();
+    assert_eq!(display.focused, AutoAction::Pause);
+    assert_eq!(display.focused_scope, AutoScope::AllDisplays);
+    assert_eq!(display.session_locked, policy.session_locked);
+    assert!(!settings.migrate_auto_replay());
+    let roundtrip: Settings = toml::from_str(&toml::to_string(&settings).unwrap()).unwrap();
+    assert_eq!(roundtrip, settings);
+}
+
+#[test]
+fn auto_replay_rejects_frequent_stop_and_forces_global_actions() {
+    for condition in [AutoCondition::AnyWindow, AutoCondition::Focused] {
+        let mut policy = AutoReplayPolicy::default();
+        policy.set_action(condition, AutoAction::Stop);
+        assert!(policy.validate().is_err());
+    }
+    let mut policy = AutoReplayPolicy::default();
+    for condition in AutoCondition::ALL {
+        for action in [AutoAction::Stop, AutoAction::Mute] {
+            policy.set_action(condition, action);
+            let expected = if condition == AutoCondition::Fullscreen && action == AutoAction::Stop {
+                AutoScope::CurrentDisplay
+            } else {
+                AutoScope::AllDisplays
+            };
+            assert_eq!(policy.scope_for(condition), expected);
+        }
+    }
+    assert_eq!(
+        AutoReplayPolicy::default().scope_for(AutoCondition::SessionLocked),
+        AutoScope::AllDisplays
+    );
+}
+
+#[test]
 fn pause_effect_defaults_to_none_and_clamps_blur_radius() {
     let config = PauseEffectConfig::default();
     assert_eq!(config.kind, PauseEffectKind::None);

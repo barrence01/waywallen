@@ -103,6 +103,29 @@ pub enum AutoCondition {
     SessionInactive,
 }
 
+impl AutoCondition {
+    pub const ALL: [Self; 6] = [
+        Self::AnyWindow,
+        Self::Focused,
+        Self::Maximized,
+        Self::Fullscreen,
+        Self::SessionLocked,
+        Self::SessionInactive,
+    ];
+
+    pub fn is_session(self) -> bool {
+        matches!(self, Self::SessionLocked | Self::SessionInactive)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoScope {
+    #[default]
+    CurrentDisplay,
+    AllDisplays,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoAction {
@@ -113,20 +136,13 @@ pub enum AutoAction {
     Stop,
 }
 
-impl AutoAction {
-    pub fn priority(self) -> u8 {
-        match self {
-            AutoAction::None => 0,
-            AutoAction::Mute => 1,
-            AutoAction::Pause => 2,
-            AutoAction::Stop => 3,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AutoReplayPolicy {
+    pub any_window_scope: AutoScope,
+    pub focused_scope: AutoScope,
+    pub maximized_scope: AutoScope,
+    pub fullscreen_scope: AutoScope,
     pub any_window: AutoAction,
     pub focused: AutoAction,
     pub maximized: AutoAction,
@@ -139,6 +155,10 @@ pub struct AutoReplayPolicy {
 impl Default for AutoReplayPolicy {
     fn default() -> Self {
         Self {
+            any_window_scope: AutoScope::CurrentDisplay,
+            focused_scope: AutoScope::CurrentDisplay,
+            maximized_scope: AutoScope::CurrentDisplay,
+            fullscreen_scope: AutoScope::CurrentDisplay,
             any_window: AutoAction::None,
             focused: AutoAction::None,
             maximized: AutoAction::None,
@@ -151,6 +171,53 @@ impl Default for AutoReplayPolicy {
 }
 
 impl AutoReplayPolicy {
+    pub fn scope_for(self, condition: AutoCondition) -> AutoScope {
+        if condition.is_session()
+            || self.action_for(condition) == AutoAction::Mute
+            || (self.action_for(condition) == AutoAction::Stop
+                && condition != AutoCondition::Fullscreen)
+        {
+            return AutoScope::AllDisplays;
+        }
+        match condition {
+            AutoCondition::AnyWindow => self.any_window_scope,
+            AutoCondition::Focused => self.focused_scope,
+            AutoCondition::Maximized => self.maximized_scope,
+            AutoCondition::Fullscreen => self.fullscreen_scope,
+            _ => AutoScope::AllDisplays,
+        }
+    }
+
+    pub fn normalize_scopes(&mut self) {
+        self.any_window_scope = self.scope_for(AutoCondition::AnyWindow);
+        self.focused_scope = self.scope_for(AutoCondition::Focused);
+        self.maximized_scope = self.scope_for(AutoCondition::Maximized);
+        self.fullscreen_scope = self.scope_for(AutoCondition::Fullscreen);
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.any_window == AutoAction::Stop || self.focused == AutoAction::Stop {
+            return Err("stop is not allowed for any-window or focused-window rules".into());
+        }
+        Ok(())
+    }
+
+    pub fn migrate(&mut self) -> bool {
+        let before = *self;
+        for (action, scope) in [
+            (&mut self.any_window, &mut self.any_window_scope),
+            (&mut self.focused, &mut self.focused_scope),
+        ] {
+            if *action == AutoAction::Stop {
+                *action = AutoAction::Pause;
+                *scope = AutoScope::AllDisplays;
+                log::warn!("migrating window auto replay stop to pause on all displays");
+            }
+        }
+        self.normalize_scopes();
+        *self != before
+    }
+
     pub fn action_for(self, condition: AutoCondition) -> AutoAction {
         match condition {
             AutoCondition::AnyWindow => self.any_window,
@@ -815,6 +882,31 @@ pub struct Settings {
 }
 
 impl Settings {
+    pub fn migrate_auto_replay(&mut self) -> bool {
+        let mut changed = self
+            .global
+            .auto_replay
+            .as_mut()
+            .is_some_and(AutoReplayPolicy::migrate);
+        let global = self.global.effective_auto_replay();
+        for (name, prefs) in &mut self.displays {
+            if let Some(policy) = &mut prefs.auto_replay {
+                changed |= policy.migrate();
+                if policy.session_locked != global.session_locked
+                    || policy.session_inactive != global.session_inactive
+                {
+                    log::warn!(
+                        "display {name}: migrating session auto replay overrides to global policy"
+                    );
+                    policy.session_locked = global.session_locked;
+                    policy.session_inactive = global.session_inactive;
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+
     pub fn resolved_renderer_settings(
         &self,
         renderer: &crate::plugin::renderer_registry::RendererDef,

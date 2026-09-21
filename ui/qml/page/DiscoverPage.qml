@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -352,8 +351,10 @@ MD.Page {
 
     W.RemoteFilterDialog {
         id: m_filter_dialog
-        parent: T.Overlay.overlay
-        anchors.centerIn: parent
+        parent: root.Window.window ? root.Window.window.contentItem : null
+        positioningItem: overlayItem
+        x: (overlayWidth - width) / 2
+        y: (overlayHeight - height) / 2
         popupWindow: root.Window.window
         filters: root.sourceFilters(root.sourceId)
         selectedValues: searchQuery.tags

@@ -12,7 +12,6 @@ MD.BottomSheet {
     required property var tweak
 
     parent: popupParent
-    anchors.fill: parent
     z: 25
     sheetType: MD.Enum.BottomSheetModal
     dim: false

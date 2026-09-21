@@ -206,7 +206,7 @@ impl SettingsStore {
     /// Seeding makes the config visible to users immediately.
     pub async fn load_or_default(path: PathBuf) -> Arc<Self> {
         let mut seed_on_disk = false;
-        let initial = match tokio::fs::read_to_string(&path).await {
+        let mut initial = match tokio::fs::read_to_string(&path).await {
             Ok(s) => match toml::from_str::<Settings>(&s) {
                 Ok(parsed) => {
                     log::info!("settings loaded from {}", path.display());
@@ -239,13 +239,13 @@ impl SettingsStore {
             }
         };
 
+        seed_on_disk |= initial.migrate_auto_replay();
         let store = Arc::new(Self {
             inner: Arc::new(StdRwLock::new(initial)),
             notify: Arc::new(Notify::new()),
             path,
             flush_lock: tokio::sync::Mutex::new(()),
-            // Mark dirty when no on-disk file exists so the seed flush
-            // writes the default config.
+            // Persist defaults and migrated settings before starting the writer.
             dirty: AtomicBool::new(seed_on_disk),
             canvas_revision: AtomicU64::new(1),
             writer_task: StdMutex::new(None),

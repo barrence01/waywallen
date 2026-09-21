@@ -104,6 +104,7 @@ message Request {
     PlaylistUpdateRequest       playlist_update = 87;
     LogReadRequest              log_read = 88;
     WallpaperLookupRequest      wallpaper_lookup = 89;
+    DisplayPauseSetRequest      display_pause_set = 90;
   }
 }
 
@@ -195,6 +196,7 @@ message Response {
     Empty                        playlist_update = 87;
     LogReadResponse              log_read = 88;
     WallpaperLookupResponse      wallpaper_lookup = 89;
+    DisplayPauseSetResponse      display_pause_set = 90;
   }
 }
 
@@ -850,6 +852,8 @@ message DisplayInfo {
   CanvasRect canvas_rect = 18;
   uint32 canvas_overlap_count = 19;
   bool selectable_target = 20;
+  bool manual_paused = 21;
+  bool effective_paused = 22;
 }
 
 message CanvasRect {
@@ -955,6 +959,15 @@ message CanvasLayoutSetRequest {
 
 message CanvasLayoutSetResponse {
   CanvasInfo canvas = 1;
+}
+
+message DisplayPauseSetRequest {
+  uint64 display_id = 1;
+  bool paused = 2;
+}
+
+message DisplayPauseSetResponse {
+  DisplayInfo display = 1;
 }
 
 message DisplayRenameRequest {
@@ -1638,6 +1651,11 @@ enum AutoAction {
   AUTO_ACTION_STOP = 3;
 }
 
+enum AutoScope {
+  AUTO_SCOPE_CURRENT_DISPLAY = 0;
+  AUTO_SCOPE_ALL_DISPLAYS = 1;
+}
+
 message AutoReplayPolicy {
   reserved 1, 2, 3;
   AutoAction any_window = 10;
@@ -1647,6 +1665,10 @@ message AutoReplayPolicy {
   AutoAction session_locked = 14;
   AutoAction session_inactive = 15;
   optional uint32 resume_delay_ms = 16;
+  AutoScope any_window_scope = 17;
+  AutoScope focused_scope = 18;
+  AutoScope maximized_scope = 19;
+  AutoScope fullscreen_scope = 20;
 }
 
 enum PauseEffectKind {

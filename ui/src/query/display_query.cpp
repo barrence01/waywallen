@@ -204,6 +204,40 @@ void CanvasLayoutSetQuery::reload() {
     });
 }
 
+DisplayPauseSetQuery::DisplayPauseSetQuery(QObject* parent): Query(parent) {}
+
+void DisplayPauseSetQuery::setDisplayId(quint64 value) {
+    if (m_display_id == value) return;
+    m_display_id = value;
+    Q_EMIT paramsChanged();
+}
+
+void DisplayPauseSetQuery::setPaused(bool value) {
+    if (m_paused == value) return;
+    m_paused = value;
+    Q_EMIT paramsChanged();
+}
+
+void DisplayPauseSetQuery::reload() {
+    setStatus(Status::Querying);
+    auto                          backend = App::instance()->backend();
+    proto::DisplayPauseSetRequest inner;
+    inner.setDisplayId(m_display_id);
+    inner.setPaused(m_paused);
+    proto::Request request;
+    request.setDisplayPauseSet(std::move(inner));
+    auto self = QWatcher { this };
+    spawn([self, backend, request = std::move(request)]() mutable -> task<void> {
+        auto result = co_await backend->send(std::move(request));
+        if (! co_await QAsyncResult::qexecutor()) co_return;
+        if (! self) co_return;
+        self->inspect_set(result, [](const proto::Response&) {
+            // DisplayManager consumes the daemon's ordered DisplayChanged events.
+        });
+        co_return;
+    });
+}
+
 DisplayRenameQuery::DisplayRenameQuery(QObject* parent): Query(parent) {}
 
 #define WW_SET(field, val)          \

@@ -120,10 +120,17 @@ Display::Display(const proto::DisplayInfo& info, QObject* parent)
       m_canvas_id(info.canvasId()),
       m_canvas_rect(info.hasCanvasRect() ? canvasRectFromPb(info.canvasRect()) : QVariantMap {}),
       m_canvas_overlap_count(info.canvasOverlapCount()),
-      m_selectable_target(info.selectableTarget()) {}
+      m_selectable_target(info.selectableTarget()),
+      m_manual_paused(info.manualPaused()),
+      m_effective_paused(info.effectivePaused()) {}
 
 void Display::updateFrom(const proto::DisplayInfo& info) {
     rstd_assert(info.displayId() == m_id, "Display::updateFrom id mismatch");
+    if (m_manual_paused != info.manualPaused() || m_effective_paused != info.effectivePaused()) {
+        m_manual_paused    = info.manualPaused();
+        m_effective_paused = info.effectivePaused();
+        Q_EMIT pauseChanged();
+    }
 
     bool label_changed = false;
     if (m_name != info.name()) {

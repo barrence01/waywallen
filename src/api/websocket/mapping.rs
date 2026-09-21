@@ -312,6 +312,8 @@ pub(super) fn display_snapshot_to_pb(
     let override_prefs = settings.display_prefs(layout_key).unwrap_or_default();
     pb::DisplayInfo {
         display_id: s.id,
+        manual_paused: s.manual_paused,
+        effective_paused: s.effective_paused,
         name: s.name,
         width: s.width,
         height: s.height,
@@ -595,6 +597,10 @@ pub(super) fn auto_action_from_pb(v: i32) -> crate::settings::AutoAction {
 
 pub(super) fn auto_replay_to_pb(p: &crate::settings::AutoReplayPolicy) -> pb::AutoReplayPolicy {
     pb::AutoReplayPolicy {
+        any_window_scope: p.scope_for(crate::settings::AutoCondition::AnyWindow) as i32,
+        focused_scope: p.scope_for(crate::settings::AutoCondition::Focused) as i32,
+        maximized_scope: p.scope_for(crate::settings::AutoCondition::Maximized) as i32,
+        fullscreen_scope: p.scope_for(crate::settings::AutoCondition::Fullscreen) as i32,
         any_window: auto_action_to_pb(p.any_window) as i32,
         focused: auto_action_to_pb(p.focused) as i32,
         maximized: auto_action_to_pb(p.maximized) as i32,
@@ -605,8 +611,43 @@ pub(super) fn auto_replay_to_pb(p: &crate::settings::AutoReplayPolicy) -> pb::Au
     }
 }
 
-pub(super) fn auto_replay_from_pb(p: &pb::AutoReplayPolicy) -> crate::settings::AutoReplayPolicy {
-    crate::settings::AutoReplayPolicy {
+pub(super) fn auto_replay_from_pb(
+    p: &pb::AutoReplayPolicy,
+) -> crate::error::Result<crate::settings::AutoReplayPolicy> {
+    for action in [
+        p.any_window,
+        p.focused,
+        p.maximized,
+        p.fullscreen,
+        p.session_locked,
+        p.session_inactive,
+    ] {
+        pb::AutoAction::try_from(action).map_err(|_| {
+            crate::error::Error::SettingsValidationFailed("unknown auto replay action".into())
+        })?;
+    }
+    for scope in [
+        p.any_window_scope,
+        p.focused_scope,
+        p.maximized_scope,
+        p.fullscreen_scope,
+    ] {
+        pb::AutoScope::try_from(scope).map_err(|_| {
+            crate::error::Error::SettingsValidationFailed("unknown auto replay scope".into())
+        })?;
+    }
+    let scope = |v| {
+        if v == pb::AutoScope::AllDisplays as i32 {
+            crate::settings::AutoScope::AllDisplays
+        } else {
+            crate::settings::AutoScope::CurrentDisplay
+        }
+    };
+    let mut policy = crate::settings::AutoReplayPolicy {
+        any_window_scope: scope(p.any_window_scope),
+        focused_scope: scope(p.focused_scope),
+        maximized_scope: scope(p.maximized_scope),
+        fullscreen_scope: scope(p.fullscreen_scope),
         any_window: auto_action_from_pb(p.any_window),
         focused: auto_action_from_pb(p.focused),
         maximized: auto_action_from_pb(p.maximized),
@@ -617,7 +658,12 @@ pub(super) fn auto_replay_from_pb(p: &pb::AutoReplayPolicy) -> crate::settings::
             .resume_delay_ms
             .unwrap_or(crate::settings::DEFAULT_AUTO_REPLAY_RESUME_DELAY_MS)
             .min(crate::settings::MAX_AUTO_REPLAY_RESUME_DELAY_MS),
-    }
+    };
+    policy.normalize_scopes();
+    policy
+        .validate()
+        .map_err(crate::error::Error::SettingsValidationFailed)?;
+    Ok(policy)
 }
 
 pub(super) fn pause_effect_kind_to_pb(

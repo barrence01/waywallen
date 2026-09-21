@@ -102,8 +102,8 @@ MD.Dialog {
                 contentWidth: Math.max(width, logText.implicitWidth + leftMargin + rightMargin)
                 contentHeight: Math.max(height, logText.implicitHeight + topMargin + bottomMargin)
 
-                T.ScrollBar.vertical: MD.ScrollBar {}
-                T.ScrollBar.horizontal: MD.ScrollBar {}
+                MD.ScrollBarBase.vertical: MD.ScrollBar {}
+                MD.ScrollBarBase.horizontal: MD.ScrollBar {}
 
                 MD.TextEdit {
                     id: logText

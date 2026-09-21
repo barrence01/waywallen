@@ -175,6 +175,10 @@ MD.Page {
         id: renameQuery
     }
 
+    W.DisplayPauseSetQuery {
+        id: displayPauseQuery
+    }
+
     W.CanvasMutationQuery {
         id: canvasMutationQuery
         forwardError: false
@@ -1071,6 +1075,8 @@ MD.Page {
                                 text: root.selected ? (root.selected.displayLabel || qsTr("Display #%1").arg(root.selected.id)) : ""
                                 typescale: MD.Token.typescale.title_medium
                                 color: MD.Token.color.on_surface
+                                wrapMode: Text.Wrap
+                                maximumLineCount: 2
                                 elide: Text.ElideRight
                             }
 
@@ -1080,6 +1086,20 @@ MD.Page {
                                     required property var modelData
                                     Layout.alignment: Qt.AlignVCenter
                                     condition: modelData
+                                }
+                            }
+
+                            MD.IconButton {
+                                readonly property var displayObject: root.selectedDisplayObject
+                                visible: root.selectedKind === "display" && !!displayObject
+                                enabled: !!displayObject && !displayPauseQuery.querying
+                                icon.name: displayObject?.manualPaused ? MD.Token.icon.play_arrow : MD.Token.icon.pause
+                                MD.ToolTip.visible: hovered
+                                MD.ToolTip.text: displayObject?.manualPaused ? qsTr("Resume display") : qsTr("Pause display")
+                                onClicked: {
+                                    displayPauseQuery.displayId = displayObject.id;
+                                    displayPauseQuery.paused = !displayObject.manualPaused;
+                                    displayPauseQuery.reload();
                                 }
                             }
 
@@ -1116,88 +1136,80 @@ MD.Page {
 
                         Flow {
                             Layout.fillWidth: true
-                            spacing: 24
+                            spacing: 8
 
-                            RowLayout {
-                                spacing: 8
-                                MD.Text {
-                                    text: qsTr("ID:")
-                                    typescale: MD.Token.typescale.label_medium
-                                    color: MD.Token.color.on_surface_variant
-                                }
-                                MD.Text {
-                                    text: root.selected ? (root.selectedKind === "display" ? "#" : "") + root.selected.id : ""
-                                    typescale: MD.Token.typescale.body_medium
-                                    color: MD.Token.color.on_surface
-                                }
-                            }
+                            Repeater {
+                                model: root.selectedDisplayObject ? [root.selectedDisplayObject] : (W.App.displayManager.displays || []).filter(d => d.canvasId === root.selectedCanvasObject?.id)
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    visible: root.selectedKind === "canvas" || modelData.effectivePaused
+                                    spacing: 4
 
-                            RowLayout {
-                                spacing: 8
-                                MD.Text {
-                                    text: qsTr("Size:")
-                                    typescale: MD.Token.typescale.label_medium
-                                    color: MD.Token.color.on_surface_variant
-                                }
-                                MD.Text {
-                                    readonly property var canvasBounds: canvasEditor.topologyBounds(canvasEditor.members)
-                                    text: {
-                                        if (!root.selected)
-                                            return "";
-                                        if (root.selectedKind === "canvas")
-                                            return canvasEditor.members.length > 0 ? canvasBounds.width + " × " + canvasBounds.height : qsTr("Empty");
-                                        return root.selected.width + " × " + root.selected.height;
+                                    MD.Text {
+                                        visible: root.selectedKind === "canvas"
+                                        text: parent.modelData.displayLabel
+                                        typescale: MD.Token.typescale.label_medium
                                     }
-                                    typescale: MD.Token.typescale.body_medium
-                                    color: MD.Token.color.on_surface
+                                    MD.IconButton {
+                                        readonly property var displayObject: parent.modelData
+                                        visible: root.selectedKind === "canvas"
+                                        enabled: !displayPauseQuery.querying
+                                        icon.name: displayObject.manualPaused ? MD.Token.icon.play_arrow : MD.Token.icon.pause
+                                        MD.ToolTip.visible: hovered
+                                        MD.ToolTip.text: displayObject.manualPaused ? qsTr("Resume display") : qsTr("Pause display")
+                                        onClicked: {
+                                            displayPauseQuery.displayId = displayObject.id;
+                                            displayPauseQuery.paused = !displayObject.manualPaused;
+                                            displayPauseQuery.reload();
+                                        }
+                                    }
+                                    W.Tag {
+                                        visible: parent.modelData.effectivePaused
+                                        text: parent.modelData.manualPaused ? qsTr("Paused") : qsTr("Automatically paused")
+                                    }
                                 }
                             }
+                            W.Tag {
+                                text: qsTr("ID:") + " " + (root.selected ? (root.selectedKind === "display" ? "#" : "") + root.selected.id : "")
+                                bgColor: MD.Token.color.surface_container_highest
+                                fgColor: MD.Token.color.on_surface_variant
+                            }
 
-                            RowLayout {
+                            W.Tag {
+                                readonly property var canvasBounds: canvasEditor.topologyBounds(canvasEditor.members)
+                                text: {
+                                    if (!root.selected)
+                                        return "";
+                                    const size = root.selectedKind === "canvas"
+                                        ? (canvasEditor.members.length > 0 ? canvasBounds.width + " × " + canvasBounds.height : qsTr("Empty"))
+                                        : root.selected.width + " × " + root.selected.height;
+                                    return size;
+                                }
+                                bgColor: MD.Token.color.surface_container_highest
+                                fgColor: MD.Token.color.on_surface_variant
+                            }
+
+                            W.Tag {
                                 visible: root.selectedKind === "canvas"
-                                spacing: 8
-                                MD.Text {
-                                    text: qsTr("Members:")
-                                    typescale: MD.Token.typescale.label_medium
-                                    color: MD.Token.color.on_surface_variant
-                                }
-                                MD.Text {
-                                    readonly property int onlineCount: canvasEditor.members.reduce((total, member) => total + Number(member.onlineCount || 0), 0)
-                                    text: qsTr("%1 total, %2 online").arg(canvasEditor.members.length).arg(onlineCount)
-                                    typescale: MD.Token.typescale.body_medium
-                                    color: MD.Token.color.on_surface
-                                }
+                                readonly property int onlineCount: canvasEditor.members.reduce((total, member) => total + Number(member.onlineCount || 0), 0)
+                                text: qsTr("%1 total, %2 online").arg(canvasEditor.members.length).arg(onlineCount)
+                                bgColor: MD.Token.color.surface_container_highest
+                                fgColor: MD.Token.color.on_surface_variant
                             }
 
-                            RowLayout {
+                            W.Tag {
                                 visible: !!root.selected && root.selectedKind === "display" && root.selected.refreshMhz > 0
-                                spacing: 8
-                                MD.Text {
-                                    text: qsTr("Refresh:")
-                                    typescale: MD.Token.typescale.label_medium
-                                    color: MD.Token.color.on_surface_variant
-                                }
-                                MD.Text {
-                                    text: root.selected ? (root.selected.refreshMhz / 1000).toFixed(3) + " Hz" : ""
-                                    typescale: MD.Token.typescale.body_medium
-                                    color: MD.Token.color.on_surface
-                                }
+                                text: root.selected ? (root.selected.refreshMhz / 1000).toFixed(3) + " Hz" : ""
+                                bgColor: MD.Token.color.surface_container_highest
+                                fgColor: MD.Token.color.on_surface_variant
                             }
 
-                            RowLayout {
+                            W.Tag {
                                 visible: !!root.selected && root.selectedKind === "display" && (root.selected.canvasId || "").length > 0
-                                spacing: 8
-                                MD.Text {
-                                    text: qsTr("Canvas area:")
-                                    typescale: MD.Token.typescale.label_medium
-                                    color: MD.Token.color.on_surface_variant
-                                }
-                                MD.Text {
-                                    readonly property var rect: root.selected ? (root.selected.canvasRect || ({})) : ({})
-                                    text: Number(rect.width || 0) > 0 ? (rect.x + ", " + rect.y + " · " + rect.width + " × " + rect.height) : ""
-                                    typescale: MD.Token.typescale.body_medium
-                                    color: MD.Token.color.on_surface
-                                }
+                                readonly property var rect: root.selected ? (root.selected.canvasRect || ({})) : ({})
+                                text: Number(rect.width || 0) > 0 ? (rect.x + ", " + rect.y + " · " + rect.width + " × " + rect.height) : ""
+                                bgColor: MD.Token.color.surface_container_highest
+                                fgColor: MD.Token.color.on_surface_variant
                             }
 
                             MD.AssistChip {

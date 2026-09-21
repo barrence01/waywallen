@@ -307,7 +307,9 @@ MD.Dialog {
         id: m_confirm
         title: root.confirmationFilter ? W.I18n.tr(root.confirmationFilter.titleText) : ""
         modal: true
-        anchors.centerIn: T.Overlay.overlay
+        positioningItem: overlayItem
+        x: (overlayWidth - width) / 2
+        y: (overlayHeight - height) / 2
         standardButtons: T.Dialog.Cancel | T.Dialog.Ok
         onAccepted: {
             root.setFilterValues(root.confirmationFilter, root.filterValues(root.confirmationFilter).slice(0, 1));

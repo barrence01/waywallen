@@ -37,6 +37,8 @@ class Display : public QObject {
     Q_PROPERTY(quint32 height READ height NOTIFY sizeChanged FINAL)
     Q_PROPERTY(quint32 refreshMhz READ refreshMhz NOTIFY refreshMhzChanged FINAL)
     Q_PROPERTY(QVariantList links READ links NOTIFY linksChanged FINAL)
+    Q_PROPERTY(bool manualPaused READ manualPaused NOTIFY pauseChanged FINAL)
+    Q_PROPERTY(bool effectivePaused READ effectivePaused NOTIFY pauseChanged FINAL)
     /// Resolved layout currently in use for this display
     /// (per-display override on top of global defaults). Map keys:
     /// `fillmode` (int), `locationX` / `locationY` (0..100).
@@ -65,6 +67,8 @@ public:
     explicit Display(const proto::DisplayInfo& info, QObject* parent = nullptr);
 
     auto id() const -> quint64 { return m_id; }
+    auto manualPaused() const -> bool { return m_manual_paused; }
+    auto effectivePaused() const -> bool { return m_effective_paused; }
     auto name() const -> const QString& { return m_name; }
     auto alias() const -> const QString& { return m_alias; }
     auto displayLabel() const -> QString {
@@ -104,6 +108,7 @@ public:
     Q_SIGNAL void sizeChanged();
     Q_SIGNAL void refreshMhzChanged();
     Q_SIGNAL void linksChanged();
+    Q_SIGNAL void pauseChanged();
     Q_SIGNAL void layoutChanged();
     Q_SIGNAL void playlistStatusChanged();
     Q_SIGNAL void runtimeConditionsChanged();
@@ -140,6 +145,8 @@ private:
     QVariantMap  m_canvas_rect;
     quint32      m_canvas_overlap_count { 0 };
     bool         m_selectable_target { true };
+    bool         m_manual_paused { false };
+    bool         m_effective_paused { false };
 };
 
 class Canvas : public QObject {

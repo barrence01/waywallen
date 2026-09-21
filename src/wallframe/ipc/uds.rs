@@ -549,4 +549,54 @@ mod tests {
         let err = recv_control(&b).unwrap_err();
         assert!(matches!(err, CodecError::PeerClosed));
     }
+
+    #[test]
+    fn mpris_oversized_art_rejected() {
+        // Documents that oversized MPRIS art URLs would exceed the u16 frame limit.
+        // Sanitization in mpris.rs prevents this from happening.
+        let (a, _b) = pair();
+        
+        // Simulate an Elisa-style data: URI with a large base64-encoded image
+        let large_art = format!("data:image/jpeg;base64,{}", "A".repeat(100_000));
+        
+        let oversized = EventIn::Mpris {
+            snapshot: crate::wallframe::ipc::proto::WireMprisSnapshot {
+                state: crate::wallframe::ipc::proto::MediaPlaybackState::Playing,
+                title: "Song Title".to_string(),
+                artist: "Artist Name".to_string(),
+                album: "Album Name".to_string(),
+                album_artist: "Album Artist".to_string(),
+                art_url: large_art.clone(),
+                previous_art_url: large_art,
+            },
+        };
+        
+        // This should fail with FrameTooLarge
+        let err = send_control(&a, &oversized, &[]).unwrap_err();
+        assert!(matches!(err, CodecError::FrameTooLarge(_)));
+    }
+
+    #[test]
+    fn mpris_sanitized_art_fits() {
+        // Documents that properly sanitized MPRIS snapshots fit within the frame limit
+        let (a, b) = pair();
+        
+        // Typical sanitized MPRIS snapshot (file:// paths, reasonable metadata)
+        let sanitized = EventIn::Mpris {
+            snapshot: crate::wallframe::ipc::proto::WireMprisSnapshot {
+                state: crate::wallframe::ipc::proto::MediaPlaybackState::Playing,
+                title: "Bohemian Rhapsody".to_string(),
+                artist: "Queen".to_string(),
+                album: "A Night at the Opera".to_string(),
+                album_artist: "Queen".to_string(),
+                art_url: "/home/user/.cache/music/covers/queen_bohemian.jpg".to_string(),
+                previous_art_url: "/home/user/.cache/music/covers/previous.jpg".to_string(),
+            },
+        };
+        
+        // This should succeed
+        send_control(&a, &sanitized, &[]).unwrap();
+        let (received, _fds) = recv_control(&b).unwrap();
+        assert_eq!(received, sanitized);
+    }
 }

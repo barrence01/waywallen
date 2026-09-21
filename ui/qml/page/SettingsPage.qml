@@ -9,6 +9,7 @@ import waywallen.ui as W
 
 MD.Page {
     id: root
+    implicitWidth: 480
     padding: 0
     showHeader: true
     showBackground: false
@@ -220,6 +221,11 @@ MD.Page {
         { value: WC.AutoAction.AUTO_ACTION_STOP,        label: qsTr("Stop") }
     ]
 
+    readonly property var kAutoScopes: [
+        { value: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY, label: qsTr("Current display") },
+        { value: WC.AutoScope.AUTO_SCOPE_ALL_DISPLAYS, label: qsTr("All displays") }
+    ]
+
     function _listIndex(list, value) {
         for (let i = 0; i < list.length; ++i)
             if (list[i].value === value) return i;
@@ -249,6 +255,10 @@ MD.Page {
             fullscreen: WC.AutoAction.AUTO_ACTION_PAUSE,
             sessionLocked: WC.AutoAction.AUTO_ACTION_STOP,
             sessionInactive: WC.AutoAction.AUTO_ACTION_STOP,
+            anyWindowScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
+            focusedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
+            maximizedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
+            fullscreenScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             resumeDelayMs: 250
         };
     }
@@ -441,6 +451,11 @@ MD.Page {
     function _updateAutoReplayAction(key, action) {
         root._mutAutoReplay(policy => {
             policy[key] = action;
+            if (key !== "sessionLocked" && key !== "sessionInactive") {
+                policy[key + "Scope"] = action === WC.AutoAction.AUTO_ACTION_MUTE || action === WC.AutoAction.AUTO_ACTION_STOP
+                    ? WC.AutoScope.AUTO_SCOPE_ALL_DISPLAYS
+                    : WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY;
+            }
         });
     }
 
@@ -597,6 +612,10 @@ MD.Page {
                     required property var modelData
 
                     first: autoReplayItem.index === 0
+                    readonly property bool sessionRule: modelData.key === "sessionLocked" || modelData.key === "sessionInactive"
+                    readonly property var actions: root.kAutoActions.filter(o => o.value !== WC.AutoAction.AUTO_ACTION_STOP || (modelData.key !== "anyWindow" && modelData.key !== "focused"))
+                    readonly property int action: root._autoReplay()[modelData.key] ?? WC.AutoAction.AUTO_ACTION_NONE
+                    readonly property bool selectableScope: !sessionRule && (action === WC.AutoAction.AUTO_ACTION_PAUSE || (modelData.key === "fullscreen" && action === WC.AutoAction.AUTO_ACTION_STOP))
                     last: false
 
                     RowLayout {
@@ -609,19 +628,40 @@ MD.Page {
                         }
 
                         MD.ComboBox {
-                            id: autoReplayActionBox
-                            Layout.preferredWidth: 180
+                            id: autoReplayScopeBox
+                            label: qsTr("Applies to")
+                            Layout.minimumWidth: 120
+                            Layout.preferredWidth: 120
+                            Layout.maximumWidth: 120
+                            visible: autoReplayItem.selectableScope
                             mdState.size: MD.Enum.S
-                            model: root.kAutoActions.map(o => o.label)
+                            model: autoReplayItem.selectableScope ? root.kAutoScopes.map(o => o.label) : [qsTr("All displays")]
+                            Accessible.name: qsTr("Applies to")
+                            onActivated: idx => root._mutAutoReplay(policy => {
+                                policy[autoReplayItem.modelData.key + "Scope"] = root.kAutoScopes[idx].value;
+                            })
+                        }
+                        Binding {
+                            target: autoReplayScopeBox
+                            property: "currentIndex"
+                            value: autoReplayItem.selectableScope ? root._listIndex(root.kAutoScopes, root._autoReplay()[autoReplayItem.modelData.key + "Scope"] ?? 0) : 0
+                        }
+                        MD.ComboBox {
+                            id: autoReplayActionBox
+                            Layout.minimumWidth: 120
+                            Layout.preferredWidth: 120
+                            Layout.maximumWidth: 120
+                            mdState.size: MD.Enum.S
+                            model: autoReplayItem.actions.map(o => o.label)
                             onActivated: idx => root._updateAutoReplayAction(
                                 autoReplayItem.modelData.key,
-                                root.kAutoActions[idx].value)
+                                autoReplayItem.actions[idx].value)
                         }
                         Binding {
                             target: autoReplayActionBox
                             property: "currentIndex"
                             value: root._listIndex(
-                                root.kAutoActions,
+                                autoReplayItem.actions,
                                 root._autoReplay()[autoReplayItem.modelData.key] ?? 0)
                         }
                     }
@@ -1012,7 +1052,7 @@ MD.Page {
 
             SettingItem {
                 first: false
-                last: true
+                last: false
                 enabled: root._pauseEffect().kind
                     === WC.PauseEffectKind.PAUSE_EFFECT_KIND_BLUR
 
@@ -1053,10 +1093,8 @@ MD.Page {
                 }
             }
 
-            SettingHeader { text: qsTr("Transition") }
-
             SettingItem {
-                first: true
+                first: false
                 last: false
 
                 RowLayout {

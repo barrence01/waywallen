@@ -126,7 +126,9 @@ impl Router {
                 displaced_renderers.extend(existing.iter().cloned());
                 let has_demand = group.iter().any(|display_id| {
                     inner.displays.get(display_id).is_some_and(|display| {
-                        !inner.manual_stopped && !display.auto_replay.stop_applied
+                        !inner.manual_stopped
+                            && !inner.auto_effects.stop
+                            && !display.auto_replay.stop_applied
                     })
                 });
                 let reusable_running = has_demand
@@ -222,6 +224,7 @@ impl Router {
                         continue;
                     }
                     let enabled = !inner.manual_stopped
+                        && !inner.auto_effects.stop
                         && !inner
                             .displays
                             .get(&display_id)
@@ -617,6 +620,7 @@ impl Router {
                     inner.table.remove_link(link.id);
                 }
                 let enabled = !inner.manual_stopped
+                    && !inner.auto_effects.stop
                     && !inner
                         .displays
                         .get(did)
@@ -708,6 +712,7 @@ impl Router {
                     inner.table.remove_link(link.id);
                 }
                 let enabled = !inner.manual_stopped
+                    && !inner.auto_effects.stop
                     && !inner
                         .displays
                         .get(did)
