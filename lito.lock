@@ -198,11 +198,11 @@ dependencies = [
 
 [[packages]]
 name = "waywallen-bridge"
-version = "0.4.0"
+version = "0.4.1"
 
 [[packages]]
 name = "waywallen-i18n"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
   "luato",
   "rstd-argparse",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[packages]]
 name = "waywallen-image-plugin"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
   "rstd-argparse",
   "rstd-cppstd",
@@ -228,7 +228,7 @@ runtime-dependencies = [
 
 [[packages]]
 name = "waywallen-plugin-common"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
   "rstd-cppstd",
   "rstd-log",
@@ -238,14 +238,14 @@ dependencies = [
 
 [[packages]]
 name = "waywallen-plugin-i18n"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
   "rstd-std",
 ]
 
 [[packages]]
 name = "waywallen-ui"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
   "ncrequest",
   "qextra",
@@ -257,11 +257,11 @@ dependencies = [
 
 [[packages.externals]]
 name = "qml-material"
-source = "git+https://github.com/hypengw/QmlMaterial.git#001a2704a9ba14b9a615ed57bd0e7ede8fff0b32"
+source = "git+https://github.com/hypengw/QmlMaterial.git#949e701bc994c8075f57048a0205be3d2fe38603"
 
 [[packages]]
 name = "waywallen-video-plugin"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
   "rstd-argparse",
   "rstd-cppstd",
@@ -276,4 +276,4 @@ runtime-dependencies = [
 
 [[packages]]
 name = "waywallen-wallhaven-plugin"
-version = "0.4.0"
+version = "0.4.1"

@@ -18,8 +18,8 @@ mod store;
 
 pub use crate::logging::log_dir;
 pub use paths::{
-    data_dir, default_config_path, default_db_path, plugin_state_dir, remote_content_dir,
-    sanitize_path_segment,
+    cache_dir, data_dir, default_config_path, default_db_path, mpris_art_cache_dir,
+    plugin_state_dir, remote_content_dir, sanitize_path_segment,
 };
 pub use schema::*;
 pub use store::*;

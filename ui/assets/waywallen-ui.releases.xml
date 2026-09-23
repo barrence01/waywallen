@@ -1,3 +1,17 @@
+<release version="0.4.1" date="2026-09-23">
+  <description>
+    <p>Improved:</p>
+    <ul>
+      <li>Remote MPRIS artwork is cached locally before being sent to wallpaper renderers. #283 by @CatSema</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Embedded and oversized MPRIS artwork no longer exceeds renderer IPC limits. #282 by @barrence01</li>
+      <li>The mouse parallax setting stays in the built-in property section. #274 by @ales-drnz</li>
+      <li>The UI no longer fails to load because of stale QML Material cache metadata.</li>
+    </ul>
+  </description>
+</release>
 <release version="0.4.0" date="2026-09-21">
   <description>
     <p>Added:</p>

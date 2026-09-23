@@ -27,6 +27,21 @@ pub fn data_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+/// Directory for reproducible, non-user-authored data that may be discarded.
+pub fn cache_dir() -> PathBuf {
+    if let Some(xdg) = std::env::var_os("XDG_CACHE_HOME") {
+        return PathBuf::from(xdg).join("waywallen");
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        return PathBuf::from(home).join(".cache/waywallen");
+    }
+    PathBuf::from("waywallen-cache")
+}
+
+pub fn mpris_art_cache_dir() -> PathBuf {
+    cache_dir().join("mpris-art")
+}
+
 pub fn plugin_state_dir() -> PathBuf {
     data_dir().join("plugin-state")
 }
