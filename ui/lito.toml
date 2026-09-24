@@ -146,7 +146,6 @@ targets = [
   { name = "Qt6::ProtobufQuick" },
   { name = "Qt6::ProtobufWellKnownTypes" },
   { name = "Qt6::Quick" },
-  { name = "Qt6::QuickControls2" },
   { name = "Qt6::QuickPrivate" },
   { name = "Qt6::WebSockets" },
 ]

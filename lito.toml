@@ -45,11 +45,11 @@ version = "0.1.0"
 [workspace.dependencies.rstd-toml]
 version = "0.1.0"
 
+[workspace.dependencies.vvk]
+version = "0.1.0"
+
 [workspace.dependencies.luato]
 git = "https://github.com/litocpp/luato.git"
-
-[workspace.dependencies.vvk]
-git = "https://github.com/litocpp/vvk.git"
 
 [workspace.dependencies.wavsen]
 git = "https://github.com/hypengw/wavsen.git"
@@ -111,7 +111,6 @@ components = [
   "ProtobufQuick",
   "ProtobufWellKnownTypes",
   "Quick",
-  "QuickControls2",
   "QuickPrivate",
   "WebSockets",
 ]
