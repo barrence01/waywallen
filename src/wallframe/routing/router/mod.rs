@@ -611,6 +611,8 @@ struct Inner {
     session_locked: bool,
     /// Set when the current login session is inactive.
     session_inactive: bool,
+    /// Set when GameMode is active.
+    gamemode: bool,
     /// User-requested global pause state. This shares the same
     /// daemon-owned lifecycle path as auto replay.
     manual_paused: bool,
@@ -755,6 +757,7 @@ impl Router {
                 auto_stopped_renderers: HashSet::new(),
                 session_locked: false,
                 session_inactive: false,
+                gamemode: false,
                 manual_paused: false,
                 manual_muted: false,
                 manual_stopped: false,

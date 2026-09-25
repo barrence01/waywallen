@@ -211,7 +211,8 @@ MD.Page {
         { key: "maximized",       label: qsTr("Maximized window") },
         { key: "fullscreen",      label: qsTr("Fullscreen window") },
         { key: "sessionLocked",   label: qsTr("Session locked") },
-        { key: "sessionInactive", label: qsTr("Session inactive") }
+        { key: "sessionInactive", label: qsTr("Session inactive") },
+        { key: "gamemode",        label: qsTr("GameMode is active") }
     ]
 
     readonly property var kAutoActions: [
@@ -259,6 +260,7 @@ MD.Page {
             focusedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             maximizedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             fullscreenScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
+            gamemode: WC.AutoAction.AUTO_ACTION_STOP,
             resumeDelayMs: 250
         };
     }

@@ -5,6 +5,7 @@ impl Router {
         self: &Arc<Self>,
         locked: Option<bool>,
         inactive: Option<bool>,
+        gamemode: Option<bool>,
     ) {
         {
             let mut inner = self.inner.lock().await;
@@ -13,6 +14,9 @@ impl Router {
             }
             if let Some(inactive) = inactive {
                 inner.session_inactive = inactive;
+            }
+            if let Some(gamemode) = gamemode {
+                inner.gamemode = gamemode;
             }
         }
         self.refresh_auto_policy(false).await;
@@ -31,6 +35,7 @@ impl Router {
                 flags: 0,
                 session_locked: inner.session_locked,
                 session_inactive: inner.session_inactive,
+                gamemode: inner.gamemode,
             };
             inner
                 .session_auto_replay
