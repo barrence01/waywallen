@@ -221,11 +221,7 @@ struct HostState {
     ww_pool_directive_t     neg_directive {};
     std::mutex              send_mu;
 
-    /* Cached RGBA buffer (kept alive across re-negotiations so we
-     * can re-upload after a directive change). */
-    const uint8_t* rgba_data { nullptr };
-    size_t         rgba_size { 0 };
-    ClearColor     scheme_color {};
+    ClearColor scheme_color {};
 };
 
 void signal_shutdown(HostState& s) {
@@ -242,11 +238,11 @@ void signal_shutdown(HostState& s) {
 //
 // Filename: producer-{seq:06}-0x{fourcc:08x}-0x{modifier:016x}.bin
 // Sidecar:  same name with .json — width/height/stride/fourcc/modifier.
-static void maybe_dump_producer_frame(const HostState& host, const ww_pool_directive_t& d,
+static void maybe_dump_producer_frame(const ww_image::RgbaBuf& rgba, const ww_pool_directive_t& d,
                                       const ww_pool_slot_t& s, uint64_t seq) {
     const char* dir = std::getenv("WAYWALLEN_IMAGE_DUMP_DIR");
     if (! dir || ! *dir) return;
-    if (! host.rgba_data || host.rgba_size == 0) return;
+    if (rgba.data.empty()) return;
 
     char path[512];
     std::snprintf(path,
@@ -263,12 +259,12 @@ static void maybe_dump_producer_frame(const HostState& host, const ww_pool_direc
                   static_cast<const char*>(std::strerror(errno)));
         return;
     }
-    size_t w = std::fwrite(host.rgba_data, 1, host.rgba_size, f);
+    size_t w = std::fwrite(rgba.data.data(), 1, rgba.data.size(), f);
     std::fclose(f);
-    if (w != host.rgba_size) {
+    if (w != rgba.data.size()) {
         rstd_warn("waywallen-image-renderer: dump short write {}/{} to {}",
                   w,
-                  host.rgba_size,
+                  rgba.data.size(),
                   static_cast<const char*>(path));
         return;
     }
@@ -372,7 +368,7 @@ RepublishStatus republish_latest(HostState& host) {
 }
 
 UploadStatus upload_to_slot(HostState& host, wavsen::video::Producer& producer,
-                            const ww_pool_directive_t& directive) {
+                            const ww_pool_directive_t& directive, const ww_image::RgbaBuf& rgba) {
     ww_pool_slot_acquire_result_t acquired {};
     if (int rc = ww_bridge_pool_wait_acquire_any_for_render(
             host.pool, cancel_slot_wait, &host, &acquired);
@@ -399,13 +395,13 @@ UploadStatus upload_to_slot(HostState& host, wavsen::video::Producer& producer,
 
     static std::atomic<uint64_t> g_dump_seq { 0 };
     maybe_dump_producer_frame(
-        host, directive, s, g_dump_seq.fetch_add(1, std::memory_order_relaxed));
+        rgba, directive, s, g_dump_seq.fetch_add(1, std::memory_order_relaxed));
 
     auto upload_res = producer.upload_into(reinterpret_cast<VkImage>(s.vk_image),
                                            rstd::u32(s.width),
                                            rstd::u32(s.height),
-                                           host.rgba_data,
-                                           rstd::usize(host.rgba_size));
+                                           rgba.data.data(),
+                                           rstd::usize(rgba.data.size()));
     if (upload_res.is_err()) {
         ww_bridge_pool_abort_acquired_slot(host.pool, &acquired.identity);
         rstd_error("waywallen-image-renderer: upload_into failed: {}",
@@ -426,6 +422,29 @@ UploadStatus upload_to_slot(HostState& host, wavsen::video::Producer& producer,
     }
     return UploadStatus::Submitted;
 }
+
+bool prepare_decoded_rgba(const Options& opt, ww_image::RgbaBuf& rgba) {
+    if (! rgba.data.empty()) return true;
+
+    ww_image::DecodeError error;
+    auto decoded = ww_image::decode_to_rgba(opt.image_path, opt.resolution, &error);
+    if (decoded.data.empty()) {
+        rstd_error("waywallen-image-renderer: decode {}: {}", opt.image_path, error.message);
+        return false;
+    }
+    if (decoded.width != opt.width || decoded.height != opt.height) {
+        rstd_error("waywallen-image-renderer: decoded extent changed from {}x{} to {}x{}",
+                   opt.width,
+                   opt.height,
+                   decoded.width,
+                   decoded.height);
+        return false;
+    }
+    rgba = std::move(decoded);
+    return true;
+}
+
+void release_decoded_rgba(ww_image::RgbaBuf& rgba) { std::vector<uint8_t>().swap(rgba.data); }
 
 void publish_clear_color(HostState& host, const ClearColor& c) {
     std::lock_guard<std::mutex> send_lk(host.send_mu);
@@ -470,10 +489,15 @@ void apply_user_properties(HostState& host, const char* json) {
 }
 
 /* Apply a directive received from the daemon. After bridge brings the
- * slots up, upload our cached RGBA into slot 0 and submit one frame.
- * Static images: a single submit per (re-)negotiation is enough. */
-void apply_negotiate_request(HostState& host, wavsen::video::Producer& producer,
-                             const ww_pool_directive_t& d) {
+ * slots up, upload RGBA into slot 0 and submit one frame. Static images
+ * discard decode and upload storage after each negotiation. */
+void apply_negotiate_request(HostState& host, wavsen::video::Producer& producer, const Options& opt,
+                             ww_image::RgbaBuf& rgba, const ww_pool_directive_t& d) {
+    if (! prepare_decoded_rgba(opt, rgba)) {
+        signal_shutdown(host);
+        return;
+    }
+
     int rc = 0;
     {
         std::lock_guard<std::mutex> send_lk(host.send_mu);
@@ -484,9 +508,18 @@ void apply_negotiate_request(HostState& host, wavsen::video::Producer& producer,
         if (rc > 0) signal_shutdown(host);
         return;
     }
-    const auto upload = upload_to_slot(host, producer, d);
+    const auto upload = upload_to_slot(host, producer, d, rgba);
     if (upload == UploadStatus::Cancelled) return;
     if (upload == UploadStatus::Failed) {
+        signal_shutdown(host);
+        return;
+    }
+
+    release_decoded_rgba(rgba);
+    auto release = producer.release_upload_buffer();
+    if (release.is_err()) {
+        rstd_error("waywallen-image-renderer: release upload buffer failed: {}",
+                   std::move(release).unwrap_err().message.as_str());
         signal_shutdown(host);
         return;
     }
@@ -878,9 +911,6 @@ int run(int argc, char** argv) {
     ww_bridge_vk_dt_load(&vdt, producer->instance_dispatch().resolver, producer->instance());
     ww_bridge_vk_log_gpu_info("waywallen-image-renderer", &vdt, producer->physical_device());
 
-    host.rgba_data = rgba_buf.data.data();
-    host.rgba_size = rgba_buf.data.size();
-
     /* --- Bridge pool: hand over Vulkan handles --- */
     ww_pool_vulkan_init_t pool_init {};
     pool_init.instance           = producer->instance();
@@ -945,7 +975,7 @@ int run(int argc, char** argv) {
             host.neg_pending           = false;
             host.frame_request_pending = false;
             lk.unlock();
-            apply_negotiate_request(host, *producer, d);
+            apply_negotiate_request(host, *producer, opt, rgba_buf, d);
             continue;
         }
         if (host.frame_request_pending) {

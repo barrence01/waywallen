@@ -27,7 +27,7 @@ fn renderer_bin() -> Option<PathBuf> {
 
 fn image_path() -> Option<PathBuf> {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let candidate = manifest.join("ui/assets/main_page.png");
+    let candidate = manifest.join("ui/assets/main_page.webp");
     candidate.exists().then_some(candidate)
 }
 
