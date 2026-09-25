@@ -1,5 +1,9 @@
 <release version="0.4.2" date="2026-09-25">
   <description>
+    <p>Added:</p>
+    <ul>
+      <li>GameMode can trigger configurable automatic playback actions. #280 by @PolisanTheEasyNick</li>
+    </ul>
     <p>Improved:</p>
     <ul>
       <li>Static image wallpapers release staging memory after publishing.</li>
