@@ -260,7 +260,7 @@ MD.Page {
             focusedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             maximizedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             fullscreenScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
-            gamemode: WC.AutoAction.AUTO_ACTION_STOP,
+            gamemode: WC.AutoAction.AUTO_ACTION_NONE,
             resumeDelayMs: 250
         };
     }
@@ -614,10 +614,13 @@ MD.Page {
                     required property var modelData
 
                     first: autoReplayItem.index === 0
-                    readonly property bool sessionRule: modelData.key === "sessionLocked" || modelData.key === "sessionInactive"
+                    readonly property bool globalRule:
+                        modelData.key === "sessionLocked"
+                        || modelData.key === "sessionInactive"
+                        || modelData.key === "gamemode"
                     readonly property var actions: root.kAutoActions.filter(o => o.value !== WC.AutoAction.AUTO_ACTION_STOP || (modelData.key !== "anyWindow" && modelData.key !== "focused"))
                     readonly property int action: root._autoReplay()[modelData.key] ?? WC.AutoAction.AUTO_ACTION_NONE
-                    readonly property bool selectableScope: !sessionRule && (action === WC.AutoAction.AUTO_ACTION_PAUSE || (modelData.key === "fullscreen" && action === WC.AutoAction.AUTO_ACTION_STOP))
+                    readonly property bool selectableScope: !globalRule && (action === WC.AutoAction.AUTO_ACTION_PAUSE || (modelData.key === "fullscreen" && action === WC.AutoAction.AUTO_ACTION_STOP))
                     last: false
 
                     RowLayout {

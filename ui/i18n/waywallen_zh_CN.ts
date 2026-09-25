@@ -1712,6 +1712,11 @@ Related display: #%1</source>
         <translation>会话未激活</translation>
     </message>
     <message>
+        <location filename="../qml/page/SettingsPage.qml" line="215"/>
+        <source>GameMode is active</source>
+        <translation>GameMode 已激活</translation>
+    </message>
+    <message>
         <location filename="../qml/page/SettingsPage.qml" line="216"/>
         <source>None</source>
         <translation>无</translation>

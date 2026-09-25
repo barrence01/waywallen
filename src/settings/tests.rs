@@ -661,6 +661,7 @@ fn auto_replay_default_actions() {
     assert_eq!(policy.fullscreen, AutoAction::Pause);
     assert_eq!(policy.session_locked, AutoAction::Stop);
     assert_eq!(policy.session_inactive, AutoAction::Stop);
+    assert_eq!(policy.gamemode, AutoAction::None);
     assert_eq!(policy.resume_delay_ms, DEFAULT_AUTO_REPLAY_RESUME_DELAY_MS);
 }
 
@@ -675,6 +676,7 @@ fn auto_replay_migrates_legacy_rules_once_and_round_trips_scopes() {
         [display.A.auto_replay]
         focused = "stop"
         session_locked = "none"
+        gamemode = "stop"
     "#,
     )
     .unwrap();
@@ -688,6 +690,7 @@ fn auto_replay_migrates_legacy_rules_once_and_round_trips_scopes() {
     assert_eq!(display.focused, AutoAction::Pause);
     assert_eq!(display.focused_scope, AutoScope::AllDisplays);
     assert_eq!(display.session_locked, policy.session_locked);
+    assert_eq!(display.gamemode, policy.gamemode);
     assert!(!settings.migrate_auto_replay());
     let roundtrip: Settings = toml::from_str(&toml::to_string(&settings).unwrap()).unwrap();
     assert_eq!(roundtrip, settings);

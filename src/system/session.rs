@@ -63,7 +63,6 @@ enum SessionEvent {
     PortalUnavailable,
     PortalSessionEnding,
     LoginSessionRemoved,
-    GameMode(bool),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -79,7 +78,6 @@ enum SessionAction {
     UpdateInactive(bool),
     StartScreenSaver,
     Exit(ExitReason),
-    UpdateGameMode(bool),
 }
 
 #[derive(Default)]
@@ -107,7 +105,6 @@ impl SessionMonitorState {
                 Some(SessionAction::Exit(ExitReason::LoginSessionRemoved))
             }
             SessionEvent::PortalSessionEnding | SessionEvent::LoginSessionRemoved => None,
-            SessionEvent::GameMode(active) => Some(SessionAction::UpdateGameMode(active)),
         }
     }
 }
@@ -146,14 +143,6 @@ pub async fn run(
         }
     }
 
-    {
-        let tx3 = tx.clone();
-        let bus = session_bus.clone();
-        watchers.spawn(async move {
-            monitor_gamemode(&bus, &tx3).await;
-        });
-    }
-
     let reason = loop {
         tokio::select! {
             result = shutdown.changed() => {
@@ -165,15 +154,11 @@ pub async fn run(
                 match monitor_state.handle(event) {
                     Some(SessionAction::UpdateLocked(active)) => {
                         log::info!("session_monitor: screen lock active={active}");
-                        router.update_session_state(Some(active), None, None).await;
+                        router.update_session_state(Some(active), None).await;
                     }
                     Some(SessionAction::UpdateInactive(inactive)) => {
                         log::info!("session_monitor: login session inactive={inactive}");
-                        router.update_session_state(None, Some(inactive), None).await;
-                    }
-                    Some(SessionAction::UpdateGameMode(active)) => {
-                        log::info!("session_monitor: gamemode active={active}");
-                        router.update_session_state(None, None, Some(active)).await;
+                        router.update_session_state(None, Some(inactive)).await;
                     }
                     Some(SessionAction::StartScreenSaver) => {
                         log::info!(
@@ -458,46 +443,6 @@ fn session_removed_matches(
     removed_path: &OwnedObjectPath,
 ) -> bool {
     current_id == removed_id && current_path == removed_path
-}
-
-#[zbus::proxy(
-    interface = "com.feralinteractive.GameMode",
-    default_service = "com.feralinteractive.GameMode",
-    default_path = "/com/feralinteractive/GameMode"
-)]
-trait GameMode {
-    #[zbus(property)]
-    fn client_count(&self) -> zbus::Result<i32>;
-}
-
-async fn monitor_gamemode(connection: &zbus::Connection, tx: &mpsc::Sender<SessionEvent>) {
-    let proxy = match GameModeProxy::new(connection).await {
-        Ok(p) => p,
-        Err(e) => {
-            log::warn!("session_monitor: failed to create GameModeProxy: {e}");
-            return;
-        }
-    };
-
-    let mut stream = proxy.receive_client_count_changed().await;
-    
-    // Get initial value
-    if let Ok(count) = proxy.client_count().await {
-        let _ = tx.send(SessionEvent::GameMode(count > 0)).await;
-    }
-
-    while let Some(changed) = stream.next().await {
-        match changed.get().await {
-            Ok(count) => {
-                log::info!("session_monitor: GameMode changed: active={} (count={})", count > 0, count);
-                let _ = tx.send(SessionEvent::GameMode(count > 0)).await;
-            }
-            Err(e) => {
-                log::warn!("session_monitor: GameMode read after change failed: {e}");
-            }
-        }
-    }
-    log::warn!("session_monitor: GameMode stream ended");
 }
 
 #[cfg(test)]

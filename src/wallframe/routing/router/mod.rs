@@ -604,7 +604,7 @@ struct Inner {
     resume_retry_tasks: HashMap<RendererId, JoinHandle<()>>,
     next_start_token: u64,
     next_resume_retry_generation: u64,
-    session_auto_replay: auto_replay::State,
+    global_auto_replay: auto_replay::State,
     auto_effects: auto_replay::Effects,
     auto_stopped_renderers: HashSet<RendererId>,
     /// Set when the screen-saver / lock-screen is active.
@@ -752,7 +752,7 @@ impl Router {
                 next_config_generation: 0,
                 content_tokens: HashMap::new(),
                 next_content_token: 0,
-                session_auto_replay: auto_replay::State::new(),
+                global_auto_replay: auto_replay::State::new(),
                 auto_effects: auto_replay::Effects::default(),
                 auto_stopped_renderers: HashSet::new(),
                 session_locked: false,
@@ -7110,6 +7110,22 @@ mod tests {
             .iter()
             .all(|l| !l.active));
         router.update_session_state(Some(false), None).await;
+        assert!(!router.inner.lock().await.auto_effects.stop);
+    }
+
+    #[tokio::test]
+    async fn gamemode_policy_is_global_and_opt_in() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr);
+        router.attach_settings(
+            settings_with_auto_replay(auto_replay(&[(AutoCondition::GameMode, AutoAction::Stop)]))
+                .await,
+        );
+
+        router.update_gamemode_state(true).await;
+        assert!(router.inner.lock().await.auto_effects.stop);
+
+        router.update_gamemode_state(false).await;
         assert!(!router.inner.lock().await.auto_effects.stop);
     }
 

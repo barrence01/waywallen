@@ -323,7 +323,6 @@ impl Router {
         Ok(())
     }
 
-
     pub(super) async fn apply_auto_stop_links(self: &Arc<Self>) {
         {
             let mut inner = self.inner.lock().await;

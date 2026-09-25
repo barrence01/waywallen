@@ -18,7 +18,7 @@ pub struct Facts {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Source {
     Display(u64),
-    Session,
+    Global,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -70,14 +70,14 @@ impl State {
         &mut self,
         policy: AutoReplayPolicy,
         facts: Facts,
-        session: bool,
+        global: bool,
         now: Instant,
         reset: bool,
     ) {
         self.last_flags = facts.flags;
         for (condition, state) in AutoCondition::ALL.into_iter().zip(&mut self.rules) {
             let contribution =
-                if condition.is_session() == session && condition_matches(condition, facts) {
+                if condition.is_global() == global && condition_matches(condition, facts) {
                     Contribution {
                         action: policy.action_for(condition),
                         scope: policy.scope_for(condition),
@@ -181,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn scope_and_session_have_separate_owners() {
+    fn display_and_global_conditions_have_separate_owners() {
         let policy = AutoReplayPolicy {
             fullscreen_scope: AutoScope::AllDisplays,
             ..Default::default()
@@ -197,6 +197,29 @@ mod tests {
                 ..Default::default()
             }
         );
+        state.update(policy, input, true, Instant::now(), true);
+        assert_eq!(
+            state.effects(),
+            Effects {
+                stop: true,
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn gamemode_contributes_only_to_global_state() {
+        let policy = AutoReplayPolicy {
+            gamemode: AutoAction::Stop,
+            ..Default::default()
+        };
+        let mut state = State::new();
+        let mut input = facts(0);
+        input.gamemode = true;
+
+        state.update(policy, input, false, Instant::now(), false);
+        assert_eq!(state.effects(), Effects::default());
+
         state.update(policy, input, true, Instant::now(), true);
         assert_eq!(
             state.effects(),

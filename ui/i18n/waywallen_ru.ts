@@ -1718,6 +1718,11 @@ Related display: #%1</source>
         <translation>Сеанс неактивен</translation>
     </message>
     <message>
+        <location filename="../qml/page/SettingsPage.qml" line="215"/>
+        <source>GameMode is active</source>
+        <translation>GameMode активен</translation>
+    </message>
+    <message>
         <location filename="../qml/page/SettingsPage.qml" line="216"/>
         <source>None</source>
         <translation>Нет</translation>

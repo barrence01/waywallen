@@ -115,8 +115,11 @@ impl AutoCondition {
         Self::GameMode,
     ];
 
-    pub fn is_session(self) -> bool {
-        matches!(self, Self::SessionLocked | Self::SessionInactive | Self::GameMode)
+    pub fn is_global(self) -> bool {
+        matches!(
+            self,
+            Self::SessionLocked | Self::SessionInactive | Self::GameMode
+        )
     }
 }
 
@@ -168,7 +171,7 @@ impl Default for AutoReplayPolicy {
             fullscreen: AutoAction::Pause,
             session_locked: AutoAction::Stop,
             session_inactive: AutoAction::Stop,
-            gamemode: AutoAction::Stop,
+            gamemode: AutoAction::None,
             resume_delay_ms: DEFAULT_AUTO_REPLAY_RESUME_DELAY_MS,
         }
     }
@@ -176,7 +179,7 @@ impl Default for AutoReplayPolicy {
 
 impl AutoReplayPolicy {
     pub fn scope_for(self, condition: AutoCondition) -> AutoScope {
-        if condition.is_session()
+        if condition.is_global()
             || self.action_for(condition) == AutoAction::Mute
             || (self.action_for(condition) == AutoAction::Stop
                 && condition != AutoCondition::Fullscreen)
@@ -900,12 +903,14 @@ impl Settings {
                 changed |= policy.migrate();
                 if policy.session_locked != global.session_locked
                     || policy.session_inactive != global.session_inactive
+                    || policy.gamemode != global.gamemode
                 {
                     log::warn!(
-                        "display {name}: migrating session auto replay overrides to global policy"
+                        "display {name}: migrating global auto replay conditions to global policy"
                     );
                     policy.session_locked = global.session_locked;
                     policy.session_inactive = global.session_inactive;
+                    policy.gamemode = global.gamemode;
                     changed = true;
                 }
             }

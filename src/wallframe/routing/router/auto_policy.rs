@@ -5,7 +5,6 @@ impl Router {
         self: &Arc<Self>,
         locked: Option<bool>,
         inactive: Option<bool>,
-        gamemode: Option<bool>,
     ) {
         {
             let mut inner = self.inner.lock().await;
@@ -15,10 +14,12 @@ impl Router {
             if let Some(inactive) = inactive {
                 inner.session_inactive = inactive;
             }
-            if let Some(gamemode) = gamemode {
-                inner.gamemode = gamemode;
-            }
         }
+        self.refresh_auto_policy(false).await;
+    }
+
+    pub async fn update_gamemode_state(self: &Arc<Self>, active: bool) {
+        self.inner.lock().await.gamemode = active;
         self.refresh_auto_policy(false).await;
     }
 
@@ -38,10 +39,10 @@ impl Router {
                 gamemode: inner.gamemode,
             };
             inner
-                .session_auto_replay
+                .global_auto_replay
                 .update(global, facts, true, now, reset);
-            self.schedule_auto_resume(auto_replay::Source::Session, &inner.session_auto_replay);
-            let mut effects = inner.session_auto_replay.effects();
+            self.schedule_auto_resume(auto_replay::Source::Global, &inner.global_auto_replay);
+            let mut effects = inner.global_auto_replay.effects();
             for (&id, state) in &mut inner.displays {
                 let policy = self.resolved_auto_replay(&state.info);
                 state.auto_replay.update(
@@ -98,7 +99,7 @@ impl Router {
         let current = {
             let inner = self.inner.lock().await;
             match source {
-                auto_replay::Source::Session => Some(&inner.session_auto_replay),
+                auto_replay::Source::Global => Some(&inner.global_auto_replay),
                 auto_replay::Source::Display(id) => inner.displays.get(&id).map(|s| &s.auto_replay),
             }
             .is_some_and(|s| s.resume_token == token && s.next_deadline().is_some())
