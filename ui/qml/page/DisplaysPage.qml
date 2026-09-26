@@ -21,12 +21,12 @@ MD.Page {
     property string selectedKind: ""
     property var selectedId: null
     property string pendingCanvasId: ""
-    property bool paneAnimationsEnabled: false
     readonly property bool detailsVisible: !!root.selectedDisplayObject || !!root.selectedCanvasObject
-    readonly property real paneSpacing: 12
-    readonly property real paneAvailableHeight: Math.max(0, pageContent.height - paneSpacing - (detailsVisible ? paneSpacing / 2 : 0))
-    readonly property real displayPaneHeight: detailsVisible ? paneAvailableHeight / 2 : paneAvailableHeight
-    readonly property real detailPaneHeight: detailsVisible ? paneAvailableHeight - displayPaneHeight : 0
+    property bool detailsExpanded: false
+    onDetailsVisibleChanged: {
+        if (!detailsVisible)
+            detailsExpanded = false;
+    }
 
     // FillMode/Rotation enum values mirror proto::FillMode /
     // proto::Rotation (control.proto). Keep the *_VALUES
@@ -453,13 +453,14 @@ MD.Page {
     function selectDisplay(displayObject) {
         if (!displayObject || !root.canChangeSelection("display", displayObject.id))
             return;
-        if (root.selectedKind === "display" && root.selectedId === displayObject.id) {
+        if (root.detailsExpanded && root.selectedKind === "display" && root.selectedId === displayObject.id) {
             root.clearSelection();
             return;
         }
         canvasEditor.clear();
         root.selectedKind = "display";
         root.selectedId = displayObject.id;
+        root.detailsExpanded = true;
     }
 
     function selectCanvas(canvasObject) {
@@ -470,10 +471,17 @@ MD.Page {
             root.selectedId = canvasObject.id;
             canvasEditor.begin(canvasObject);
         }
+        root.detailsExpanded = true;
     }
 
     function clearSelection() {
         if (canvasEditor.dirty)
+            return;
+        root.detailsExpanded = false;
+    }
+
+    function finishClosingDetails() {
+        if (root.detailsExpanded || canvasEditor.dirty)
             return;
         canvasEditor.clear();
         root.selectedKind = "";
@@ -511,39 +519,45 @@ MD.Page {
     readonly property var selectedCanvasObject: findSelectedCanvas()
     readonly property var selected: selectedDisplayObject || selectedCanvasObject
 
-    Item {
+    MD.SplitView {
         id: pageContent
 
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
+        anchors.topMargin: 6
+        anchors.bottomMargin: 6
+        orientation: width >= MD.Token.window_class.expanded.min_width ? Qt.Horizontal : Qt.Vertical
 
-        Timer {
-            interval: 0
-            running: true
-            repeat: false
-            onTriggered: root.paneAnimationsEnabled = true
+        expandTransition: Transition {
+            SpringAnimation {
+                property: "progress"
+                spring: 3
+                damping: 0.3
+                epsilon: 0.001
+            }
+        }
+        collapseTransition: Transition {
+            SpringAnimation {
+                property: "progress"
+                spring: 3
+                damping: 0.3
+                epsilon: 0.001
+            }
         }
 
         MD.Pane {
             id: displaysPane
-            x: 0
-            y: root.paneSpacing / 2
-            width: parent.width
-            height: root.displayPaneHeight
+            implicitWidth: 480
+            implicitHeight: 320
+            MD.SplitViewBase.minimumWidth: Math.min(320, pageContent.availableWidth / 2)
+            MD.SplitViewBase.minimumHeight: Math.min(160, pageContent.availableHeight / 2)
+            MD.SplitViewBase.preferredWidth: pageContent.availableWidth * 5 / 6
+            MD.SplitViewBase.preferredHeight: pageContent.availableHeight * 5 / 9
             horizontalPadding: 24
             verticalPadding: 16
             radius: 16
             backgroundColor: MD.MProp.color.surface
-
-            Behavior on height {
-                enabled: root.paneAnimationsEnabled
-
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.InOutCubic
-                }
-            }
 
             contentItem: Item {
                 id: canvas
@@ -1022,25 +1036,19 @@ MD.Page {
         // --- Details panel ---
         MD.Pane {
             id: detailsPane
-            anchors.top: displaysPane.bottom
-            anchors.topMargin: root.paneSpacing
-            width: parent.width
-            height: root.detailPaneHeight
-            visible: root.detailsVisible || height > 0.5
+            implicitWidth: 400
+            implicitHeight: 320
+            MD.SplitViewBase.minimumWidth: Math.min(320, pageContent.availableWidth / 2)
+            MD.SplitViewBase.minimumHeight: Math.min(160, pageContent.availableHeight / 2)
+            MD.SplitViewBase.fillWidth: true
+            MD.SplitViewBase.fillHeight: true
+            MD.SplitViewBase.expanded: root.detailsExpanded
+            MD.SplitViewBase.onCollapsedCompleted: root.finishClosingDetails()
+            visible: root.detailsVisible
 
             radius: 16
-            corners: MD.Util.corners(radius, radius, 0, 0)
             backgroundColor: MD.MProp.color.surface
             clip: true
-
-            Behavior on height {
-                enabled: root.paneAnimationsEnabled
-
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.InOutCubic
-                }
-            }
 
             contentItem: MD.Scrollable {
                 id: detailsFlick
@@ -1052,6 +1060,8 @@ MD.Page {
                 contentHeight: root.detailsVisible ? detailsContent.implicitHeight : 0
                 flickableDirection: MD.Scrollable.VerticalFlick
                 interactive: contentHeight > height
+
+                MD.ScrollBarBase.vertical: MD.ScrollBar {}
 
                 ColumnLayout {
                     id: detailsContent
