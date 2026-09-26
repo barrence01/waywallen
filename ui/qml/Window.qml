@@ -234,45 +234,32 @@ MD.ApplicationWindow {
                     // Logo + a menu-toggle button (the rail's default header
                     // is just the toggle; we add branding alongside it).
                     header: Item {
-                        implicitWidth: m_rail.useLarge ? m_rail.expandedWidth : m_rail.collapsedWidth
+                        implicitWidth: MD.Util.lerp(m_rail.collapsedWidth, m_rail.expandedWidth, m_rail.expansionProgress)
                         implicitHeight: m_logo.y + m_logo.height + 12
 
                         MD.StandardIconButton {
                             id: m_menu_btn
-                            x: m_rail.useLarge ? (32 - (width - 24) / 2) : (m_rail.collapsedWidth - width) / 2
+                            x: MD.Util.lerp((m_rail.collapsedWidth - width) / 2, 32 - (width - 24) / 2, m_rail.expansionProgress)
                             y: 4
                             icon.name: m_rail.useLarge ? MD.Token.icon.menu_open : MD.Token.icon.menu
                             onClicked: m_rail.toggle()
-
-                            Behavior on x {
-                                NumberAnimation {
-                                    duration: MD.Token.duration.long2
-                                    easing: MD.Token.easing.emphasized
-                                }
-                            }
                         }
 
                         Image {
                             id: m_logo
                             width: 32
                             height: 32
-                            x: m_rail.useLarge ? 32 : (m_rail.collapsedWidth - width) / 2
+                            x: MD.Util.lerp((m_rail.collapsedWidth - width) / 2, 32, m_rail.expansionProgress)
                             y: m_menu_btn.y + m_menu_btn.height + 16
                             source: "qrc:/waywallen/ui/assets/waywallen-ui.svg"
                             fillMode: Image.PreserveAspectFit
                             sourceSize.width: 64
                             sourceSize.height: 64
-
-                            Behavior on x {
-                                NumberAnimation {
-                                    duration: MD.Token.duration.long2
-                                    easing: MD.Token.easing.emphasized
-                                }
-                            }
                         }
 
                         MD.Label {
-                            visible: m_rail.useLarge
+                            visible: opacity > 0
+                            opacity: m_rail.expansionProgress
                             anchors.left: m_logo.right
                             anchors.leftMargin: 12
                             anchors.verticalCenter: m_logo.verticalCenter
@@ -287,13 +274,14 @@ MD.ApplicationWindow {
                         Column {
                             id: m_rail_footer
                             width: parent.width
-                            spacing: m_rail.useLarge ? 0 : 12
+                            spacing: 12 * (1 - m_rail.expansionProgress)
 
                             W.SidebarNowPlaying {
                                 id: m_now_playing
                                 width: parent.width
                                 visible: W.App.presentationManager.count > 0
                                 expanded: m_rail.useLarge
+                                expansionProgress: m_rail.expansionProgress
                                 model: W.App.presentationManager.model
                                 onOpenRequested: wallpaperId => win.openWallpaper(wallpaperId)
 
@@ -307,9 +295,11 @@ MD.ApplicationWindow {
                             MD.RailItem {
                                 width: parent.width
                                 expand: m_rail.useLarge
+                                expansionProgress: m_rail.expansionProgress
                                 checked: false
                                 icon.name: MD.Token.icon.extension
-                                iconStyle: m_rail.useLarge ? MD.Enum.IconAndText : MD.Enum.IconOnly
+                                iconStyle: MD.Enum.IconAndText
+                                collapsedIconStyle: MD.Enum.IconOnly
                                 text: qsTr("Plugins")
                                 property var presentation: null
                                 onClicked: {
@@ -324,9 +314,11 @@ MD.ApplicationWindow {
                             MD.RailItem {
                                 width: parent.width
                                 expand: m_rail.useLarge
+                                expansionProgress: m_rail.expansionProgress
                                 checked: false
                                 icon.name: MD.Token.icon.settings
-                                iconStyle: m_rail.useLarge ? MD.Enum.IconAndText : MD.Enum.IconOnly
+                                iconStyle: MD.Enum.IconAndText
+                                collapsedIconStyle: MD.Enum.IconOnly
                                 text: qsTr("Settings")
                                 property var presentation: null
                                 onClicked: {
@@ -339,12 +331,15 @@ MD.ApplicationWindow {
                             }
 
                             MD.RailItem {
-                                visible: m_rail.useLarge
+                                visible: opacity > 0
+                                opacity: m_rail.expansionProgress
                                 width: parent.width
                                 expand: true
                                 checked: false
                                 icon.name: MD.Token.icon.info
                                 text: qsTr("About")
+                                height: implicitHeight * m_rail.expansionProgress
+                                enabled: m_rail.expansionProgress === 1
                                 property var presentation: null
                                 onClicked: {
                                     if (presentation?.active)

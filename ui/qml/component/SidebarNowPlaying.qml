@@ -9,13 +9,24 @@ Item {
 
     required property var model
     required property bool expanded
+    property real expansionProgress: expanded ? 1 : 0
     readonly property real horizontalInset: 12
     readonly property real cardRadius: MD.Token.shape.corner.medium
     readonly property bool pointerHovered: carousel.hovered
     signal openRequested(string wallpaperId)
 
-    implicitHeight: visible ? carousel.implicitHeight : 0
+    implicitHeight: visible ? carousel.implicitHeight + (root.model?.count > 1 ? (carousel.chromeRowHeight + carousel.chromeRowSpacing) * expansionProgress : 0) : 0
     height: implicitHeight
+
+    MD.PageIndicator {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: carousel.height + carousel.chromeRowSpacing * root.expansionProgress
+        height: carousel.chromeRowHeight * root.expansionProgress
+        opacity: root.expansionProgress
+        visible: count > 1 && opacity > 0
+        count: root.model?.count ?? 0
+        currentIndex: carousel.currentIndex
+    }
 
     MD.Carousel {
         id: carousel
@@ -24,16 +35,13 @@ Item {
         width: Math.min(root.width, itemExtent + root.horizontalInset * 2)
         model: root.model
         layout: MD.Enum.CarouselUncontained
-        itemExtent: root.expanded
-                    ? Math.min(176, Math.max(0, root.width - root.horizontalInset * 2))
-                    : Math.max(0, root.width - root.horizontalInset * 2)
+        itemExtent: MD.Util.lerp(Math.max(0, root.width - root.horizontalInset * 2), Math.min(176, Math.max(0, root.width - root.horizontalInset * 2)), root.expansionProgress)
         itemSpacing: MD.Token.spacing.small
         contentPadding: model?.count > 1 ? 0 : root.horizontalInset
         contentPaddingVertical: 0
-        minimumViewportHeight: root.expanded ? 120 : 72
+        minimumViewportHeight: MD.Util.lerp(72, 120, root.expansionProgress)
         wheelNavigationEnabled: false
-        clipContainer: !root.expanded
-        showPageIndicator: root.expanded && model?.count > 1
+        clipContainer: root.expansionProgress < 1
         header: qsTr("Current wallpapers")
         onClicked: index => {
             const item = model.item(index);
@@ -63,21 +71,29 @@ Item {
             }
 
             Rectangle {
-                visible: root.expanded
+                visible: opacity > 0
+                opacity: root.expansionProgress
                 anchors.left: thumbnail.left
                 anchors.right: thumbnail.right
                 anchors.bottom: thumbnail.bottom
                 height: Math.min(thumbnail.height, textColumn.implicitHeight + 28)
                 radius: card.effectiveCornerRadius
                 gradient: Gradient {
-                    GradientStop { position: 0; color: "transparent" }
-                    GradientStop { position: 1; color: MD.Util.transparent(MD.Token.color.scrim, 0.78) }
+                    GradientStop {
+                        position: 0
+                        color: "transparent"
+                    }
+                    GradientStop {
+                        position: 1
+                        color: MD.Util.transparent(MD.Token.color.scrim, 0.78)
+                    }
                 }
             }
 
             Column {
                 id: textColumn
-                visible: root.expanded
+                visible: opacity > 0
+                opacity: root.expansionProgress
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
