@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQml as Qml
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 
 // Search affordance shaped like an `MD.InputChip` (32px tall, 8px

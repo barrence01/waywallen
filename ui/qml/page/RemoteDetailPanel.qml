@@ -9,6 +9,7 @@ Item {
 
     property var item: null
     property var details: null
+    property bool nestedScrollEnabled: false
 
     // A source that cannot name an item while listing it may still name it once
     // the item is opened, so let a detail lookup fill in what the row lacks.
@@ -90,6 +91,7 @@ Item {
 
         MD.VerticalListView {
             id: detailView
+            MD.NestedScroll.enabled: root.nestedScrollEnabled
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true

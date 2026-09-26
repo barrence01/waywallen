@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import waywallen.control as WC
 import waywallen.ui as W
 import Qcm.Material as MD
@@ -32,7 +31,7 @@ MD.Dialog {
     signal toggleSkipRating(string rating)
     horizontalPadding: 16
     implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
-    standardButtons: T.Dialog.Close
+    standardButtons: MD.Dialog.Close
     property var filterTagPresentation: null
 
     // Tag names for the tag-filter picker; refreshed each time the

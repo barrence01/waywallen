@@ -468,6 +468,7 @@ struct DisplayBinding {
     pool: Arc<PublishedPool>,
     wire_generation: u64,
     content_token: ContentToken,
+    awaiting_initial_frame: bool,
 }
 
 struct DisplayState {
@@ -603,13 +604,15 @@ struct Inner {
     resume_retry_tasks: HashMap<RendererId, JoinHandle<()>>,
     next_start_token: u64,
     next_resume_retry_generation: u64,
-    session_auto_replay: auto_replay::State,
+    global_auto_replay: auto_replay::State,
     auto_effects: auto_replay::Effects,
     auto_stopped_renderers: HashSet<RendererId>,
     /// Set when the screen-saver / lock-screen is active.
     session_locked: bool,
     /// Set when the current login session is inactive.
     session_inactive: bool,
+    /// Set when GameMode is active.
+    gamemode: bool,
     /// User-requested global pause state. This shares the same
     /// daemon-owned lifecycle path as auto replay.
     manual_paused: bool,
@@ -749,11 +752,12 @@ impl Router {
                 next_config_generation: 0,
                 content_tokens: HashMap::new(),
                 next_content_token: 0,
-                session_auto_replay: auto_replay::State::new(),
+                global_auto_replay: auto_replay::State::new(),
                 auto_effects: auto_replay::Effects::default(),
                 auto_stopped_renderers: HashSet::new(),
                 session_locked: false,
                 session_inactive: false,
+                gamemode: false,
                 manual_paused: false,
                 manual_muted: false,
                 manual_stopped: false,
@@ -3308,6 +3312,7 @@ impl Router {
             self.sync_display(did).await;
             self.reconcile_presentation_config(did).await;
         }
+        self.reconcile_lifecycle_inner(None).await;
         // BindBuffers is also when the renderer's actual texture dims
         // become known; push a fresh renderer snapshot for the UI.
         if let Some(snap) = self.snapshot_renderer(renderer_id).await {
@@ -3323,13 +3328,13 @@ impl Router {
         seq: u64,
         release_point: u64,
     ) {
-        let inner = self.inner.lock().await;
+        let mut inner = self.inner.lock().await;
         let Some(renderer) = inner.table.get_renderer(renderer_id) else {
             return;
         };
         // First pass: collect every display that should get this frame
         // so we can pre-compute fan-out width for the reaper.
-        let recipients: Vec<(&DisplayState, u64)> = inner
+        let recipients: Vec<(DisplayId, u64)> = inner
             .table
             .links_for_renderer(renderer_id)
             .into_iter()
@@ -3341,7 +3346,7 @@ impl Router {
                     && Arc::ptr_eq(&binding.renderer, &renderer))
                 .then_some(binding)
                 .filter(|binding| state.failed_binding_generation != Some(binding.wire_generation))
-                .map(|binding| (state, binding.wire_generation))
+                .map(|binding| (state.info.id, binding.wire_generation))
             })
             .collect();
         let identity = crate::wallframe::sync::FrameIdentity {
@@ -3351,13 +3356,19 @@ impl Router {
         };
         let consumers = recipients
             .iter()
-            .map(|(state, _)| crate::wallframe::sync::FrameConsumerIdentity {
-                frame: identity,
-                renderer_id: renderer_id.to_string(),
-                display_id: state.info.id,
-                display_session_id: state.session_id,
-                display_name: state.info.name.clone(),
-                frame_seq: seq,
+            .map(|(display_id, _)| {
+                let state = inner
+                    .displays
+                    .get(display_id)
+                    .expect("frame recipient disappeared while router lock is held");
+                crate::wallframe::sync::FrameConsumerIdentity {
+                    frame: identity,
+                    renderer_id: renderer_id.to_string(),
+                    display_id: state.info.id,
+                    display_session_id: state.session_id,
+                    display_name: state.info.name.clone(),
+                    frame_seq: seq,
+                }
             })
             .collect();
         let members = match renderer.register_frame_consumers(identity, consumers) {
@@ -3370,15 +3381,40 @@ impl Router {
                 return;
             }
         };
-        for ((state, wire_generation), member) in recipients.into_iter().zip(members) {
-            let _ = state.tx.send(DisplayOutEvent::Frame {
-                renderer: renderer.clone(),
-                buffer_generation: wire_generation,
-                buffer_index,
-                seq,
-                consumption: state.consumption_permit(),
-                member: Some(member),
+        let mut fulfilled_initial_frame = false;
+        for ((display_id, wire_generation), member) in recipients.into_iter().zip(members) {
+            let state = inner
+                .displays
+                .get_mut(&display_id)
+                .expect("frame recipient disappeared while router lock is held");
+            let completes_initial_frame = state.binding.as_ref().is_some_and(|binding| {
+                binding.renderer.id == renderer_id
+                    && binding.wire_generation == wire_generation
+                    && binding.awaiting_initial_frame
             });
+            let sent = state
+                .tx
+                .send(DisplayOutEvent::Frame {
+                    renderer: renderer.clone(),
+                    buffer_generation: wire_generation,
+                    buffer_index,
+                    seq,
+                    consumption: state.consumption_permit(),
+                    member: Some(member),
+                })
+                .is_ok();
+            if sent && completes_initial_frame {
+                state
+                    .binding
+                    .as_mut()
+                    .expect("matching frame recipient lost its binding")
+                    .awaiting_initial_frame = false;
+                fulfilled_initial_frame = true;
+            }
+        }
+        drop(inner);
+        if fulfilled_initial_frame {
+            self.reconcile_lifecycle_inner(None).await;
         }
     }
 
@@ -6029,7 +6065,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn display_pause_gates_image_replay_across_pool_replacement() {
+    async fn paused_display_replays_image_pool_replacement_once() {
         let mgr = Arc::new(RendererManager::new_default());
         let router = Router::new(mgr.clone());
         let renderer = RendererHandle::test_stub("r1", "image");
@@ -6051,7 +6087,11 @@ mod tests {
         assert!(events
             .iter()
             .any(|e| matches!(e, DisplayOutEvent::Bind { .. })));
-        assert!(!events
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, DisplayOutEvent::Frame { seq: 42, .. })));
+        router.on_renderer_frame("r1", 2, 0, 43, 8).await;
+        assert!(!drain_display_events(&mut display.rx)
             .iter()
             .any(|e| matches!(e, DisplayOutEvent::Frame { .. })));
         assert!(
@@ -6061,6 +6101,51 @@ mod tests {
                 .unwrap()
                 .manual_paused
         );
+    }
+
+    #[tokio::test]
+    async fn paused_display_accepts_new_binding_first_frame_then_gates_updates() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr.clone());
+        let (r1, _r1_records) = RendererHandle::test_stub_with_frame_records("r1", "scene");
+        r1.test_publish_pool(fake_published_pool(1, 1920, 1080));
+        mgr.register_test_handle(r1.clone()).await;
+        router.register_renderer(r1).await;
+        let mut display = router.register_display(reg("A", 1920, 1080)).await;
+        router.on_renderer_frame("r1", 1, 0, 1, 1).await;
+        drain_display_events(&mut display.rx);
+        router.set_display_paused(display.id, true).await.unwrap();
+
+        let (r2, _r2_records) = RendererHandle::test_stub_with_frame_records("r2", "scene");
+        r2.test_publish_pool(fake_published_pool(1, 1920, 1080));
+        mgr.register_test_handle(r2.clone()).await;
+        router.register_renderer(r2).await;
+        router.relink_displays_to(&[display.id], "r2").await;
+        let events = drain_display_events(&mut display.rx);
+        assert!(events.iter().any(
+            |event| matches!(event, DisplayOutEvent::Bind { renderer, .. } if renderer.id == "r2")
+        ));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, DisplayOutEvent::Frame { .. })));
+        assert!(!router.is_paused("r2").await);
+
+        router.on_renderer_frame("r2", 1, 0, 42, 7).await;
+        let events = drain_display_events(&mut display.rx);
+        assert!(events.iter().any(|event| matches!(
+            event,
+            DisplayOutEvent::Frame {
+                renderer,
+                seq: 42,
+                ..
+            } if renderer.id == "r2"
+        )));
+        assert!(router.is_paused("r2").await);
+
+        router.on_renderer_frame("r2", 1, 0, 43, 8).await;
+        assert!(!drain_display_events(&mut display.rx)
+            .iter()
+            .any(|event| matches!(event, DisplayOutEvent::Frame { .. })));
     }
 
     #[tokio::test]
@@ -7025,6 +7110,22 @@ mod tests {
             .iter()
             .all(|l| !l.active));
         router.update_session_state(Some(false), None).await;
+        assert!(!router.inner.lock().await.auto_effects.stop);
+    }
+
+    #[tokio::test]
+    async fn gamemode_policy_is_global_and_opt_in() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr);
+        router.attach_settings(
+            settings_with_auto_replay(auto_replay(&[(AutoCondition::GameMode, AutoAction::Stop)]))
+                .await,
+        );
+
+        router.update_gamemode_state(true).await;
+        assert!(router.inner.lock().await.auto_effects.stop);
+
+        router.update_gamemode_state(false).await;
         assert!(!router.inner.lock().await.auto_effects.stop);
     }
 

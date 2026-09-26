@@ -16,10 +16,12 @@ impl DisplayState {
 impl Inner {
     pub(super) fn has_frame_demand(&self, link: &Link) -> bool {
         link.enabled
-            && self
-                .displays
-                .get(&link.display_id)
-                .is_some_and(|s| !s.display_paused())
+            && self.displays.get(&link.display_id).is_some_and(|state| {
+                !state.display_paused()
+                    || state.binding.as_ref().is_none_or(|binding| {
+                        binding.renderer.id != link.renderer_id || binding.awaiting_initial_frame
+                    })
+            })
     }
 
     pub(super) fn effective_display_paused(&self, display: &DisplayState) -> bool {

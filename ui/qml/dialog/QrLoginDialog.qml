@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 
 import Qcm.Material as MD
 import waywallen.ui as W
@@ -23,10 +22,10 @@ MD.Popup {
     readonly property string dialogTitle: W.I18n.tr(titleSource)
     readonly property string instruction: W.I18n.tr(instructionSource)
 
-    closePolicy: T.Popup.CloseOnEscape
+    closePolicy: MD.Popup.CloseOnEscape
     dim: true
     modal: true
-    parent: T.Overlay.overlay
+    parent: MD.Overlay.overlay
     x: Math.round((parent.width - width) / 2)
     y: Math.round((parent.height - height) / 2)
     bottomPadding: 24
@@ -170,7 +169,7 @@ MD.Popup {
                 text: root.loginState === 6 || root.loginState === 7
                     ? qsTr("Close") : qsTr("Cancel")
                 mdState.type: MD.Enum.BtText
-                T.DialogButtonBox.buttonRole: T.DialogButtonBox.RejectRole
+                MD.DialogButtonBox.buttonRole: MD.DialogButtonBox.RejectRole
                 onClicked: root.close()
             }
         }

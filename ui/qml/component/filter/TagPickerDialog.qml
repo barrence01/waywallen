@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import waywallen.ui as W
 import Qcm.Material as MD
 
@@ -28,10 +27,10 @@ MD.Dialog {
     }
 
     title: dialogTitle
-    parent: T.Overlay.overlay
+    parent: MD.Overlay.overlay
     horizontalPadding: 16
     implicitWidth: Math.min(330, parent ? parent.width - 48 : 330)
-    standardButtons: T.Dialog.Cancel | T.Dialog.Reset | T.Dialog.Apply
+    standardButtons: MD.Dialog.Cancel | MD.Dialog.Reset | MD.Dialog.Apply
 
     property var pending: []
     function togglePending(tag) {
@@ -62,10 +61,10 @@ MD.Dialog {
     // Gate Reset/Apply on whether there are pending changes. Bind directly
     // on the standard buttons the dialog builds for its button box.
     Component.onCompleted: {
-        const apply = control.standardButton(T.Dialog.Apply);
+        const apply = control.standardButton(MD.Dialog.Apply);
         if (apply)
             apply.enabled = Qt.binding(control._hasChanges);
-        const reset = control.standardButton(T.Dialog.Reset);
+        const reset = control.standardButton(MD.Dialog.Reset);
         if (reset)
             reset.enabled = Qt.binding(control._hasChanges);
     }

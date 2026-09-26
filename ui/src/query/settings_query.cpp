@@ -48,6 +48,7 @@ auto auto_replay_to_map(const proto::AutoReplayPolicy& p) -> QVariantMap {
     m[u"fullscreen"_s]      = static_cast<int>(p.fullscreen());
     m[u"sessionLocked"_s]   = static_cast<int>(p.sessionLocked());
     m[u"sessionInactive"_s] = static_cast<int>(p.sessionInactive());
+    m[u"gamemode"_s]        = static_cast<int>(p.gamemode());
     m[u"resumeDelayMs"_s]   = p.hasResumeDelayMs() ? p.resumeDelayMs() : 250;
     m[u"anyWindowScope"_s]  = static_cast<int>(p.anyWindowScope());
     m[u"focusedScope"_s]    = static_cast<int>(p.focusedScope());
@@ -64,6 +65,7 @@ auto map_to_auto_replay(const QVariantMap& m) -> proto::AutoReplayPolicy {
     p.setFullscreen(static_cast<proto::AutoAction>(m.value(u"fullscreen"_s).toInt()));
     p.setSessionLocked(static_cast<proto::AutoAction>(m.value(u"sessionLocked"_s).toInt()));
     p.setSessionInactive(static_cast<proto::AutoAction>(m.value(u"sessionInactive"_s).toInt()));
+    p.setGamemode(static_cast<proto::AutoAction>(m.value(u"gamemode"_s).toInt()));
     p.setResumeDelayMs(m.value(u"resumeDelayMs"_s, 250).toUInt());
     p.setAnyWindowScope(static_cast<proto::AutoScope>(m.value(u"anyWindowScope"_s).toInt()));
     p.setFocusedScope(static_cast<proto::AutoScope>(m.value(u"focusedScope"_s).toInt()));

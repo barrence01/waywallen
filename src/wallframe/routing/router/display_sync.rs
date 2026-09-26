@@ -106,21 +106,23 @@ impl Router {
                 content_token,
                 presentation_config_generation,
             });
-            if let Some(frame) = replay.filter(|_| !s.display_paused()) {
-                let _ = s.tx.send(DisplayOutEvent::Frame {
+            let replayed = replay.is_some_and(|frame| {
+                s.tx.send(DisplayOutEvent::Frame {
                     renderer: renderer.clone(),
                     buffer_generation: wire_generation,
                     buffer_index: frame.buffer_index,
                     seq: frame.seq,
                     consumption: s.consumption_permit(),
                     member: None,
-                });
-            }
+                })
+                .is_ok()
+            });
             s.binding = Some(DisplayBinding {
                 renderer,
                 pool,
                 wire_generation,
                 content_token,
+                awaiting_initial_frame: !replayed,
             });
             s.failed_binding_generation = None;
         } else {

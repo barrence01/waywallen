@@ -307,6 +307,19 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
             },
         );
     }
+    {
+        let router = router.clone();
+        let session_bus = dbus_conn.clone();
+        let shutdown = state.shutdown_subscribe();
+        state.tasks.spawn_async(
+            tasks::TaskKind::Service,
+            "service/gamemode-monitor",
+            async move {
+                system::gamemode::run(router, session_bus, shutdown).await;
+                Ok(())
+            },
+        );
+    }
 
     system::mpris::spawn(state.clone());
 

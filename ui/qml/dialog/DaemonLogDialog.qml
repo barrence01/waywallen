@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -13,7 +12,7 @@ MD.Dialog {
     width: Math.min(implicitWidth, parent ? parent.width - 48 : implicitWidth)
     height: Math.min(implicitHeight, parent ? parent.height - 48 : implicitHeight)
     horizontalPadding: 16
-    standardButtons: T.Dialog.Close
+    standardButtons: MD.Dialog.Close
 
     function scrollToLatest() {
         Qt.callLater(function () {

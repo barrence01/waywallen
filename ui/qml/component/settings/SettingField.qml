@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Templates as T
 import QtQuick.Layouts
 import Qcm.Material as MD
 import waywallen.ui as W
@@ -247,7 +246,7 @@ ColumnLayout {
             from: root._toFloat(root.schema.min, 0)
             to: root._toFloat(root.schema.max, 1)
             stepSize: root._stepFor()
-            snapMode: T.Slider.SnapAlways
+            snapMode: MD.Slider.SnapAlways
             value: root._toFloat(root.value, from)
             valueText: displayValue(value)
             valueMaxText: {

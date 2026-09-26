@@ -68,15 +68,14 @@ ColumnLayout {
                 radius: 12
                 text: modelData.name || qsTr("Untitled")
                 supportText: qsTr("%n wallpaper(s)", "", (modelData.entryIds || []).length)
+                enabled: control.sheetState.selectedWallpaperCount > 0
+                      && !control.sheetState.mutationQuerying
+                onClicked: control.sheetState.addToPlaylist(modelData)
 
-                trailing: MD.BusyIconButton {
-                    enabled: control.sheetState.selectedWallpaperCount > 0
-                          && !control.sheetState.mutationQuerying
-                    busy: control.sheetState.mutationQuerying
-                    icon.name: MD.Token.icon.add
-                    onClicked: control.sheetState.addToPlaylist(selectPlaylistItem.modelData)
-                    MD.ToolTip.visible: hovered
-                    MD.ToolTip.text: qsTr("Add selection")
+                trailing: MD.Icon {
+                    name: MD.Token.icon.add
+                    size: 24
+                    color: selectPlaylistItem.mdState.textColor
                 }
             }
         }

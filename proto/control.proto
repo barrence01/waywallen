@@ -1669,6 +1669,7 @@ message AutoReplayPolicy {
   AutoScope focused_scope = 18;
   AutoScope maximized_scope = 19;
   AutoScope fullscreen_scope = 20;
+  AutoAction gamemode = 21;
 }
 
 enum PauseEffectKind {

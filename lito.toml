@@ -19,49 +19,23 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.4.1"
+version = "0.4.3"
 
-[workspace.dependencies.waywallen-bridge]
-path = "bridge"
-
-[workspace.dependencies.waywallen-plugin-common]
-path = "plugins"
-
-[workspace.dependencies.rstd-cppstd]
-version = "0.1.0"
-
-[workspace.dependencies.rstd-std]
-version = "0.1.0"
-
-[workspace.dependencies.rstd-json]
-version = "0.1.0"
-
-[workspace.dependencies.rstd-argparse]
-version = "0.1.0"
-
-[workspace.dependencies.rstd-log]
-version = "0.1.0"
-
-[workspace.dependencies.rstd-toml]
-version = "0.1.0"
-
-[workspace.dependencies.luato]
-git = "https://github.com/litocpp/luato.git"
-
-[workspace.dependencies.vvk]
-git = "https://github.com/litocpp/vvk.git"
-
-[workspace.dependencies.wavsen]
-git = "https://github.com/hypengw/wavsen.git"
-
-[workspace.dependencies.ncrequest]
-git = "https://github.com/hypengw/ncrequest.git"
-
-[workspace.dependencies.qextra]
-git = "https://github.com/hypengw/QExtra.git"
-
-[workspace.dependencies.lito-qt]
-builtin = "qt"
+[workspace.dependencies]
+waywallen-bridge = { path = "bridge" }
+waywallen-plugin-common = { path = "plugins" }
+rstd-cppstd = { version = "0.1.5" }
+rstd-std = { version = "0.1.5" }
+rstd-json = { version = "0.1.5" }
+rstd-argparse = { version = "0.1.5" }
+rstd-log = { version = "0.1.5" }
+rstd-toml = { version = "0.1.5" }
+vvk = { version = "0.1.0" }
+luato = { git = "https://github.com/litocpp/luato.git" }
+wavsen = { git = "https://github.com/hypengw/wavsen.git" }
+ncrequest = { git = "https://github.com/hypengw/ncrequest.git" }
+qextra = { git = "https://github.com/hypengw/QExtra.git" }
+lito-qt = { builtin = "qt" }
 
 [workspace.external-dependencies.pkg-config.gbm]
 module = "gbm"
@@ -111,7 +85,6 @@ components = [
   "ProtobufQuick",
   "ProtobufWellKnownTypes",
   "Quick",
-  "QuickControls2",
   "QuickPrivate",
   "WebSockets",
 ]

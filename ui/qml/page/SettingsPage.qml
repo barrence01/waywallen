@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQml as Qml
-import QtQuick.Templates as T
 import QtQuick.Layouts
 import Qcm.Material as MD
 import waywallen.control as WC
@@ -27,10 +26,10 @@ MD.Page {
 
     MD.Dialog {
         id: resetSettingsDialog
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         modal: true
         title: qsTr("Reset settings?")
-        standardButtons: T.Dialog.Cancel | T.Dialog.Reset
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Reset
         contentItem: MD.Text {
             text: qsTr("All settings will be reset to their defaults. Your custom configuration will be lost.")
             wrapMode: Text.Wrap
@@ -211,7 +210,8 @@ MD.Page {
         { key: "maximized",       label: qsTr("Maximized window") },
         { key: "fullscreen",      label: qsTr("Fullscreen window") },
         { key: "sessionLocked",   label: qsTr("Session locked") },
-        { key: "sessionInactive", label: qsTr("Session inactive") }
+        { key: "sessionInactive", label: qsTr("Session inactive") },
+        { key: "gamemode",        label: qsTr("GameMode is active") }
     ]
 
     readonly property var kAutoActions: [
@@ -259,6 +259,7 @@ MD.Page {
             focusedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             maximizedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             fullscreenScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
+            gamemode: WC.AutoAction.AUTO_ACTION_NONE,
             resumeDelayMs: 250
         };
     }
@@ -612,10 +613,13 @@ MD.Page {
                     required property var modelData
 
                     first: autoReplayItem.index === 0
-                    readonly property bool sessionRule: modelData.key === "sessionLocked" || modelData.key === "sessionInactive"
+                    readonly property bool globalRule:
+                        modelData.key === "sessionLocked"
+                        || modelData.key === "sessionInactive"
+                        || modelData.key === "gamemode"
                     readonly property var actions: root.kAutoActions.filter(o => o.value !== WC.AutoAction.AUTO_ACTION_STOP || (modelData.key !== "anyWindow" && modelData.key !== "focused"))
                     readonly property int action: root._autoReplay()[modelData.key] ?? WC.AutoAction.AUTO_ACTION_NONE
-                    readonly property bool selectableScope: !sessionRule && (action === WC.AutoAction.AUTO_ACTION_PAUSE || (modelData.key === "fullscreen" && action === WC.AutoAction.AUTO_ACTION_STOP))
+                    readonly property bool selectableScope: !globalRule && (action === WC.AutoAction.AUTO_ACTION_PAUSE || (modelData.key === "fullscreen" && action === WC.AutoAction.AUTO_ACTION_STOP))
                     last: false
 
                     RowLayout {
@@ -687,7 +691,7 @@ MD.Page {
                         from: 0
                         to: 2000
                         stepSize: 50
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 10
                         valueText: Math.round(value).toString()
                         valueMaxText: "2000"
@@ -1071,7 +1075,7 @@ MD.Page {
                         from: 1
                         to: 64
                         stepSize: 1
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 8
                         valueText: Math.round(value).toString()
                         valueMaxText: "64"
@@ -1145,7 +1149,7 @@ MD.Page {
                         from: 100
                         to: 3000
                         stepSize: 100
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 10
                         valueText: Math.round(value).toString()
                         valueMaxText: "3000"
@@ -1218,7 +1222,7 @@ MD.Page {
                         from: 0
                         to: 100
                         stepSize: 5
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 10
                         valueText: Math.round(value).toString()
                         valueMaxText: "100"
@@ -1260,7 +1264,7 @@ MD.Page {
                         from: 0
                         to: 100
                         stepSize: 5
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 10
                         valueText: Math.round(value).toString()
                         valueMaxText: "100"
@@ -1357,7 +1361,7 @@ MD.Page {
                         from: 0
                         to: 100
                         stepSize: 1
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 10
                         valueText: Math.round(value).toString()
                         valueMaxText: "100"
@@ -1425,7 +1429,7 @@ MD.Page {
                         from: 0
                         to: 2000
                         stepSize: 100
-                        snapMode: T.Slider.SnapAlways
+                        snapMode: MD.Slider.SnapAlways
                         maxVisibleStops: 10
                         valueText: Math.round(value).toString()
                         valueMaxText: "2000"
@@ -1568,7 +1572,7 @@ MD.Page {
                     from: 256
                     to: 6144
                     stepSize: 256
-                    snapMode: T.Slider.SnapAlways
+                    snapMode: MD.Slider.SnapAlways
                     maxVisibleStops: 8
                     valueText: root.formatBytes(Math.round(value) * 1024 * 1024)
                     valueMaxText: root.formatBytes(to * 1024 * 1024)

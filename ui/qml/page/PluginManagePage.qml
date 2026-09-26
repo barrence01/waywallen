@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Assertable
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -234,7 +233,7 @@ MD.Page {
             title: qsTr("Inactive plugins")
             horizontalPadding: 16
             implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
-            standardButtons: T.Dialog.Close
+            standardButtons: MD.Dialog.Close
 
             contentItem: ColumnLayout {
                 spacing: 12
@@ -314,10 +313,10 @@ MD.Page {
     MD.Dialog {
         id: installDialog
         title: inspectQuery.overwrite ? qsTr("Update plugin?") : qsTr("Install plugin?")
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         horizontalPadding: 16
         implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
-        standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
 
         contentItem: ColumnLayout {
             spacing: 12

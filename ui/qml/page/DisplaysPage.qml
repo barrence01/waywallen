@@ -3,7 +3,6 @@ pragma ValueTypeBehavior: Assertable
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -21,12 +20,12 @@ MD.Page {
     property string selectedKind: ""
     property var selectedId: null
     property string pendingCanvasId: ""
-    property bool paneAnimationsEnabled: false
     readonly property bool detailsVisible: !!root.selectedDisplayObject || !!root.selectedCanvasObject
-    readonly property real paneSpacing: 12
-    readonly property real paneAvailableHeight: Math.max(0, pageContent.height - paneSpacing - (detailsVisible ? paneSpacing / 2 : 0))
-    readonly property real displayPaneHeight: detailsVisible ? paneAvailableHeight / 2 : paneAvailableHeight
-    readonly property real detailPaneHeight: detailsVisible ? paneAvailableHeight - displayPaneHeight : 0
+    property bool detailsExpanded: false
+    onDetailsVisibleChanged: {
+        if (!detailsVisible)
+            detailsExpanded = false;
+    }
 
     // FillMode/Rotation enum values mirror proto::FillMode /
     // proto::Rotation (control.proto). Keep the *_VALUES
@@ -271,10 +270,10 @@ MD.Page {
 
     MD.Dialog {
         id: deleteCanvasDialog
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         modal: true
         title: qsTr("Delete canvas?")
-        standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
         contentItem: MD.Text {
             text: qsTr("The canvas layout will be removed. Its displays become independent again.")
             wrapMode: Text.Wrap
@@ -289,10 +288,10 @@ MD.Page {
 
     MD.Dialog {
         id: resetDisplaySettingsDialog
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         modal: true
         title: qsTr("Revert layout settings?")
-        standardButtons: T.Dialog.Cancel | T.Dialog.Reset
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Reset
         contentItem: MD.Text {
             text: qsTr("The settings for this layout will be reverted to the global default. Your custom configuration will be lost.")
             wrapMode: Text.Wrap
@@ -453,13 +452,14 @@ MD.Page {
     function selectDisplay(displayObject) {
         if (!displayObject || !root.canChangeSelection("display", displayObject.id))
             return;
-        if (root.selectedKind === "display" && root.selectedId === displayObject.id) {
+        if (root.detailsExpanded && root.selectedKind === "display" && root.selectedId === displayObject.id) {
             root.clearSelection();
             return;
         }
         canvasEditor.clear();
         root.selectedKind = "display";
         root.selectedId = displayObject.id;
+        root.detailsExpanded = true;
     }
 
     function selectCanvas(canvasObject) {
@@ -470,10 +470,17 @@ MD.Page {
             root.selectedId = canvasObject.id;
             canvasEditor.begin(canvasObject);
         }
+        root.detailsExpanded = true;
     }
 
     function clearSelection() {
         if (canvasEditor.dirty)
+            return;
+        root.detailsExpanded = false;
+    }
+
+    function finishClosingDetails() {
+        if (root.detailsExpanded || canvasEditor.dirty)
             return;
         canvasEditor.clear();
         root.selectedKind = "";
@@ -511,39 +518,48 @@ MD.Page {
     readonly property var selectedCanvasObject: findSelectedCanvas()
     readonly property var selected: selectedDisplayObject || selectedCanvasObject
 
-    Item {
+    MD.SplitView {
         id: pageContent
 
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12
+        orientation: width >= MD.Token.window_class.expanded.min_width ? Qt.Horizontal : Qt.Vertical
 
-        Timer {
-            interval: 0
-            running: true
-            repeat: false
-            onTriggered: root.paneAnimationsEnabled = true
+        expandTransition: Transition {
+            SpringAnimation {
+                property: "progress"
+                spring: 3
+                damping: 0.3
+                epsilon: 0.001
+            }
+        }
+        collapseTransition: Transition {
+            SpringAnimation {
+                property: "progress"
+                spring: 3
+                damping: 0.3
+                epsilon: 0.001
+            }
         }
 
         MD.Pane {
             id: displaysPane
-            x: 0
-            y: root.paneSpacing / 2
-            width: parent.width
-            height: root.displayPaneHeight
+            readonly property bool constrainSize: root.detailsExpanded && !detailsPane.MD.SplitViewBase.transitioning
+            implicitWidth: 480
+            implicitHeight: 320
+            MD.SplitViewBase.minimumWidth: root.detailsVisible ? pageContent.availableWidth / 2 : 0
+            MD.SplitViewBase.minimumHeight: root.detailsVisible ? pageContent.availableHeight / 2 : 0
+            MD.SplitViewBase.preferredWidth: pageContent.availableWidth * 5 / 6
+            MD.SplitViewBase.preferredHeight: pageContent.availableHeight * 5 / 9
+            MD.SplitViewBase.maximumWidth: constrainSize ? pageContent.availableWidth * 5 / 6 : pageContent.availableWidth
+            MD.SplitViewBase.maximumHeight: constrainSize ? pageContent.availableHeight * 5 / 9 : pageContent.availableHeight
             horizontalPadding: 24
             verticalPadding: 16
             radius: 16
             backgroundColor: MD.MProp.color.surface
-
-            Behavior on height {
-                enabled: root.paneAnimationsEnabled
-
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.InOutCubic
-                }
-            }
 
             contentItem: Item {
                 id: canvas
@@ -1022,27 +1038,21 @@ MD.Page {
         // --- Details panel ---
         MD.Pane {
             id: detailsPane
-            anchors.top: displaysPane.bottom
-            anchors.topMargin: root.paneSpacing
-            width: parent.width
-            height: root.detailPaneHeight
-            visible: root.detailsVisible || height > 0.5
+            implicitWidth: 400
+            implicitHeight: 320
+            MD.SplitViewBase.minimumWidth: Math.min(320, pageContent.availableWidth / 2)
+            MD.SplitViewBase.minimumHeight: Math.min(160, pageContent.availableHeight / 2)
+            MD.SplitViewBase.fillWidth: true
+            MD.SplitViewBase.fillHeight: true
+            MD.SplitViewBase.expanded: root.detailsExpanded
+            MD.SplitViewBase.onCollapsedCompleted: root.finishClosingDetails()
+            visible: root.detailsVisible
 
             radius: 16
-            corners: MD.Util.corners(radius, radius, 0, 0)
             backgroundColor: MD.MProp.color.surface
             clip: true
 
-            Behavior on height {
-                enabled: root.paneAnimationsEnabled
-
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.InOutCubic
-                }
-            }
-
-            contentItem: MD.Flickable2 {
+            contentItem: MD.Scrollable {
                 id: detailsFlick
                 clip: true
                 leftMargin: 16
@@ -1050,8 +1060,10 @@ MD.Page {
                 bottomMargin: 16
                 contentWidth: Math.max(0, width - leftMargin - rightMargin)
                 contentHeight: root.detailsVisible ? detailsContent.implicitHeight : 0
-                flickableDirection: MD.Flickable2.VerticalFlick
+                flickableDirection: MD.Scrollable.VerticalFlick
                 interactive: contentHeight > height
+
+                MD.ScrollBarBase.vertical: MD.ScrollBar {}
 
                 ColumnLayout {
                     id: detailsContent
