@@ -19,7 +19,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.4.2"
+version = "0.4.3"
 
 [workspace.dependencies]
 waywallen-bridge = { path = "bridge" }

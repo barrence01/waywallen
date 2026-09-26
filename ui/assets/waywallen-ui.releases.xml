@@ -1,3 +1,18 @@
+<release version="0.4.3" date="2026-09-26">
+  <description>
+    <p>Improved:</p>
+    <ul>
+      <li>Wallpaper and Discover details use adaptive sheets on compact layouts.</li>
+      <li>Displays page support vertical layout.</li>
+      <li>Sidebar content follows navigation drawer expansion.</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Selecting one of exactly two presentation targets no longer selects both. #262</li>
+      <li>Displays page open failed due to qml material changes. #291</li>
+    </ul>
+  </description>
+</release>
 <release version="0.4.2" date="2026-09-25">
   <description>
     <p>Added:</p>
