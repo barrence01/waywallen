@@ -525,8 +525,8 @@ MD.Page {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
-        anchors.topMargin: 6
-        anchors.bottomMargin: 6
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12
         orientation: width >= MD.Token.window_class.expanded.min_width ? Qt.Horizontal : Qt.Vertical
 
         expandTransition: Transition {
@@ -550,10 +550,12 @@ MD.Page {
             id: displaysPane
             implicitWidth: 480
             implicitHeight: 320
-            MD.SplitViewBase.minimumWidth: Math.min(320, pageContent.availableWidth / 2)
-            MD.SplitViewBase.minimumHeight: Math.min(160, pageContent.availableHeight / 2)
+            MD.SplitViewBase.minimumWidth: root.detailsVisible ? pageContent.availableWidth / 2 : 0
+            MD.SplitViewBase.minimumHeight: root.detailsVisible ? pageContent.availableHeight / 2 : 0
             MD.SplitViewBase.preferredWidth: pageContent.availableWidth * 5 / 6
             MD.SplitViewBase.preferredHeight: pageContent.availableHeight * 5 / 9
+            MD.SplitViewBase.maximumWidth: root.detailsVisible ? pageContent.availableWidth * 5 / 6 : pageContent.availableWidth
+            MD.SplitViewBase.maximumHeight: root.detailsVisible ? pageContent.availableHeight * 5 / 9 : pageContent.availableHeight
             horizontalPadding: 24
             verticalPadding: 16
             radius: 16
