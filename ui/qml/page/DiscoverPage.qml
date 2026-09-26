@@ -8,7 +8,6 @@ MD.Page {
     id: root
     showBackground: false
     padding: MD.MProp.size.isCompact ? 0 : 12
-    rightPadding: 0
 
     property bool detailOpen: false
     readonly property var detailRow: detailOpen ? detailStore.item : null
@@ -174,6 +173,7 @@ MD.Page {
     function selectItem(index) {
         detailStore.item = searchQuery.model.item(index);
         detailOpen = true;
+        detailPresenter.present();
         detailsQuery.sourceId = detailRow.sourceId;
         detailsQuery.itemId = detailRow.itemId;
         if (root.sourceCapability(detailRow.sourceId) === 2)
@@ -434,12 +434,63 @@ MD.Page {
             reloadAll();
     }
 
-    contentItem: RowLayout {
-        spacing: 12
+    property RemoteDetailPanel detailPanel: RemoteDetailPanel {
+        parent: null
+        nestedScrollEnabled: sheetSite.current
+        item: root.detailRow
+        details: detailsQuery
+        remoteCapability: root.detailRow ? root.sourceCapability(root.detailRow.sourceId) : 0
+        remoteHint: root.detailRow ? root.sourceRemoteHint(root.detailRow.sourceId) : ""
+        tagOptions: root.detailRow ? root.sourceFilterOptions(root.detailRow.sourceId) : []
+        downloadState: Number(root.detailRow?.acquisitionState ?? 0)
+        subscriptionState: Number(root.detailRow?.acquisitionState ?? 0)
+        onBack: detailPresenter.dismiss()
+        onShowInfo: root.openInfo()
+        onDownloadRequested: {
+            if (root.detailRow)
+                dlQuery.start(root.detailRow.sourceId, root.detailRow.itemId);
+        }
+        onRemoveRequested: {
+            if (root.detailRow)
+                dlQuery.remove(root.detailRow.sourceId, root.detailRow.itemId);
+        }
+        onSubscriptionRefreshRequested: root.refreshDetailSubscription()
+        onSubscriptionChangeRequested: subscribed => root.setDetailSubscription(subscribed)
+    }
+
+    MD.AdaptivePresenter {
+        id: detailPresenter
+        content: root.detailPanel
+        enabled: root.visible
+        destination: !root.detailRow ? null : detailSplit.width >= MD.Token.window_class.expanded.min_width ? sideSite : sheetSite
+        onDismissed: root.closeDetail()
+    }
+
+    MD.BottomSheet {
+        id: detailSheet
+        parent: root
+        nestedScrollEnabled: true
+        maxSheetWidth: 400
+        wideSideMargin: 24
+        preferredContentHeight: root.height
+
+        MD.PresentationSite {
+            id: sheetSite
+            presenter: detailPresenter
+            popup: detailSheet
+            width: detailSheet.contentViewportWidth
+            height: detailSheet.contentViewportHeight
+        }
+    }
+
+    contentItem: MD.SplitView {
+        id: detailSplit
+        orientation: Qt.Horizontal
+        handle: null
+        spacing: 24
 
         MD.Pane {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            MD.SplitViewBase.fillWidth: true
             radius: root.MD.MProp.page.backgroundRadius
             padding: 0
             showBackground: true
@@ -661,36 +712,17 @@ MD.Page {
         }
 
         MD.Pane {
-            Layout.preferredWidth: root.detailRow !== null ? 280 : 0
-            Layout.maximumWidth: 280
-            Layout.fillHeight: true
-            visible: root.detailRow !== null
+            MD.SplitViewBase.minimumWidth: 280
+            MD.SplitViewBase.preferredWidth: 280
+            MD.SplitViewBase.maximumWidth: 280
+            visible: sideSite.current
             radius: root.MD.MProp.page.backgroundRadius
             padding: 0
             showBackground: true
 
-            contentItem: RemoteDetailPanel {
-                item: root.detailRow
-                details: detailsQuery
-                remoteCapability: root.detailRow ? root.sourceCapability(root.detailRow.sourceId) : 0
-                remoteHint: root.detailRow ? root.sourceRemoteHint(root.detailRow.sourceId) : ""
-                tagOptions: root.detailRow ? root.sourceFilterOptions(root.detailRow.sourceId) : []
-                downloadState: Number(root.detailRow?.acquisitionState ?? 0)
-                subscriptionState: Number(root.detailRow?.acquisitionState ?? 0)
-
-                onBack: root.closeDetail()
-                onShowInfo: root.openInfo()
-                onDownloadRequested: {
-                    if (!root.detailRow)
-                        return;
-                    dlQuery.start(root.detailRow.sourceId, root.detailRow.itemId);
-                }
-                onRemoveRequested: {
-                    if (root.detailRow)
-                        dlQuery.remove(root.detailRow.sourceId, root.detailRow.itemId);
-                }
-                onSubscriptionRefreshRequested: root.refreshDetailSubscription()
-                onSubscriptionChangeRequested: subscribed => root.setDetailSubscription(subscribed)
+            contentItem: MD.PresentationSite {
+                id: sideSite
+                presenter: detailPresenter
             }
         }
     }

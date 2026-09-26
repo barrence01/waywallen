@@ -548,14 +548,15 @@ MD.Page {
 
         MD.Pane {
             id: displaysPane
+            readonly property bool constrainSize: root.detailsExpanded && !detailsPane.MD.SplitViewBase.transitioning
             implicitWidth: 480
             implicitHeight: 320
             MD.SplitViewBase.minimumWidth: root.detailsVisible ? pageContent.availableWidth / 2 : 0
             MD.SplitViewBase.minimumHeight: root.detailsVisible ? pageContent.availableHeight / 2 : 0
             MD.SplitViewBase.preferredWidth: pageContent.availableWidth * 5 / 6
             MD.SplitViewBase.preferredHeight: pageContent.availableHeight * 5 / 9
-            MD.SplitViewBase.maximumWidth: root.detailsVisible ? pageContent.availableWidth * 5 / 6 : pageContent.availableWidth
-            MD.SplitViewBase.maximumHeight: root.detailsVisible ? pageContent.availableHeight * 5 / 9 : pageContent.availableHeight
+            MD.SplitViewBase.maximumWidth: constrainSize ? pageContent.availableWidth * 5 / 6 : pageContent.availableWidth
+            MD.SplitViewBase.maximumHeight: constrainSize ? pageContent.availableHeight * 5 / 9 : pageContent.availableHeight
             horizontalPadding: 24
             verticalPadding: 16
             radius: 16

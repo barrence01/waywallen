@@ -11,6 +11,7 @@ Item {
     property string wallpaperId: ""
     property var fallbackWallpaper: null
     property bool showApply: true
+    property bool nestedScrollEnabled: false
     property var valueLabels: ({})
     // Renderer-declared labels for wallpaper type keys, display only.
     property var typeLabels: ({})
@@ -20,6 +21,7 @@ Item {
     onWallpaperIdChanged: unsubscribeAccepted = false
 
     signal back
+    signal dismissAnchoredPopups
 
     readonly property var wp: (wallpaperGetQuery.wallpaper?.id_proto ?? "") !== "" ? wallpaperGetQuery.wallpaper : root.fallbackWallpaper
 
@@ -400,6 +402,7 @@ Item {
 
         MD.VerticalListView {
             id: m_detail_view
+            MD.NestedScroll.enabled: root.nestedScrollEnabled
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -661,6 +664,13 @@ Item {
                             }
 
                             MD.ComboBox {
+                                id: fillModeCombo
+                                Connections {
+                                    target: root
+                                    function onDismissAnchoredPopups() {
+                                        fillModeCombo.popup?.dismissImmediately();
+                                    }
+                                }
                                 Layout.fillWidth: true
                                 mdState.size: MD.Enum.S
                                 model: root.kFillModeLabels
@@ -897,6 +907,12 @@ Item {
 
                 MD.ColorPickerButton {
                     id: m_color
+                    Connections {
+                        target: root
+                        function onDismissAnchoredPopups() {
+                            m_color.dismissPopup();
+                        }
+                    }
                     visible: m_prop_delegate.type === "color"
                     Layout.preferredWidth: 80
                     Layout.preferredHeight: 32
@@ -911,6 +927,12 @@ Item {
 
                 MD.ComboBox {
                     id: m_combo
+                    Connections {
+                        target: root
+                        function onDismissAnchoredPopups() {
+                            m_combo.popup?.dismissImmediately();
+                        }
+                    }
                     visible: m_prop_delegate.type === "combo" && m_prop_delegate.supported
                     Layout.fillWidth: true
                     mdState.size: MD.Enum.S

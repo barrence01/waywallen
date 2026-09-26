@@ -577,6 +577,7 @@ MD.Page {
     onSelectionActiveChanged: {
         if (selectionActive) {
             selectedWallpaper = null;
+            requestedWallpaperId = "";
             if (m_grid_view)
                 m_grid_view.currentIndex = -1;
         } else {
@@ -864,12 +865,14 @@ MD.Page {
         userWallpaperSelect.anchorIndex = index;
         root.requestedWallpaperId = "";
         root.selectedWallpaper = model.item(index);
+        detailPresenter.present();
     }
 
     function openWallpaper(wallpaperId) {
         root.clearWallpaperSelection();
         root.selectedWallpaper = null;
         root.requestedWallpaperId = String(wallpaperId || "");
+        detailPresenter.present();
         if (m_grid_view)
             m_grid_view.currentIndex = -1;
     }
@@ -941,13 +944,59 @@ MD.Page {
     showBackground: false
     padding: MD.MProp.size.isCompact ? 0 : 12
 
-    contentItem: RowLayout {
-        spacing: 12
+    property WallpaperDetailPanel detailPanel: WallpaperDetailPanel {
+        parent: null
+        nestedScrollEnabled: sheetSite.current
+        wallpaperId: root.requestedWallpaperId.length > 0 ? root.requestedWallpaperId : (root.selectedWallpaper?.id_proto ?? "")
+        fallbackWallpaper: root.selectedWallpaper
+        valueLabels: root.sourceValueLabels
+        typeLabels: pluginQuery.typeLabels || ({})
+        showApply: true
+        onBack: {
+            dismissAnchoredPopups();
+            detailPresenter.dismiss();
+        }
+    }
+
+    MD.AdaptivePresenter {
+        id: detailPresenter
+        content: root.detailPanel
+        enabled: root.visible
+        destination: root.selectionActive || !(root.requestedWallpaperId || root.selectedWallpaper?.id_proto) ? null : detailSplit.width >= MD.Token.window_class.expanded.min_width ? sideSite : sheetSite
+        onAboutToRelocate: root.detailPanel.dismissAnchoredPopups()
+        onDismissed: {
+            root.selectedWallpaper = null;
+            root.requestedWallpaperId = "";
+        }
+    }
+
+    MD.BottomSheet {
+        id: detailSheet
+        parent: root
+        nestedScrollEnabled: true
+        maxSheetWidth: 400
+        wideSideMargin: 24
+        preferredContentHeight: root.height
+        onAboutToHide: root.detailPanel.dismissAnchoredPopups()
+
+        MD.PresentationSite {
+            id: sheetSite
+            presenter: detailPresenter
+            popup: detailSheet
+            width: detailSheet.contentViewportWidth
+            height: detailSheet.contentViewportHeight
+        }
+    }
+
+    contentItem: MD.SplitView {
+        id: detailSplit
+        orientation: Qt.Horizontal
+        handle: null
+        spacing: 24
 
         // --- Left: wallpaper grid ---
         MD.Pane {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            MD.SplitViewBase.fillWidth: true
             radius: root.MD.MProp.page.backgroundRadius
             padding: 0
             showBackground: true
@@ -1169,25 +1218,17 @@ MD.Page {
 
         // --- Right: wallpaper detail panel ---
         MD.Pane {
-            readonly property bool hasWallpaper: root.selectedWallpaper !== null || root.requestedWallpaperId.length > 0
-            Layout.preferredWidth: hasWallpaper && !root.selectionActive ? 280 : 0
-            Layout.fillHeight: true
-            Layout.maximumWidth: 280
-            visible: hasWallpaper && !root.selectionActive
+            MD.SplitViewBase.minimumWidth: 280
+            MD.SplitViewBase.preferredWidth: 280
+            MD.SplitViewBase.maximumWidth: 280
+            visible: sideSite.current
             radius: root.MD.MProp.page.backgroundRadius
             padding: 0
             showBackground: true
 
-            contentItem: WallpaperDetailPanel {
-                wallpaperId: root.requestedWallpaperId.length > 0 ? root.requestedWallpaperId : (root.selectedWallpaper?.id_proto ?? "")
-                fallbackWallpaper: root.selectedWallpaper
-                valueLabels: root.sourceValueLabels
-                typeLabels: pluginQuery.typeLabels || ({})
-                showApply: true
-                onBack: {
-                    root.selectedWallpaper = null;
-                    root.requestedWallpaperId = "";
-                }
+            contentItem: MD.PresentationSite {
+                id: sideSite
+                presenter: detailPresenter
             }
         }
     }
