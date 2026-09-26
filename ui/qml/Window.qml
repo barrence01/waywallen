@@ -5,7 +5,6 @@ import QtQuick
 import QtQml
 import QtQuick.Window
 import QtQuick.Layouts
-import QtQuick.Templates as T
 
 import Qcm.Material as MD
 import waywallen.ui as W
@@ -157,7 +156,7 @@ MD.ApplicationWindow {
 
     MD.SnakeView {
         id: m_snake
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         anchors.fill: parent
         anchors.leftMargin: 24
         anchors.rightMargin: 24

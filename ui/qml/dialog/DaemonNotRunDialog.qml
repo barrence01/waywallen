@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 
 import Qcm.Material as MD
 import waywallen.ui as W
@@ -18,10 +17,10 @@ MD.Popup {
     readonly property bool daemonStarting: dbusConnected && W.Notify.daemonPhase !== W.Notify.DaemonPhase.Ready
 
     visible: !W.DaemonDBusClient.daemonShutdownExpected && (!dbusConnected || daemonStarting)
-    closePolicy: T.Popup.NoAutoClose
+    closePolicy: MD.Popup.NoAutoClose
     dim: true
     modal: true
-    parent: T.Overlay.overlay
+    parent: MD.Overlay.overlay
     x: Math.round((parent.width - width) / 2)
     y: Math.round((parent.height - height) / 2)
     bottomPadding: 24
@@ -148,13 +147,13 @@ MD.Popup {
             MD.Button {
                 text: qsTr("Exit")
                 mdState.type: MD.Enum.BtText
-                T.DialogButtonBox.buttonRole: T.DialogButtonBox.RejectRole
+                MD.DialogButtonBox.buttonRole: MD.DialogButtonBox.RejectRole
                 onClicked: Qt.quit()
             }
             MD.Button {
                 text: qsTr("Restart")
                 mdState.type: MD.Enum.BtText
-                T.DialogButtonBox.buttonRole: T.DialogButtonBox.AcceptRole
+                MD.DialogButtonBox.buttonRole: MD.DialogButtonBox.AcceptRole
                 visible: !root.daemonStarting
                 onClicked: W.DaemonDBusClient.launchDaemon()
             }

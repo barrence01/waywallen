@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Assertable
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -194,8 +193,8 @@ MD.Page {
         property string rendererId: ""
         property string label: ""
         title: qsTr("Kill renderer?")
-        parent: T.Overlay.overlay
-        standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+        parent: MD.Overlay.overlay
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
 
         contentItem: MD.Text {
             text: qsTr("Stop the renderer process\n\"%1\"?\nUnsaved frame state may be lost.").arg(killDialog.label)

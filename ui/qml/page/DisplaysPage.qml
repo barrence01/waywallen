@@ -3,7 +3,6 @@ pragma ValueTypeBehavior: Assertable
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -271,10 +270,10 @@ MD.Page {
 
     MD.Dialog {
         id: deleteCanvasDialog
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         modal: true
         title: qsTr("Delete canvas?")
-        standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
         contentItem: MD.Text {
             text: qsTr("The canvas layout will be removed. Its displays become independent again.")
             wrapMode: Text.Wrap
@@ -289,10 +288,10 @@ MD.Page {
 
     MD.Dialog {
         id: resetDisplaySettingsDialog
-        parent: T.Overlay.overlay
+        parent: MD.Overlay.overlay
         modal: true
         title: qsTr("Revert layout settings?")
-        standardButtons: T.Dialog.Cancel | T.Dialog.Reset
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Reset
         contentItem: MD.Text {
             text: qsTr("The settings for this layout will be reverted to the global default. Your custom configuration will be lost.")
             wrapMode: Text.Wrap

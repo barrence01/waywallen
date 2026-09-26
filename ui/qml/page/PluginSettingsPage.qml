@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -186,14 +185,14 @@ MD.Page {
             text: qsTr("Reset")
             mdState.type: MD.Enum.BtText
             enabled: root.isDirty
-            T.DialogButtonBox.buttonRole: T.DialogButtonBox.ResetRole
+            MD.DialogButtonBox.buttonRole: MD.DialogButtonBox.ResetRole
             onClicked: root.reset()
         }
         MD.Button {
             text: qsTr("Apply")
             mdState.type: MD.Enum.BtText
             enabled: root.isDirty
-            T.DialogButtonBox.buttonRole: T.DialogButtonBox.ApplyRole
+            MD.DialogButtonBox.buttonRole: MD.DialogButtonBox.ApplyRole
             onClicked: root.apply()
         }
     }

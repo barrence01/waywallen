@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -98,7 +97,7 @@ MD.BottomSheet {
                     from: control.tweak.minimumItemSize
                     to: control.tweak.maximumItemSize
                     stepSize: control.tweak.itemSizeStep
-                    snapMode: T.Slider.SnapAlways
+                    snapMode: MD.Slider.SnapAlways
                     value: control.tweak.itemSize
                     valueText: qsTr("%1 px").arg(Math.round(value))
                     valueMaxText: qsTr("%1 px").arg(Math.round(to))

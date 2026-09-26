@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.ui as W
 
@@ -23,11 +22,11 @@ MD.Dialog {
     }
 
     title: W.I18n.tr(action.labelText) || qsTr("Continue")
-    parent: T.Overlay.overlay
+    parent: MD.Overlay.overlay
     modal: true
     horizontalPadding: 24
     implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
-    standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+    standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
 
     function openFor(nextAction) {
         action = nextAction || ({});
@@ -43,7 +42,7 @@ MD.Dialog {
     }
 
     onAboutToShow: {
-        const accept = standardButton(T.Dialog.Ok);
+        const accept = standardButton(MD.Dialog.Ok);
         if (accept) {
             accept.text = W.I18n.tr(action.labelText) || qsTr("Continue");
             accept.enabled = Qt.binding(function() { return root.complete; });

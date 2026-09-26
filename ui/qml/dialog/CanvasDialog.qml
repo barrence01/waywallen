@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Templates as T
 import Qcm.Material as MD
 
 MD.Dialog {
@@ -13,11 +12,11 @@ MD.Dialog {
     signal submitted(string name)
 
     title: qsTr("Edit canvas")
-    parent: T.Overlay.overlay
+    parent: MD.Overlay.overlay
     modal: true
     horizontalPadding: 24
     implicitWidth: Math.min(400, parent ? parent.width - 48 : 400)
-    standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+    standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
 
     function openFor(canvas) {
         if (!canvas)
@@ -29,7 +28,7 @@ MD.Dialog {
     }
 
     Component.onCompleted: {
-        const save = standardButton(T.Dialog.Ok);
+        const save = standardButton(MD.Dialog.Ok);
         if (save) {
             save.text = qsTr("Save");
             save.enabled = Qt.binding(function () {

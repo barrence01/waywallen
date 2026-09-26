@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import waywallen.ui as W
 import Qcm.Material as MD
 
@@ -11,7 +10,7 @@ MD.Dialog {
     required property var popupWindow
     horizontalPadding: 0
     implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
-    standardButtons: T.Dialog.Close
+    standardButtons: MD.Dialog.Close
 
     property var filters: []
     property var selectedValues: []
@@ -310,7 +309,7 @@ MD.Dialog {
         positioningItem: overlayItem
         x: (overlayWidth - width) / 2
         y: (overlayHeight - height) / 2
-        standardButtons: T.Dialog.Cancel | T.Dialog.Ok
+        standardButtons: MD.Dialog.Cancel | MD.Dialog.Ok
         onAccepted: {
             root.setFilterValues(root.confirmationFilter, root.filterValues(root.confirmationFilter).slice(0, 1));
             root.confirmationFilter = null;

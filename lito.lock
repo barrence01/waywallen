@@ -247,7 +247,7 @@ dependencies = [
 
 [[packages.externals]]
 name = "qml-material"
-source = "git+https://github.com/hypengw/QmlMaterial.git#d01f6363c99e2e23b5d7338b7d29ae918356b211"
+source = "git+https://github.com/hypengw/QmlMaterial.git#e36f78d7c5a47e0e300d1b96745768f497af6cb2"
 
 [[packages]]
 name = "waywallen-video-plugin"

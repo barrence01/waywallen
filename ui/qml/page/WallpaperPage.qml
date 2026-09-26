@@ -3,7 +3,6 @@ pragma ValueTypeBehavior: Assertable
 import QtQuick
 import QtQml as Qml
 import QtQuick.Layouts
-import QtQuick.Templates as T
 import Qcm.Material as MD
 import waywallen.control as WC
 import waywallen.ui as W
