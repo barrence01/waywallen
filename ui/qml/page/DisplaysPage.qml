@@ -1042,7 +1042,7 @@ MD.Page {
                 }
             }
 
-            contentItem: MD.Flickable2 {
+            contentItem: MD.Scrollable {
                 id: detailsFlick
                 clip: true
                 leftMargin: 16
@@ -1050,7 +1050,7 @@ MD.Page {
                 bottomMargin: 16
                 contentWidth: Math.max(0, width - leftMargin - rightMargin)
                 contentHeight: root.detailsVisible ? detailsContent.implicitHeight : 0
-                flickableDirection: MD.Flickable2.VerticalFlick
+                flickableDirection: MD.Scrollable.VerticalFlick
                 interactive: contentHeight > height
 
                 ColumnLayout {
