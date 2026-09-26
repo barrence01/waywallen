@@ -138,10 +138,14 @@ QtObject {
         }
         const next = (selectedKeys || []).map(value => String(value));
         const index = next.indexOf(normalized);
-        if (index >= 0)
+        if (index >= 0) {
             next.splice(index, 1);
-        else
+        } else if (targets.length === 2) {
+            selectedKeys = [normalized];
+            return;
+        } else {
             next.push(normalized);
+        }
         if (next.length === 0)
             selectAll();
         else
