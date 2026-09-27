@@ -41,6 +41,7 @@ qt.qml_module({
     "qml/Global.qml",
     "qml/I18n.qml",
     "qml/component/StatusDot.qml",
+    "qml/component/WindowState.qml",
     "qml/component/PagePopup.qml",
     "qml/component/Tag.qml",
     "qml/component/GpuDetails.qml",

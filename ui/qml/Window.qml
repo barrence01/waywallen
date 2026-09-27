@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Assertable
-import QtCore
 import QtQuick
 import QtQml
 import QtQuick.Window
@@ -18,9 +17,6 @@ MD.ApplicationWindow {
     MD.MProp.textColor: MD.MProp.color.getOn(MD.MProp.backgroundColor)
 
     color: MD.MProp.backgroundColor
-    visible: true
-    height: 632
-    width: 948
     title: "waywallen"
 
     readonly property alias popupPresenter: m_popup_presenter
@@ -65,12 +61,9 @@ MD.ApplicationWindow {
         MD.ChangelogDialog {}
     }
 
-    // Persist the window size across runs. Wayland doesn't let clients
-    // restore their own position, so only width/height are stored.
-    Settings {
-        category: "window"
-        property alias width: win.width
-        property alias height: win.height
+    W.WindowState {
+        id: windowState
+        window: win
     }
 
     W.HealthQuery {
@@ -149,6 +142,7 @@ MD.ApplicationWindow {
     }
 
     Component.onCompleted: {
+        windowState.restore();
         currentPageChanged();
         // Level-check for the case where the daemon is already Ready
         // before this window finishes constructing (UI launched
