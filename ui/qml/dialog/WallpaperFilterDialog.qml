@@ -285,11 +285,13 @@ MD.Dialog {
                 }
             }
 
-            MD.SmallIconButton {
+            MD.IconButton {
+                mdState.size: MD.Enum.XS
                 icon.name: MD.Token.icon.add
                 onClicked: root.model.appendRuleInGroup(sectionRow.groupId)
             }
-            MD.SmallIconButton {
+            MD.IconButton {
+                mdState.size: MD.Enum.XS
                 icon.name: MD.Token.icon.delete
                 onClicked: root.model.deleteGroup(sectionRow.groupId)
             }

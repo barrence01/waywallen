@@ -18,7 +18,8 @@ MD.TextField {
             root.applied(text);
     }
 
-    trailing: MD.SmallIconButton {
+    trailing: MD.IconButton {
+        mdState.size: MD.Enum.XS
         anchors.right: parent?.right
         anchors.verticalCenter: parent?.verticalCenter
         anchors.rightMargin: 8

@@ -1569,7 +1569,7 @@ MD.Page {
                     MD.TextField {
                         id: m_rot_field
                         Layout.preferredWidth: 120
-                        mdState.size: MD.Enum.S
+                        mdState.size: MD.Enum.XS
                         placeholderText: qsTr("Interval")
                         inputMethodHints: Qt.ImhDigitsOnly
                         validator: RegularExpressionValidator { regularExpression: /^\d*$/ }

@@ -495,7 +495,8 @@ Item {
                         actions: root.detailActions
                     }
 
-                    MD.SmallIconButton {
+                    MD.IconButton {
+                        mdState.size: MD.Enum.XS
                         icon.name: MD.Token.icon.close
                         hoverEnabled: true
                         MD.ToolTip.text: qsTr("Close")

@@ -581,8 +581,9 @@ MD.Page {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: canvasEditor.dirty
                         actions: [resetCanvasAlignmentAction, applyCanvasAlignmentAction]
-                        iconDelegate: MD.SmallIconButton {
+                        iconDelegate: MD.IconButton {
                             id: canvasActionButton
+                            mdState.size: MD.Enum.XS
 
                             readonly property string toolTipText: canvasActionButton.action?.tooltip || canvasActionButton.action?.text || ""
 
@@ -591,13 +592,15 @@ MD.Page {
                             MD.ToolTip.text: toolTipText
                             MD.ToolTip.visible: hovered && toolTipText.length > 0 && !pressed
                         }
-                        moreDelegate: MD.SmallIconButton {
+                        moreDelegate: MD.IconButton {
+                            mdState.size: MD.Enum.XS
                             action: canvasAlignmentActionToolBar.moreAction
                         }
                     }
 
-                    MD.SmallIconButton {
+                    MD.IconButton {
                         id: refreshDisplaysButton
+                        mdState.size: MD.Enum.XS
 
                         anchors.right: createCanvasChip.left
                         anchors.rightMargin: 6

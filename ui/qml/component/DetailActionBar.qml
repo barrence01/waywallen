@@ -21,8 +21,9 @@ Item {
         id: actionToolBar
         anchors.fill: parent
         actions: root.actions
-        iconDelegate: MD.SmallIconButton {
+        iconDelegate: MD.IconButton {
             id: button
+            mdState.size: MD.Enum.XS
 
             readonly property string toolTipText: button.action?.text || ""
 

@@ -139,7 +139,8 @@ MD.ItemDelegate {
             }
         }
 
-        MD.SmallIconButton {
+        MD.IconButton {
+            mdState.size: MD.Enum.XS
             icon.name: MD.Token.icon.close
             onClicked: {
                 const view = root.ListView.view;
