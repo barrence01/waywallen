@@ -88,11 +88,6 @@
             <numerusform>%n 个壁纸</numerusform>
         </translation>
     </message>
-    <message>
-        <location filename="../qml/page/wallpaper/AddToPlaylistSheetContent.qml" line="79"/>
-        <source>Add selection</source>
-        <translation>添加所选项</translation>
-    </message>
 </context>
 <context>
     <name>CanvasDialog</name>
@@ -533,29 +528,14 @@
         <translation>ID：</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1116"/>
-        <source>Size:</source>
-        <translation>大小：</translation>
-    </message>
-    <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1126"/>
         <source>Empty</source>
         <translation>空</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1138"/>
-        <source>Members:</source>
-        <translation>成员：</translation>
-    </message>
-    <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1144"/>
         <source>%1 total, %2 online</source>
         <translation>共 %1 个，%2 个在线</translation>
-    </message>
-    <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1154"/>
-        <source>Refresh:</source>
-        <translation>刷新率：</translation>
     </message>
     <message>
         <location filename="../qml/page/DisplaysPage.qml" line="227"/>
@@ -576,11 +556,6 @@
         <location filename="../qml/page/DisplaysPage.qml" line="582"/>
         <source>Canvas %1</source>
         <translation>画布 %1</translation>
-    </message>
-    <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1169"/>
-        <source>Canvas area:</source>
-        <translation>画布区域：</translation>
     </message>
     <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1187"/>
@@ -1155,6 +1130,11 @@
         <location filename="../qml/page/PluginManagePage.qml" line="513"/>
         <source>Delete</source>
         <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/PluginManagePage.qml" line="529"/>
+        <source>Incompatible</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -2340,6 +2320,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../src/model/user_property_model.cpp" line="306"/>
         <source>Playback speed</source>
         <translation>播放速度</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="319"/>
+        <source>Mouse parallax</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
