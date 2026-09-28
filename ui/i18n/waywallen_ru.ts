@@ -90,10 +90,13 @@
             <numerusform>Обоев: %n</numerusform>
         </translation>
     </message>
+</context>
+<context>
+    <name>ApplyTextField</name>
     <message>
-        <location filename="../qml/page/wallpaper/AddToPlaylistSheetContent.qml" line="79"/>
-        <source>Add selection</source>
-        <translation>Добавить выбранное</translation>
+        <location filename="../qml/component/ApplyTextField.qml" line="9"/>
+        <source>Apply</source>
+        <translation>Применить</translation>
     </message>
 </context>
 <context>
@@ -545,29 +548,14 @@
         <translation>ID:</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1116"/>
-        <source>Size:</source>
-        <translation>Размер:</translation>
-    </message>
-    <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1126"/>
         <source>Empty</source>
         <translation>Пусто</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1138"/>
-        <source>Members:</source>
-        <translation>Участники:</translation>
-    </message>
-    <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1144"/>
         <source>%1 total, %2 online</source>
         <translation>Всего: %1, в сети: %2</translation>
-    </message>
-    <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1154"/>
-        <source>Refresh:</source>
-        <translation>Частота:</translation>
     </message>
     <message>
         <location filename="../qml/page/DisplaysPage.qml" line="227"/>
@@ -588,11 +576,6 @@
         <location filename="../qml/page/DisplaysPage.qml" line="582"/>
         <source>Canvas %1</source>
         <translation>Холст %1</translation>
-    </message>
-    <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1169"/>
-        <source>Canvas area:</source>
-        <translation>Область холста:</translation>
     </message>
     <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1187"/>
@@ -1159,6 +1142,11 @@
         <location filename="../qml/page/PluginManagePage.qml" line="513"/>
         <source>Delete</source>
         <translation>Удалить</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/PluginManagePage.qml" line="529"/>
+        <source>Incompatible</source>
+        <translation>Несовместим</translation>
     </message>
 </context>
 <context>
@@ -2079,6 +2067,11 @@ Related display: #%1</source>
         <source>Maximum cache size</source>
         <translation>Максимальный размер кэша</translation>
     </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="745"/>
+        <source>Excluded windows</source>
+        <translation>Исключённые окна</translation>
+    </message>
 </context>
 <context>
     <name>SourceManagePage</name>
@@ -2324,6 +2317,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../src/model/user_property_model.cpp" line="306"/>
         <source>Playback speed</source>
         <translation>Скорость воспроизведения</translation>
+    </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="319"/>
+        <source>Mouse parallax</source>
+        <translation>Параллакс от мыши</translation>
     </message>
 </context>
 <context>
@@ -2954,6 +2952,64 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/Window.qml" line="311"/>
         <source>About</source>
         <translation>О программе</translation>
+    </message>
+</context>
+<context>
+    <name>WindowExclusionsPage</name>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="15"/>
+        <source>Application ID</source>
+        <translation>ID приложения</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="20"/>
+        <source>Window title</source>
+        <translation>Заголовок окна</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="46"/>
+        <source>Excluded windows</source>
+        <translation>Исключённые окна</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="108"/>
+        <source>Matching is case-sensitive. Wildcards: * matches any number of characters, ? matches one character. Other characters are literal.</source>
+        <translation>Регистр букв учитывается. Шаблоны: * — любое число символов, ? — ровно один символ. Остальные символы понимаются буквально.</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="122"/>
+        <source>New exclusion</source>
+        <translation>Новое исключение</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="123"/>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="131"/>
+        <source>Type</source>
+        <translation>Тип</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="139"/>
+        <source>Exclusions</source>
+        <translation>Исключения</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="173"/>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="183"/>
+        <source>No excluded windows</source>
+        <translation>Исключённых окон нет</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WindowExclusionsPage.qml" line="196"/>
+        <source>%1 cannot apply all window exclusions. Update its display client or use supported rule types.</source>
+        <translation>%1 применяет не все исключения окон. Обновите клиент дисплея или выберите поддерживаемые типы правил.</translation>
     </message>
 </context>
 <context>
