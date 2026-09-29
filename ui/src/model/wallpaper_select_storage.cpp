@@ -55,8 +55,8 @@ auto WallpaperSelectStorage::removableSelectedCount() const -> qint32 {
 }
 
 auto WallpaperSelectStorage::hiddenSelectedCount() const -> qint32 {
-    qint32      count = 0;
-    const auto  items = selectedItems();
+    qint32     count = 0;
+    const auto items = selectedItems();
     for (const auto& item : items) {
         if (! item.canConvert<model::Wallpaper>()) continue;
         if (item.value<model::Wallpaper>().hidden()) ++count;

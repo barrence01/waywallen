@@ -466,7 +466,8 @@ void WallpaperHideQuery::setHiddenForIds(const QStringList& wallpaperIds, bool h
     req.setWallpaperHide(std::move(inner));
 
     auto self = QWatcher { this };
-    spawn([self, backend, req = std::move(req), ids = std::move(ids), hidden]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), ids = std::move(ids), hidden]() mutable
+              -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
         if (! self) co_return;

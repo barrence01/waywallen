@@ -1011,7 +1011,8 @@ MD.Page {
         }
         onHiddenChanged: function (hidden) {
             wallpaperQuery.reload();
-            if (hidden && wallpaperQuery.hiddenFilter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE)
+            const filter = wallpaperQuery.hiddenFilter;
+            if ((hidden && filter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE) || (!hidden && filter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_ONLY))
                 back();
         }
     }

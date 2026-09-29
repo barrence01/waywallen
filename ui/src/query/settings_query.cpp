@@ -183,7 +183,7 @@ auto global_to_map(const proto::GlobalSettings& g) -> QVariantMap {
         wallpaper_skip_content_ratings.append(r);
     }
     m[u"wallpaperSkipContentRatings"_s] = wallpaper_skip_content_ratings;
-    m[u"wallpaperHiddenFilter"_s] = static_cast<int>(g.wallpaperHiddenFilter());
+    m[u"wallpaperHiddenFilter"_s]       = static_cast<int>(g.wallpaperHiddenFilter());
     return m;
 }
 

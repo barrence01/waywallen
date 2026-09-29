@@ -18,8 +18,8 @@ export class WallpaperSelectStorage : public SelectStorage {
 
     Q_PROPERTY(qint32 removableSelectedCount READ removableSelectedCount NOTIFY
                    selectedRemovableCountChanged FINAL)
-    Q_PROPERTY(qint32 hiddenSelectedCount READ hiddenSelectedCount NOTIFY
-                   selectedHiddenCountChanged FINAL)
+    Q_PROPERTY(
+        qint32 hiddenSelectedCount READ hiddenSelectedCount NOTIFY selectedHiddenCountChanged FINAL)
 
 public:
     WallpaperSelectStorage(QObject* parent = nullptr);
