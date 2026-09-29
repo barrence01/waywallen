@@ -17,7 +17,7 @@ MD.Page {
     W.WallpaperSelectStorage {
         id: userWallpaperSelect
         model: wallpaperQuery.data
-        property list<MD.Action> actions: [removeSelectionAction, createPlaylistFromSelectionAction, addToPlaylistAction]
+        property list<MD.Action> actions: [hideSelectionAction, removeSelectionAction, createPlaylistFromSelectionAction, addToPlaylistAction]
     }
 
     W.PlaylistItemSelectStorage {
@@ -41,6 +41,22 @@ MD.Page {
         onStatusChanged: {
             if (selectionRemoveQuery.status === 3) {
                 const message = selectionRemoveQuery.error && selectionRemoveQuery.error.length > 0 ? selectionRemoveQuery.error : qsTr("Remove failed");
+                W.Action.toast(message, 6000, 1, null);
+            }
+        }
+    }
+
+    W.WallpaperHideQuery {
+        id: selectionHideQuery
+        forwardError: false
+        onUpdated: function (wallpaperIds, hidden, updatedCount) {
+            wallpaperQuery.reload();
+            root.clearWallpaperSelection();
+            W.Action.toast(hidden ? qsTr("Hidden %1").arg(updatedCount) : qsTr("Unhidden %1").arg(updatedCount));
+        }
+        onStatusChanged: {
+            if (selectionHideQuery.status === 3) {
+                const message = selectionHideQuery.error && selectionHideQuery.error.length > 0 ? selectionHideQuery.error : qsTr("Hide failed");
                 W.Action.toast(message, 6000, 1, null);
             }
         }
@@ -265,6 +281,15 @@ MD.Page {
     }
 
     MD.Action {
+        id: hideSelectionAction
+        text: root.selectionAllHidden ? qsTr("Unhide %1").arg(root.selectedWallpaperCount) : qsTr("Hide %1").arg(root.selectedWallpaperCount)
+        icon.name: MD.Token.icon.visibility_off
+        busy: selectionHideQuery.querying
+        enabled: root.selectedWallpaperCount > 0 && !selectionHideQuery.querying
+        onTriggered: root.hideSelectedWallpapers()
+    }
+
+    MD.Action {
         id: removeSelectionAction
         text: qsTr("Remove %1").arg(root.removableSelectedWallpaperCount)
         icon.name: MD.Token.icon.delete
@@ -376,6 +401,7 @@ MD.Page {
                 wallpaperQuery.skipTypes = global.wallpaperSkipTypes || [];
                 wallpaperQuery.filterTags = global.wallpaperFilterTags || [];
                 wallpaperQuery.skipContentRatings = global.wallpaperSkipContentRatings || [];
+                wallpaperQuery.hiddenFilter = Number(global.wallpaperHiddenFilter || 0);
                 root._quickFiltersSeeded = true;
             }
             const filters = global.wallpaperFilters || [];
@@ -454,6 +480,14 @@ MD.Page {
                 wallpaperQuery.skipContentRatings = next;
                 root._persistGlobalChange(g => {
                     g.wallpaperSkipContentRatings = next;
+                });
+            }
+            hiddenFilter: wallpaperQuery.hiddenFilter
+            onCycleHiddenFilter: function () {
+                const next = (Number(wallpaperQuery.hiddenFilter) + 1) % 3;
+                wallpaperQuery.hiddenFilter = next;
+                root._persistGlobalChange(g => {
+                    g.wallpaperHiddenFilter = next;
                 });
             }
         }
@@ -570,6 +604,8 @@ MD.Page {
     readonly property int selectionSheetReserve: wallpaperSelectSheetRelay.currentComponent ? 360 : 160
     readonly property int selectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.selectedCount : 0
     readonly property int removableSelectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.removableSelectedCount : 0
+    readonly property int hiddenSelectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.hiddenSelectedCount : 0
+    readonly property bool selectionAllHidden: root.selectedWallpaperCount > 0 && root.hiddenSelectedWallpaperCount === root.selectedWallpaperCount
     readonly property bool selectionActive: root.currentWallpaperSelect ? root.currentWallpaperSelect.active : false
     readonly property bool selectionActionSheetActive: root.selectionActive && root.currentWallpaperSelect && (root.currentWallpaperSelect.actions || []).length > 0
 
@@ -932,6 +968,24 @@ MD.Page {
         selectionRemoveQuery.remove(ids);
     }
 
+    function hideSelectedWallpapers() {
+        const select = root.currentWallpaperSelect;
+        if (!select || selectionHideQuery.querying)
+            return;
+
+        const raw = select.selectedWallpaperIds();
+        const ids = [];
+        for (let i = 0; i < raw.length; ++i) {
+            const id = String(raw[i] || "");
+            if (id.length > 0)
+                ids.push(id);
+        }
+        if (ids.length === 0)
+            return;
+
+        selectionHideQuery.setHiddenForIds(ids, !root.selectionAllHidden);
+    }
+
     function deletePlaylist(playlist) {
         if (!playlist || playlistMutation.querying)
             return;
@@ -954,6 +1008,11 @@ MD.Page {
         onBack: {
             dismissAnchoredPopups();
             detailPresenter.dismiss();
+        }
+        onHiddenChanged: function (hidden) {
+            wallpaperQuery.reload();
+            if (hidden && wallpaperQuery.hiddenFilter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE)
+                back();
         }
     }
 

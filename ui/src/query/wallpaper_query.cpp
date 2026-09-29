@@ -32,6 +32,7 @@ WallpaperListQuery::WallpaperListQuery(QObject* parent): QueryList(parent) {
     connect_requet_reload(&WallpaperListQuery::skipTypesChanged, this);
     connect_requet_reload(&WallpaperListQuery::filterTagsChanged, this);
     connect_requet_reload(&WallpaperListQuery::skipContentRatingsChanged, this);
+    connect_requet_reload(&WallpaperListQuery::hiddenFilterChanged, this);
 }
 
 auto WallpaperListQuery::wpType() const -> const QString& { return m_wp_type; }
@@ -141,9 +142,20 @@ void WallpaperListQuery::setSkipContentRatings(const QStringList& v) {
     if (had_active != hasActiveFilters()) Q_EMIT hasActiveFiltersChanged();
 }
 
+auto WallpaperListQuery::hiddenFilter() const -> int { return m_hidden_filter; }
+
+void WallpaperListQuery::setHiddenFilter(int v) {
+    if (m_hidden_filter == v) return;
+    const bool had_active = hasActiveFilters();
+    m_hidden_filter       = v;
+    setOffset(0);
+    Q_EMIT hiddenFilterChanged();
+    if (had_active != hasActiveFilters()) Q_EMIT hasActiveFiltersChanged();
+}
+
 auto WallpaperListQuery::hasActiveFilters() const -> bool {
     return ! m_filters.isEmpty() || ! m_skip_types.isEmpty() || ! m_filter_tags.isEmpty() ||
-           ! m_skip_content_ratings.isEmpty();
+           ! m_skip_content_ratings.isEmpty() || m_hidden_filter != 0;
 }
 
 auto WallpaperListQuery::total() const -> qint32 { return m_total; }
@@ -164,6 +176,7 @@ void WallpaperListQuery::reload() {
     inner.setSkipTypes(m_skip_types);
     inner.setFilterTags(m_filter_tags);
     inner.setSkipContentRatings(m_skip_content_ratings);
+    inner.setHiddenFilter(static_cast<control::v1::WallpaperHiddenFilter>(m_hidden_filter));
     initReqForReload(inner);
     req.setWallpaperList(std::move(inner));
 
@@ -212,6 +225,7 @@ void WallpaperListQuery::fetchMore(qint32) {
     inner.setSkipTypes(m_skip_types);
     inner.setFilterTags(m_filter_tags);
     inner.setSkipContentRatings(m_skip_content_ratings);
+    inner.setHiddenFilter(static_cast<control::v1::WallpaperHiddenFilter>(m_hidden_filter));
     initReqForFetchMore(inner);
     req.setWallpaperList(std::move(inner));
 
@@ -402,6 +416,62 @@ void WallpaperUnsubscribeQuery::reload() {
         if (self->m_wallpaper_id != wallpaper_id) co_return;
         self->inspect_set(result, [self, wallpaper_id](const proto::Response&) {
             Q_EMIT self->unsubscribed(wallpaper_id);
+        });
+        co_return;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// WallpaperHideQuery
+// ---------------------------------------------------------------------------
+
+WallpaperHideQuery::WallpaperHideQuery(QObject* parent): Query(parent) {}
+
+auto WallpaperHideQuery::wallpaperId() const -> const QString& { return m_wallpaper_id; }
+void WallpaperHideQuery::setWallpaperId(const QString& v) {
+    if (m_wallpaper_id != v) {
+        m_wallpaper_id = v;
+        Q_EMIT wallpaperIdChanged();
+    }
+}
+
+auto WallpaperHideQuery::hidden() const -> bool { return m_hidden; }
+void WallpaperHideQuery::setHidden(bool v) {
+    if (m_hidden != v) {
+        m_hidden = v;
+        Q_EMIT hiddenChanged();
+    }
+}
+
+void WallpaperHideQuery::reload() { setHiddenForIds(QStringList { m_wallpaper_id }, m_hidden); }
+
+void WallpaperHideQuery::setHiddenForIds(const QStringList& wallpaperIds, bool hidden) {
+    QStringList ids;
+    ids.reserve(wallpaperIds.size());
+    for (const auto& id : wallpaperIds) {
+        if (! id.isEmpty()) ids.append(id);
+    }
+    if (ids.isEmpty()) return;
+
+    setStatus(Status::Querying);
+    auto backend = App::instance()->backend();
+
+    auto req   = proto::Request {};
+    auto inner = proto::WallpaperHideRequest {};
+    if (ids.size() == 1)
+        inner.setWallpaperId(ids.first());
+    else
+        inner.setWallpaperIds(ids);
+    inner.setHidden(hidden);
+    req.setWallpaperHide(std::move(inner));
+
+    auto self = QWatcher { this };
+    spawn([self, backend, req = std::move(req), ids = std::move(ids), hidden]() mutable -> task<void> {
+        auto result = co_await backend->send(std::move(req));
+        if (! co_await QAsyncResult::qexecutor()) co_return;
+        if (! self) co_return;
+        self->inspect_set(result, [self, ids, hidden](const proto::Response& rsp) {
+            Q_EMIT self->updated(ids, hidden, rsp.wallpaperHide().updatedCount());
         });
         co_return;
     });

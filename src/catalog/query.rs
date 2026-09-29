@@ -181,6 +181,7 @@ mod tests {
             create_at,
             plugin_name: String::new(),
             library_root: String::new(),
+            hidden: false,
         }
     }
 

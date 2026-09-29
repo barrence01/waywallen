@@ -105,6 +105,7 @@ message Request {
     LogReadRequest              log_read = 88;
     WallpaperLookupRequest      wallpaper_lookup = 89;
     DisplayPauseSetRequest      display_pause_set = 90;
+    WallpaperHideRequest        wallpaper_hide = 91;
   }
 }
 
@@ -197,6 +198,7 @@ message Response {
     LogReadResponse              log_read = 88;
     WallpaperLookupResponse      wallpaper_lookup = 89;
     DisplayPauseSetResponse      display_pause_set = 90;
+    WallpaperHideResponse        wallpaper_hide = 91;
   }
 }
 
@@ -547,6 +549,9 @@ message WallpaperEntry {
   // Source-provided page for this wallpaper on its remote service.
   // Empty for local wallpapers and sources that do not provide one.
   string web_url = 20;
+  // When true, the library browser hides this item unless the
+  // WallpaperListRequest hidden_filter includes it.
+  bool hidden = 21;
 }
 
 message WallpaperListRequest {
@@ -572,6 +577,18 @@ message WallpaperListRequest {
   // Content ratings to exclude (quick toggles, like skip_types). An
   // entry whose `content_rating` is listed here is dropped.
   repeated string skip_content_ratings = 11;
+  // How to treat wallpapers marked hidden. Default EXCLUDE.
+  WallpaperHiddenFilter hidden_filter = 12;
+}
+
+// Library-browser filter for the per-item `hidden` flag.
+enum WallpaperHiddenFilter {
+  // Show every wallpaper except those marked hidden.
+  WALLPAPER_HIDDEN_FILTER_EXCLUDE = 0;
+  // Show only wallpapers marked hidden.
+  WALLPAPER_HIDDEN_FILTER_ONLY = 1;
+  // Show all wallpapers, including hidden ones.
+  WALLPAPER_HIDDEN_FILTER_INCLUDE = 2;
 }
 message WallpaperListResponse {
   repeated WallpaperEntry wallpapers = 1;
@@ -637,6 +654,15 @@ message WallpaperUnsubscribeRequest {
   string wallpaper_id = 1;
 }
 message WallpaperUnsubscribeResponse {}
+
+message WallpaperHideRequest {
+  string wallpaper_id = 1;
+  repeated string wallpaper_ids = 2;
+  bool hidden = 3;
+}
+message WallpaperHideResponse {
+  uint32 updated_count = 1;
+}
 
 message WallpaperScanRequest {}
 // Ack-only — the rescan now runs asynchronously on the daemon. `count`
@@ -1609,6 +1635,10 @@ message GlobalSettings {
 
   // Content ratings hidden by the browser's quick toggles. Persisted.
   repeated string wallpaper_skip_content_ratings = 15;
+
+  // How the library browser treats wallpapers marked hidden. Persisted.
+  // Default EXCLUDE.
+  WallpaperHiddenFilter wallpaper_hidden_filter = 29;
 
   // Canonical automatic replay policy.
   AutoReplayPolicy auto_replay = 16;

@@ -59,4 +59,7 @@ pub struct WallpaperEntry {
     /// Used to resolve relative resource paths.
     #[serde(default)]
     pub library_root: String,
+    /// Library-browser hide flag. Daemon-owned; plugins do not set it.
+    #[serde(default)]
+    pub hidden: bool,
 }

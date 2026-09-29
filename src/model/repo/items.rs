@@ -149,6 +149,7 @@ fn entry_from_item(
         create_at: it.create_at,
         plugin_name: plugin_name.to_string(),
         library_root: library_path.to_string(),
+        hidden: it.hidden,
     }
 }
 
@@ -658,4 +659,22 @@ pub async fn update_item_media<C: ConnectionTrait>(
     Ok(ItemWriteOutcome { changed })
 }
 
-// ---------------------------------------------------------------------------
+/// Sets the library-browser hidden flag for the given item ids.
+pub async fn set_items_hidden(
+    db: &DatabaseConnection,
+    item_ids: &[i64],
+    hidden: bool,
+) -> Result<u32> {
+    if item_ids.is_empty() {
+        return Ok(0);
+    }
+    let now = now_ms();
+    let result = item::Entity::update_many()
+        .col_expr(item::Column::Hidden, Expr::value(hidden))
+        .col_expr(item::Column::UpdateAt, Expr::value(now))
+        .filter(item::Column::Id.is_in(item_ids.iter().copied()))
+        .exec(db)
+        .await
+        .context("update item hidden flags")?;
+    Ok(result.rows_affected as u32)
+}

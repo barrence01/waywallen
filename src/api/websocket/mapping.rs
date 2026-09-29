@@ -502,6 +502,24 @@ pub(super) fn fillmode_to_pb(fm: crate::wallframe::display::layout::FillMode) ->
     }
 }
 
+pub(super) fn wallpaper_hidden_filter_to_pb(
+    filter: crate::settings::WallpaperHiddenFilter,
+) -> pb::WallpaperHiddenFilter {
+    match filter {
+        crate::settings::WallpaperHiddenFilter::Exclude => pb::WallpaperHiddenFilter::Exclude,
+        crate::settings::WallpaperHiddenFilter::Only => pb::WallpaperHiddenFilter::Only,
+        crate::settings::WallpaperHiddenFilter::Include => pb::WallpaperHiddenFilter::Include,
+    }
+}
+
+pub(super) fn wallpaper_hidden_filter_from_pb(v: i32) -> crate::settings::WallpaperHiddenFilter {
+    match pb::WallpaperHiddenFilter::try_from(v).unwrap_or(pb::WallpaperHiddenFilter::Exclude) {
+        pb::WallpaperHiddenFilter::Only => crate::settings::WallpaperHiddenFilter::Only,
+        pb::WallpaperHiddenFilter::Include => crate::settings::WallpaperHiddenFilter::Include,
+        pb::WallpaperHiddenFilter::Exclude => crate::settings::WallpaperHiddenFilter::Exclude,
+    }
+}
+
 pub(super) fn fillmode_from_pb(v: i32) -> Option<crate::wallframe::display::layout::FillMode> {
     use crate::wallframe::display::layout::FillMode as F;
     match pb::FillMode::try_from(v).ok()? {
@@ -839,6 +857,7 @@ pub(super) fn global_to_pb(g: &crate::settings::GlobalSettings) -> pb::GlobalSet
         wallpaper_skip_types: g.wallpaper_skip_types.clone(),
         wallpaper_filter_tags: g.wallpaper_filter_tags.clone(),
         wallpaper_skip_content_ratings: g.wallpaper_skip_content_ratings.clone(),
+        wallpaper_hidden_filter: wallpaper_hidden_filter_to_pb(g.wallpaper_hidden_filter) as i32,
         disable_plugin_update_notifications: !g.plugin_update_notifications,
         duplicate_renderers_for_same_wallpaper: g.duplicate_renderers_for_same_wallpaper,
         renderer: Some(pb::GlobalRendererSettings {
