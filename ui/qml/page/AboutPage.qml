@@ -2,11 +2,22 @@ pragma ValueTypeBehavior: Assertable
 import QtQuick
 import QtQuick.Layouts
 import Qcm.Material as MD
+import waywallen.ui as W
 
 MD.Page {
     id: root
     implicitWidth: aboutContent.implicitWidth + 32
     bottomPadding: 24
+
+    // Result of a check started from this page: "", "latest" or "failed".
+    property string checkResult: ""
+
+    Connections {
+        target: W.UpdateChecker
+        function onCheckFinished(ok) {
+            root.checkResult = ok ? "latest" : "failed";
+        }
+    }
 
     ColumnLayout {
         id: aboutContent
@@ -36,6 +47,34 @@ MD.Page {
             text: qsTr("Version %1").arg(Qt.application.version)
             typescale: MD.Token.typescale.body_medium
             color: MD.Token.color.on_surface_variant
+        }
+
+        MD.Button {
+            Layout.alignment: Qt.AlignHCenter
+            visible: !W.UpdateChecker.updateAvailable
+            enabled: !W.UpdateChecker.checking
+            text: {
+                if (W.UpdateChecker.checking)
+                    return qsTr("Checking for updates…");
+                switch (root.checkResult) {
+                case "latest":
+                    return qsTr("You have the latest version");
+                case "failed":
+                    return qsTr("Could not check for updates");
+                default:
+                    return qsTr("Check for updates");
+                }
+            }
+            mdState.type: MD.Enum.BtFilledTonal
+            onClicked: W.UpdateChecker.check()
+        }
+
+        MD.Button {
+            Layout.alignment: Qt.AlignHCenter
+            visible: W.UpdateChecker.updateAvailable
+            text: qsTr("Version %1 is available").arg(W.UpdateChecker.latestVersion)
+            mdState.type: MD.Enum.BtFilled
+            onClicked: MD.Util.openUrlExternally(W.UpdateChecker.releaseUrl)
         }
 
         Item {

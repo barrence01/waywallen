@@ -94,6 +94,8 @@ sources = [
   "src/thumb/service.cppm",
   "src/ui_language.cpp",
   "src/ui_language.cppm",
+  "src/update_checker.cpp",
+  "src/update_checker.cppm",
   "src/util.cpp",
   "src/util.cppm",
 ]
