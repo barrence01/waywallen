@@ -2134,9 +2134,44 @@ Related display: #%1</source>
         <translation>Не удалось остановить демон</translation>
     </message>
     <message>
+        <location filename="../qml/page/StatusPage.qml" line="183"/>
+        <source>unknown</source>
+        <translation>неизвестно</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="185"/>
+        <source>healthy</source>
+        <translation>в норме</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="191"/>
+        <source>starting</source>
+        <translation>запускается</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="193"/>
+        <source>playing</source>
+        <translation>воспроизводится</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="195"/>
+        <source>paused</source>
+        <translation>на паузе</translation>
+    </message>
+    <message>
         <location filename="../qml/page/StatusPage.qml" line="196"/>
         <source>Kill renderer?</source>
         <translation>Завершить рендерер?</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="197"/>
+        <source>muted</source>
+        <translation>без звука</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="199"/>
+        <source>stopping</source>
+        <translation>останавливается</translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="201"/>
@@ -2146,6 +2181,21 @@ Unsaved frame state may be lost.</source>
         <translation>Остановить процесс рендерера
 «%1»?
 Несохранённое состояние кадров может быть потеряно.</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="201"/>
+        <source>stopped</source>
+        <translation>остановлен</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="203"/>
+        <source>killed</source>
+        <translation>завершён принудительно</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="205"/>
+        <source>failed</source>
+        <translation>сбой</translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="240"/>
@@ -2186,6 +2236,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/page/StatusPage.qml" line="366"/>
         <source>No renderers</source>
         <translation>Рендереров нет</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="452"/>
+        <source>keep</source>
+        <translation>сохранён</translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="460"/>

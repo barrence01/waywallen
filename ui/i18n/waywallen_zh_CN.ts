@@ -2137,9 +2137,44 @@ Related display: #%1</source>
         <translation>停止守护进程失败</translation>
     </message>
     <message>
+        <location filename="../qml/page/StatusPage.qml" line="183"/>
+        <source>unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="185"/>
+        <source>healthy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="191"/>
+        <source>starting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="193"/>
+        <source>playing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="195"/>
+        <source>paused</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/StatusPage.qml" line="196"/>
         <source>Kill renderer?</source>
         <translation>终止渲染器？</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="197"/>
+        <source>muted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="199"/>
+        <source>stopping</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="201"/>
@@ -2149,6 +2184,21 @@ Unsaved frame state may be lost.</source>
         <translation>停止渲染器进程
 “%1”？
 未保存的帧状态可能会丢失。</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="201"/>
+        <source>stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="203"/>
+        <source>killed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="205"/>
+        <source>failed</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="240"/>
@@ -2189,6 +2239,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/page/StatusPage.qml" line="366"/>
         <source>No renderers</source>
         <translation>没有渲染器</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="452"/>
+        <source>keep</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="460"/>

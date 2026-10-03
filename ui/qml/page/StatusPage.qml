@@ -178,6 +178,34 @@ MD.Page {
         return raw.charAt(0).toUpperCase() + raw.slice(1);
     }
 
+    function healthLabel(state) {
+        if (!state)
+            return qsTr("unknown");
+        if (state === "healthy")
+            return qsTr("healthy");
+        return state;
+    }
+
+    function rendererStatusLabel(status) {
+        if (status === "starting")
+            return qsTr("starting");
+        if (status === "playing")
+            return qsTr("playing");
+        if (status === "paused")
+            return qsTr("paused");
+        if (status === "muted")
+            return qsTr("muted");
+        if (status === "stopping")
+            return qsTr("stopping");
+        if (status === "stopped")
+            return qsTr("stopped");
+        if (status === "killed")
+            return qsTr("killed");
+        if (status === "failed")
+            return qsTr("failed");
+        return status || "";
+    }
+
     W.RendererKillQuery {
         id: killQuery
         onStatusChanged: {
@@ -300,7 +328,7 @@ MD.Page {
                         }
 
                         MD.Text {
-                            text: healthQuery.state || "unknown"
+                            text: root.healthLabel(healthQuery.state)
                             typescale: MD.Token.typescale.body_medium
                             color: MD.Token.color.on_surface
                         }
@@ -417,11 +445,11 @@ MD.Page {
 
                                 W.Tag {
                                     visible: !!rendererItem.modelData.status
-                                    text: rendererItem.modelData.status || ""
+                                    text: root.rendererStatusLabel(rendererItem.modelData.status)
                                 }
                                 W.Tag {
                                     visible: rendererItem.modelData.keep
-                                    text: "keep"
+                                    text: qsTr("keep")
                                 }
                                 W.Tag {
                                     visible: rendererItem.modelData.running
@@ -489,7 +517,7 @@ MD.Page {
                             width: ListView.view.width
                             radius: 12
                             text: modelData.name || ""
-                            supportText: (modelData.types ? modelData.types.join(", ") : "")
+                            supportText: (modelData.types ? modelData.types.map(t => W.I18n.valueLabel(pluginQuery.typeLabels, t)).join(", ") : "")
                             leader: MD.Icon {
                                 name: MD.Token.icon.widgets
                                 size: 24
