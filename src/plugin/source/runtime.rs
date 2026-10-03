@@ -1793,6 +1793,7 @@ impl LuaPluginRuntime {
                 // Daemon-only (filled from DB on read); scan leaves it None.
                 modified_at: None,
                 create_at: 0,
+                hidden: false,
             };
             let idx = self.entries.len();
             self.by_type

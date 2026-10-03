@@ -530,6 +530,10 @@ pub struct GlobalSettings {
     #[serde(default)]
     pub wallpaper_skip_content_ratings: Vec<String>,
 
+    /// How the library browser treats wallpapers marked hidden.
+    #[serde(default)]
+    pub wallpaper_hidden_filter: WallpaperHiddenFilter,
+
     #[serde(default)]
     pub auto_attach_playlist_id: Option<i64>,
 
@@ -570,6 +574,7 @@ impl Default for GlobalSettings {
             wallpaper_skip_types: Vec::new(),
             wallpaper_filter_tags: Vec::new(),
             wallpaper_skip_content_ratings: Vec::new(),
+            wallpaper_hidden_filter: WallpaperHiddenFilter::Exclude,
             auto_attach_playlist_id: None,
             plugin_update_notifications: true,
             duplicate_renderers_for_same_wallpaper: false,
@@ -687,6 +692,18 @@ impl WallpaperSortRuleState {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum WallpaperHiddenFilter {
+    /// Show every wallpaper except those marked hidden.
+    #[default]
+    Exclude = 0,
+    /// Show only wallpapers marked hidden.
+    Only = 1,
+    /// Show all wallpapers, including hidden ones.
+    Include = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]

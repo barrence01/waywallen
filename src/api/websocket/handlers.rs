@@ -432,6 +432,17 @@ pub(super) async fn dispatch_inner(
             if !r.skip_types.is_empty() {
                 raw_entries.retain(|e| !r.skip_types.iter().any(|t| t == &e.wp_type));
             }
+            match pb::WallpaperHiddenFilter::try_from(r.hidden_filter)
+                .unwrap_or(pb::WallpaperHiddenFilter::Exclude)
+            {
+                pb::WallpaperHiddenFilter::Exclude => {
+                    raw_entries.retain(|e| !e.hidden);
+                }
+                pb::WallpaperHiddenFilter::Only => {
+                    raw_entries.retain(|e| e.hidden);
+                }
+                pb::WallpaperHiddenFilter::Include => {}
+            }
 
             let mut effective_filters: Vec<_> =
                 r.filters.iter().filter_map(filter_rule_from_pb).collect();
@@ -690,6 +701,38 @@ pub(super) async fn dispatch_inner(
                 .set_subscription(&entry.plugin_name, external_id, false)
                 .await?;
             Res::WallpaperUnsubscribe(pb::WallpaperUnsubscribeResponse {})
+        }
+
+        Req::WallpaperHide(r) => {
+            let mut wallpaper_ids = Vec::new();
+            if !r.wallpaper_id.trim().is_empty() {
+                wallpaper_ids.push(r.wallpaper_id);
+            }
+            wallpaper_ids.extend(
+                r.wallpaper_ids
+                    .into_iter()
+                    .filter(|id| !id.trim().is_empty()),
+            );
+            wallpaper_ids.sort();
+            wallpaper_ids.dedup();
+            if wallpaper_ids.is_empty() {
+                return Err(Error::InvalidArgument("wallpaper_id is required".into()));
+            }
+
+            let mut item_ids = Vec::with_capacity(wallpaper_ids.len());
+            for wallpaper_id in &wallpaper_ids {
+                let item_id = wallpaper_id
+                    .parse::<i64>()
+                    .map_err(|_| Error::WallpaperNotFound(wallpaper_id.clone()))?;
+                let entry = repo::get_entry(&state.db, item_id)
+                    .await?
+                    .ok_or_else(|| Error::WallpaperNotFound(wallpaper_id.clone()))?;
+                item_ids.push(entry.item_id);
+            }
+            item_ids.sort_unstable();
+            item_ids.dedup();
+            let updated_count = repo::set_items_hidden(&state.db, &item_ids, r.hidden).await?;
+            Res::WallpaperHide(pb::WallpaperHideResponse { updated_count })
         }
 
         Req::WallpaperPropertySet(r) => {
@@ -1954,6 +1997,8 @@ pub(super) async fn dispatch_inner(
                     s.global.wallpaper_filter_tags = g.wallpaper_filter_tags.clone();
                     s.global.wallpaper_skip_content_ratings =
                         g.wallpaper_skip_content_ratings.clone();
+                    s.global.wallpaper_hidden_filter =
+                        wallpaper_hidden_filter_from_pb(g.wallpaper_hidden_filter);
                     if let Some(ld) = g.layout_defaults.as_ref() {
                         if let Some(fm) = fillmode_from_pb(ld.fillmode) {
                             s.global.layout.fillmode = fm;

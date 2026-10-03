@@ -29,6 +29,9 @@ MD.Dialog {
     // checked = shown, unchecked ones are recorded as skipped.
     property var skipContentRatings: []
     signal toggleSkipRating(string rating)
+    // 0=EXCLUDE, 1=ONLY, 2=INCLUDE — see WallpaperHiddenFilter.
+    property int hiddenFilter: 0
+    signal cycleHiddenFilter
     horizontalPadding: 16
     implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
     standardButtons: MD.Dialog.Close
@@ -81,6 +84,38 @@ MD.Dialog {
         header: ColumnLayout {
             width: rulesView.width
             spacing: 8
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.bottomMargin: 4
+                spacing: 4
+
+                MD.Label {
+                    text: qsTr("Visibility")
+                    typescale: MD.Token.typescale.title_medium
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    MD.FilterChip {
+                        readonly property string hiddenLabel: {
+                            switch (root.hiddenFilter) {
+                            case WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_ONLY:
+                                return qsTr("Hidden: only");
+                            case WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_INCLUDE:
+                                return qsTr("Hidden: on");
+                            default:
+                                return qsTr("Hidden: off");
+                            }
+                        }
+                        checkable: false
+                        text: hiddenLabel
+                        checked: root.hiddenFilter !== WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE
+                        onClicked: root.cycleHiddenFilter()
+                    }
+                }
+            }
 
             ColumnLayout {
                 Layout.fillWidth: true

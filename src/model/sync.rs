@@ -183,6 +183,7 @@ mod tests {
             content_rating: None,
             modified_at: None,
             create_at: 0,
+            hidden: false,
         }
     }
 
@@ -344,6 +345,7 @@ mod tests {
             content_rating: None,
             modified_at: None,
             create_at: 0,
+            hidden: false,
         };
         let _ = sync_plugin_entries(
             &db,

@@ -64,6 +64,8 @@ using proto::WallpaperApplyViaPortalResponse;
 using proto::WallpaperEntry;
 using proto::WallpaperGetRequest;
 using proto::WallpaperGetResponse;
+using proto::WallpaperHideRequest;
+using proto::WallpaperHideResponse;
 using proto::WallpaperLayoutSetRequest;
 using proto::WallpaperLayoutSetResponse;
 using proto::WallpaperListRequest;
@@ -82,6 +84,7 @@ using proto::WallpaperScanResponse;
 using proto::WallpaperSyncFinished;
 using proto::WallpaperUnsubscribeRequest;
 using proto::WallpaperUnsubscribeResponse;
+using proto::WallpaperHiddenFilterGadget::WallpaperHiddenFilter;
 using proto::WallpaperPresentationStateGadget::WallpaperPresentationState;
 
 using proto::DisplayBackendStatus;
