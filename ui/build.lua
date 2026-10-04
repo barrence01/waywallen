@@ -125,6 +125,7 @@ qt.qml_module({
     "QtQuick.Shapes",
     "QtQml.Models",
     "Qcm.Material",
+    "QExtra",
     "waywallen.control",
   },
   moc_files = {

@@ -144,7 +144,7 @@ MD.Page {
 
     W.PluginActionFormDialog {
         id: actionForm
-        onSubmitted: function(values) {
+        onSubmitted: function (values) {
             root.submitAction(action, values);
         }
     }
@@ -280,15 +280,14 @@ MD.Page {
                                 Item {
                                     Layout.fillWidth: true
                                 }
-                                MD.Image {
+                                W.ThumbnailImage {
                                     Layout.preferredWidth: 32
                                     Layout.preferredHeight: 32
                                     Layout.maximumWidth: 32
                                     Layout.maximumHeight: 32
                                     visible: statusRow.index === 0 && root.avatarUrl.length > 0
                                     source: root.avatarUrl
-                                    sourceSize: Qt.size(64, 64)
-                                    asynchronous: true
+                                    maxSize: Qt.size(64, 64)
                                     fillMode: Image.PreserveAspectCrop
                                     radius: 16
                                 }
@@ -328,9 +327,7 @@ MD.Page {
 
                                     MD.Button {
                                         text: W.I18n.tr(actionItem.modelData.labelText)
-                                        enabled: !actionQuery.querying
-                                            && (actionItem.modelData.enabled === undefined
-                                                || actionItem.modelData.enabled)
+                                        enabled: !actionQuery.querying && (actionItem.modelData.enabled === undefined || actionItem.modelData.enabled)
                                         mdState.type: MD.Enum.BtFilledTonal
                                         onClicked: root.runAction(actionItem.modelData)
                                     }
