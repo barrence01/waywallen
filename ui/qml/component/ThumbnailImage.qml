@@ -58,6 +58,7 @@ Item {
     Component {
         id: qextraImage
         QE.AnimatedImage {
+            sharedPlayback: true
             retainWhileLoading: root.retainWhileLoading
             source: root._displayUrl
             sourceSize: root.sourceSize
