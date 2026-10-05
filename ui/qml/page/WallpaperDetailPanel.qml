@@ -455,9 +455,9 @@ Item {
 
                 W.ThumbnailImage {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: visible ? 200 : 0
+                    Layout.minimumHeight: 200
+                    Layout.preferredHeight: 200
                     Layout.topMargin: 4
-                    visible: (root.wp?.preview ?? "") !== "" || (["video", "image"].indexOf(root.wp?.wpType ?? "") >= 0 && (root.wp?.resource ?? "") !== "")
                     source: root.wp?.preview ?? ""
                     resource: root.wp?.resource ?? ""
                     wpType: root.wp?.wpType ?? ""
