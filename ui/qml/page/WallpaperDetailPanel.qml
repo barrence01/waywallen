@@ -169,12 +169,6 @@ Item {
         wallpaperId: root.wallpaperId
     }
 
-    W.WallpaperHideQuery {
-        id: hideQuery
-        forwardError: false
-        wallpaperId: root.wallpaperId
-    }
-
     Connections {
         target: applyQuery
         function onStatusChanged() {
@@ -221,19 +215,6 @@ Item {
         function onStatusChanged() {
             if (unsubscribeQuery.status === 3) {
                 const message = unsubscribeQuery.error && unsubscribeQuery.error.length > 0 ? unsubscribeQuery.error : qsTr("Unsubscribe failed");
-                W.Action.toast(message, 6000, 1, null);
-            }
-        }
-    }
-
-    Connections {
-        target: hideQuery
-        function onUpdated(wallpaperIds, hidden, updatedCount) {
-            W.Action.toast(hidden ? qsTr("Hidden") : qsTr("Unhidden"));
-        }
-        function onStatusChanged() {
-            if (hideQuery.status === 3) {
-                const message = hideQuery.error && hideQuery.error.length > 0 ? hideQuery.error : qsTr("Hide failed");
                 W.Action.toast(message, 6000, 1, null);
             }
         }
@@ -424,23 +405,9 @@ Item {
         }
     }
 
-    MD.Action {
-        id: hideAction
-        text: (root.wp?.hidden ?? false) ? qsTr("Unhide") : qsTr("Hide")
-        icon.name: MD.Token.icon.visibility_off
-        busy: hideQuery.querying
-        enabled: (root.wp?.id_proto ?? "") !== "" && !hideQuery.querying
-        onTriggered: {
-            if (busy)
-                return;
-            hideQuery.hidden = !(root.wp?.hidden ?? false);
-            hideQuery.reload();
-        }
-    }
-
     readonly property MD.Action activeApplyAction: ((root.wp?.wpType ?? "") === "image" && (W.App.displayManager.displays || []).length === 0) ? applyViaPortalAction : applyAction
 
-    readonly property list<MD.Action> detailActions: (root.wp?.supportsItemUnsubscribe ?? false) ? [hideAction, unsubscribeAction, linkAction, openContainerFolderAction, infoAction] : (root.wp?.supportsItemRemove ?? false) ? [hideAction, removeAction, linkAction, openContainerFolderAction, infoAction] : [hideAction, linkAction, openContainerFolderAction, infoAction]
+    readonly property list<MD.Action> detailActions: (root.wp?.supportsItemUnsubscribe ?? false) ? [unsubscribeAction, linkAction, openContainerFolderAction, infoAction] : (root.wp?.supportsItemRemove ?? false) ? [removeAction, linkAction, openContainerFolderAction, infoAction] : [linkAction, openContainerFolderAction, infoAction]
 
     ColumnLayout {
         anchors.fill: parent
@@ -484,21 +451,18 @@ Item {
                     elide: Text.ElideRight
                 }
 
-                MD.Text {
-                    Layout.fillWidth: true
-                    text: W.I18n.valueLabel(root.typeLabels, root.wp?.wpType)
-                    typescale: MD.Token.typescale.label_large
-                    color: MD.Token.color.on_surface_variant
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                }
-
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    Item {
+                    MD.Text {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: implicitWidth
+                        text: W.I18n.valueLabel(root.typeLabels, root.wp?.wpType)
+                        typescale: MD.Token.typescale.label_large
+                        color: MD.Token.color.on_surface_variant
+                        elide: Text.ElideNone
+                        maximumLineCount: 1
                     }
 
                     W.DetailActionBar {
