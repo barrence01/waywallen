@@ -17,11 +17,10 @@ pub struct LayoutDefaults {
     pub location: Option<Location>,
     pub align: Align,
     pub rotation: Rotation,
-    pub flip: Flip,
 }
 
 /// Per-display overrides keyed by display name.
-/// `None` fields inherit from the global defaults.
+/// `None` fields inherit from the global defaults; flip defaults to no flipping.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DisplayPrefs {

@@ -26,7 +26,6 @@ auto layout_to_map(const proto::LayoutPrefs& l) -> QVariantMap {
     m[u"locationX"_s]   = l.locationX();
     m[u"locationY"_s]   = l.locationY();
     m[u"rotation"_s]    = static_cast<int>(l.rotation());
-    m[u"flip"_s]        = static_cast<int>(l.flip());
     return m;
 }
 
@@ -38,7 +37,6 @@ auto map_to_layout(const QVariantMap& m) -> proto::LayoutPrefs {
     l.setLocationX(m.value(u"locationX"_s).toUInt());
     l.setLocationY(m.value(u"locationY"_s).toUInt());
     l.setRotation(static_cast<proto::Rotation>(m.value(u"rotation"_s).toInt()));
-    l.setFlip(static_cast<proto::Flip>(m.value(u"flip"_s).toInt()));
     return l;
 }
 

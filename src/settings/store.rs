@@ -344,7 +344,7 @@ impl SettingsStore {
                 .or_else(|| prefs.and_then(|p| p.align.map(Location::from_align)))
                 .unwrap_or(default_location),
             rotation: prefs.and_then(|p| p.rotation).unwrap_or(defaults.rotation),
-            flip: prefs.and_then(|p| p.flip).unwrap_or(defaults.flip),
+            flip: prefs.and_then(|p| p.flip).unwrap_or_default(),
         }
     }
 
@@ -357,7 +357,7 @@ impl SettingsStore {
                 .location
                 .unwrap_or_else(|| Location::from_align(defaults.align)),
             rotation: defaults.rotation,
-            flip: defaults.flip,
+            flip: Flip::None,
         }
     }
 

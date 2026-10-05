@@ -852,7 +852,7 @@ pub(super) fn global_to_pb(g: &crate::settings::GlobalSettings) -> pb::GlobalSet
                     .to_align(),
             ) as i32,
             rotation: rotation_to_pb(g.layout.rotation) as i32,
-            flip: flip_to_pb(g.layout.flip) as i32,
+            flip: pb::Flip::Unspecified as i32,
             location_x: u32::from(
                 g.layout
                     .location

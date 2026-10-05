@@ -5003,12 +5003,6 @@ mod tests {
         assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 1);
         assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 1);
 
-        settings
-            .update(|s| s.global.layout.flip = crate::wallframe::display::layout::Flip::Vertical);
-        router.resync_all_compositions().await;
-        assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 7);
-        assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 7);
-
         router
             .set_renderer_wallpaper_layout_override(
                 "canvas-renderer",
@@ -5261,7 +5255,6 @@ mod tests {
         let mgr = Arc::new(RendererManager::new_default());
         let router = Router::new(mgr.clone());
         let settings = test_settings_store().await;
-        settings.update(|s| s.global.layout.flip = Flip::Horizontal);
         router.attach_settings(settings.clone());
         let renderer = RendererHandle::test_stub("r1", "scene");
         renderer.test_publish_pool(fake_published_pool(1, 1920, 1080));
@@ -5272,7 +5265,7 @@ mod tests {
             .await;
         assert_eq!(
             last_composition_config(&mut display.rx).unwrap().transform,
-            4
+            0
         );
 
         router
@@ -5286,15 +5279,18 @@ mod tests {
                 false,
                 false,
                 false,
-                Some(Flip::None),
+                Some(Flip::Horizontal),
                 false,
             )
             .await;
         assert_eq!(
             last_composition_config(&mut display.rx).unwrap().transform,
-            1
+            5
         );
-        assert_eq!(settings.resolved_layout("flip-display").flip, Flip::None);
+        assert_eq!(
+            settings.resolved_layout("flip-display").flip,
+            Flip::Horizontal
+        );
 
         router
             .set_display_layout(
@@ -5313,12 +5309,9 @@ mod tests {
             .await;
         assert_eq!(
             last_composition_config(&mut display.rx).unwrap().transform,
-            5
+            1
         );
-        assert_eq!(
-            settings.resolved_layout("flip-display").flip,
-            Flip::Horizontal
-        );
+        assert_eq!(settings.resolved_layout("flip-display").flip, Flip::None);
         assert_eq!(settings.snapshot().displays["flip-display"].flip, None);
     }
 

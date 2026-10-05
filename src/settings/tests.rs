@@ -3,18 +3,20 @@ use super::*;
 #[test]
 fn flip_defaults_inheritance_and_roundtrip() {
     let mut settings: Settings = toml::from_str("").unwrap();
-    assert_eq!(settings.global.layout.flip, Flip::None);
-    settings.global.layout.flip = Flip::Horizontal;
     settings
         .displays
         .insert("screen".into(), DisplayPrefs::default());
     let store = SettingsStore::from_test_settings(settings.clone());
+    assert_eq!(store.resolved_global_layout().flip, Flip::None);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+    store.update(|s| s.displays.get_mut("screen").unwrap().flip = Some(Flip::Horizontal));
     assert_eq!(store.resolved_layout("screen").flip, Flip::Horizontal);
     store.update(|s| s.displays.get_mut("screen").unwrap().flip = Some(Flip::None));
     assert_eq!(store.resolved_layout("screen").flip, Flip::None);
     assert!(!store.display_prefs("screen").unwrap().is_empty());
     store.update(|s| s.displays.get_mut("screen").unwrap().flip = None);
-    assert_eq!(store.resolved_layout("screen").flip, Flip::Horizontal);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+    settings.displays.get_mut("screen").unwrap().flip = Some(Flip::Horizontal);
     settings.canvases.insert(
         "canvas".into(),
         CanvasPrefs {
@@ -63,8 +65,20 @@ fn flip_defaults_inheritance_and_roundtrip() {
         store
             .resolved_canvas_layout("canvas", store.resolved_global_layout())
             .flip,
-        Flip::Horizontal
+        Flip::None
     );
+}
+
+#[test]
+fn legacy_global_flip_is_ignored() {
+    let settings: Settings = toml::from_str("[global.layout]\nflip = 'horizontal'").unwrap();
+    assert_eq!(settings.global.layout, LayoutDefaults::default());
+    assert!(!toml::to_string(&settings.global.layout)
+        .unwrap()
+        .contains("flip"));
+    let store = SettingsStore::from_test_settings(settings);
+    assert_eq!(store.resolved_global_layout().flip, Flip::None);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
 }
 
 #[test]

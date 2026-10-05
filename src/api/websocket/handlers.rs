@@ -2032,9 +2032,6 @@ pub(super) async fn dispatch_inner(
                         if let Some(rt) = rotation_from_pb(ld.rotation) {
                             s.global.layout.rotation = rt;
                         }
-                        if let Some(flip) = flip_from_pb(ld.flip) {
-                            s.global.layout.flip = flip;
-                        }
                     }
                     if let Some(policy) = new_auto_replay {
                         s.global.auto_replay = Some(policy);

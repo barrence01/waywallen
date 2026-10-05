@@ -829,7 +829,7 @@ message LayoutPrefs {
   uint32   location_x = 5; // 0..100, 50 = center
   uint32   location_y = 6; // 0..100, 50 = center
   bool     location_set = 7;
-  Flip     flip = 8;
+  Flip     flip = 8; // Not used in GlobalSettings.layout_defaults.
   reserved 3;
   reserved "clear_rgba";
 }

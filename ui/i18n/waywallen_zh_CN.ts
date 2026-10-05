@@ -1682,14 +1682,6 @@ Related display: #%1</source>
 </context>
 <context>
     <name>SettingsPage</name>
-    <message>
-        <source>Wallpaper layout</source>
-        <translation>壁纸布局</translation>
-    </message>
-    <message>
-        <source>Flip</source>
-        <translation>翻转</translation>
-    </message>
     <message><source>Excluded windows</source><translation>排除的窗口</translation></message>
     <message><source>Current display</source><translation>当前显示器</translation></message>
     <message><source>All displays</source><translation>所有显示器</translation></message>

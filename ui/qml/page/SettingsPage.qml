@@ -312,7 +312,6 @@ MD.Page {
             return;
 
         const nextGlobal = Object.assign({}, getQ.global, root._defaultGlobalPageSettings());
-        nextGlobal.layoutDefaults = Object.assign({}, getQ.global.layoutDefaults || ({}), { flip: WC.Flip.FLIP_NONE });
         m_flush.stop();
         m_pending.nextGlobal = null;
         m_pending.submittedGlobal = nextGlobal;
@@ -342,7 +341,6 @@ MD.Page {
             autoReplay: root._normalizedAutoReplay(g.autoReplay || ({})),
             pauseEffect: root._normalizedPauseEffect(g.pauseEffect || ({})),
             transition: root._normalizedTransition(g.transition || ({})),
-            layoutFlip: Number(g.layoutDefaults?.flip || WC.Flip.FLIP_NONE),
             queueMode: g.queueMode ?? "sequential",
             rotationSecs: Number(g.rotationSecs ?? 0),
             audioFadeMs: Number(g.audioFadeMs ?? 500),
@@ -1520,21 +1518,6 @@ MD.Page {
                         typescale: MD.Token.typescale.body_medium
                         color: MD.Token.color.on_surface_variant
                     }
-                }
-            }
-
-            SettingHeader { text: qsTr("Wallpaper layout") }
-
-            SettingItem {
-                first: true
-                last: true
-                FieldLabel { text: qsTr("Flip") }
-                W.FlipButtons {
-                    enabled: Object.keys(getQ.global).length > 0
-                    value: root._currentGlobal()?.layoutDefaults?.flip || WC.Flip.FLIP_NONE
-                    onSelected: value => root._mut(g => {
-                        g.layoutDefaults = Object.assign({}, g.layoutDefaults || ({}), { flip: value });
-                    })
                 }
             }
 
