@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::DaemonContext;
 
-/// Spawn the `waywallen-ui` subprocess fire-and-forget.
+/// Spawn the `waywallen-ui` subprocess and reap it asynchronously.
 /// The UI reads the WS port from the Daemon1 DBus interface.
 pub(crate) fn spawn_ui(state: &DaemonContext) -> bool {
     spawn_ui_with_token(state, "")
@@ -49,19 +49,29 @@ fn spawn_ui_with_token(state: &DaemonContext, token: &str) -> bool {
         None => return false,
     };
     log::info!("launching ui: {}", ui_bin.display());
-    let mut cmd = std::process::Command::new(&ui_bin);
+    let mut cmd = tokio::process::Command::new(&ui_bin);
     if !token.is_empty() {
         cmd.env("XDG_ACTIVATION_TOKEN", token);
     }
     match cmd.spawn() {
         Ok(child) => {
-            log::info!("ui pid: {}", child.id());
+            tokio::spawn(wait_for_ui(child));
             true
         }
         Err(error) => {
             log::warn!("failed to launch ui {}: {error}", ui_bin.display());
             false
         }
+    }
+}
+
+async fn wait_for_ui(mut child: tokio::process::Child) {
+    let pid = child.id().expect("newly spawned UI has a PID");
+    log::info!("ui pid: {pid}");
+    match child.wait().await {
+        Ok(status) if status.success() => log::info!("ui {pid} exited: {status}"),
+        Ok(status) => log::warn!("ui {pid} exited: {status}"),
+        Err(error) => log::warn!("failed to wait for ui {pid}: {error}"),
     }
 }
 
@@ -140,4 +150,54 @@ where
         log::warn!("DBus ShuttingDown emit failed: {error}");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wait_for_ui;
+    use std::process::Stdio;
+    use std::time::Duration;
+    use tokio::process::Command;
+
+    async fn assert_reaped(child: tokio::process::Child) {
+        let pid = child.id().unwrap() as libc::pid_t;
+        tokio::time::timeout(Duration::from_secs(5), tokio::spawn(wait_for_ui(child)))
+            .await
+            .expect("UI wait task timed out")
+            .expect("UI wait task panicked");
+        let result = unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) };
+        let error = std::io::Error::last_os_error();
+        assert_eq!(result, -1, "UI child was not reaped");
+        assert_eq!(error.raw_os_error(), Some(libc::ECHILD));
+    }
+
+    #[tokio::test]
+    async fn ui_children_are_reaped_after_exit() {
+        for _ in 0..4 {
+            for script in ["exit 0", "exit 7", "kill -TERM $$"] {
+                let child = Command::new("sh").args(["-c", script]).spawn().unwrap();
+                assert_reaped(child).await;
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn waiting_for_ui_does_not_block_other_children() {
+        let mut child = Command::new("sh")
+            .args(["-c", "read line; exit 0"])
+            .stdin(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        let stdin = child.stdin.take().unwrap();
+        let waiting = tokio::spawn(assert_reaped(child));
+        tokio::task::yield_now().await;
+        assert!(!waiting.is_finished());
+
+        let child = Command::new("sh").args(["-c", "exit 0"]).spawn().unwrap();
+        assert_reaped(child).await;
+        assert!(!waiting.is_finished());
+        drop(stdin);
+        waiting.await.unwrap();
+    }
 }
