@@ -37,6 +37,37 @@ impl Rotation {
     }
 }
 
+/// Mirroring along the post-rotation display axes.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Flip {
+    #[default]
+    None,
+    Horizontal,
+    Vertical,
+    Both,
+}
+
+impl Flip {
+    pub fn horizontal(self) -> bool {
+        matches!(self, Self::Horizontal | Self::Both)
+    }
+
+    pub fn vertical(self) -> bool {
+        matches!(self, Self::Vertical | Self::Both)
+    }
+
+    pub fn transform(self, rotation: Rotation) -> u32 {
+        let rotation = rotation.to_wl_transform();
+        match self {
+            Self::None => rotation,
+            Self::Horizontal => 4 + rotation,
+            Self::Vertical => 4 + (rotation + 2) % 4,
+            Self::Both => (rotation + 2) % 4,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Align {
@@ -724,6 +755,51 @@ mod tests {
                 display_point_to_texture(point.0, point.1, &c).unwrap(),
                 expected,
             );
+        }
+    }
+
+    #[test]
+    fn flip_composes_after_rotation_and_roundtrips_pointer() {
+        let rotations = [
+            Rotation::Normal,
+            Rotation::Cw90,
+            Rotation::Cw180,
+            Rotation::Cw270,
+        ];
+        let flips = [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both];
+        let expected = [[0, 4, 6, 2], [1, 5, 7, 3], [2, 6, 4, 0], [3, 7, 5, 1]];
+        for (i, rotation) in rotations.into_iter().enumerate() {
+            for (j, flip) in flips.into_iter().enumerate() {
+                let transform = flip.transform(rotation);
+                assert_eq!(transform, expected[i][j]);
+                let (mut u, mut v) = match rotation {
+                    Rotation::Normal => (0.2, 0.7),
+                    Rotation::Cw90 => (0.3, 0.2),
+                    Rotation::Cw180 => (0.8, 0.3),
+                    Rotation::Cw270 => (0.7, 0.8),
+                };
+                if flip.horizontal() {
+                    u = 1.0 - u;
+                }
+                if flip.vertical() {
+                    v = 1.0 - v;
+                }
+                let (w, h) = if i % 2 == 0 {
+                    (400.0, 200.0)
+                } else {
+                    (200.0, 400.0)
+                };
+                let config = cfg_with_display(
+                    (0.0, 0.0, 400.0, 200.0),
+                    (0.0, 0.0, w, h),
+                    (400.0, 200.0),
+                    transform,
+                );
+                approx(
+                    display_point_to_texture(u * 400.0, v * 200.0, &config).unwrap(),
+                    (80.0, 140.0),
+                );
+            }
         }
     }
 

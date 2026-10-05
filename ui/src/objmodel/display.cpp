@@ -42,6 +42,7 @@ auto Display::effectiveLayoutFromPb(const proto::DisplayInfo& info) -> QVariantM
     m[u"locationX"_s] = l.locationX();
     m[u"locationY"_s] = l.locationY();
     m[u"rotation"_s]  = static_cast<int>(l.rotation());
+    m[u"flip"_s]      = static_cast<int>(l.flip());
     return m;
 }
 
@@ -54,6 +55,7 @@ auto Display::displayLayoutFromPb(const proto::DisplayInfo& info) -> QVariantMap
     m[u"locationX"_s] = l.locationX();
     m[u"locationY"_s] = l.locationY();
     m[u"rotation"_s]  = static_cast<int>(l.rotation());
+    m[u"flip"_s]      = static_cast<int>(l.flip());
     return m;
 }
 
@@ -73,6 +75,8 @@ auto Display::layoutOverrideFromPb(const proto::DisplayInfo& info) -> QVariantMa
     m[u"locationX"_s]   = o.locationX();
     m[u"locationY"_s]   = o.locationY();
     m[u"rotationSet"_s] = o.rotationSet();
+    m[u"flipSet"_s]     = o.flipSet();
+    m[u"flip"_s]        = static_cast<int>(o.flip());
     m[u"rotation"_s]    = static_cast<int>(o.rotation());
     return m;
 }
@@ -264,6 +268,8 @@ auto Canvas::layoutOverrideFromPb(const proto::CanvasInfo& info) -> QVariantMap 
     out[u"locationX"_s]   = layout.locationX();
     out[u"locationY"_s]   = layout.locationY();
     out[u"rotationSet"_s] = layout.rotationSet();
+    out[u"flipSet"_s]     = layout.flipSet();
+    out[u"flip"_s]        = static_cast<int>(layout.flip());
     out[u"rotation"_s]    = static_cast<int>(layout.rotation());
     return out;
 }
@@ -276,6 +282,7 @@ auto Canvas::effectiveLayoutFromPb(const proto::CanvasInfo& info) -> QVariantMap
     out[u"locationX"_s] = layout.locationX();
     out[u"locationY"_s] = layout.locationY();
     out[u"rotation"_s]  = static_cast<int>(layout.rotation());
+    out[u"flip"_s]      = static_cast<int>(layout.flip());
     return out;
 }
 

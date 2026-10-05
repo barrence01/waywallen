@@ -54,6 +54,7 @@ qt.qml_module({
     "qml/component/ThumbnailImage.qml",
     "qml/component/SearchChip.qml",
     "qml/component/ValueSlider.qml",
+    "qml/component/FlipButtons.qml",
     "qml/component/ApplyTextField.qml",
     "qml/component/DetailActionBar.qml",
     "qml/component/PresentationTargetState.qml",

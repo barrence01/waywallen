@@ -78,7 +78,10 @@ export class DisplayLayoutSetQuery
     Q_PROPERTY(bool alignSet READ alignSet WRITE setAlignSet NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int align READ align WRITE setAlign NOTIFY paramsChanged FINAL)
     Q_PROPERTY(bool rotationSet READ rotationSet WRITE setRotationSet NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(bool flipSet READ flipSet WRITE setFlipSet NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(bool clearFlip READ clearFlip WRITE setClearFlip NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int rotation READ rotation WRITE setRotation NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(int flip READ flip WRITE setFlip NOTIFY paramsChanged FINAL)
     Q_PROPERTY(
         bool clearFillmode READ clearFillmode WRITE setClearFillmode NOTIFY paramsChanged FINAL)
     Q_PROPERTY(
@@ -110,8 +113,14 @@ public:
     void setAlign(int v);
     auto rotationSet() const -> bool { return m_rotation_set; }
     void setRotationSet(bool v);
+    auto flipSet() const -> bool { return m_flip_set; }
+    void setFlipSet(bool v);
+    auto clearFlip() const -> bool { return m_clear_flip; }
+    void setClearFlip(bool v);
     auto rotation() const -> int { return m_rotation; }
     void setRotation(int v);
+    auto flip() const -> int { return m_flip; }
+    void setFlip(int v);
     auto clearFillmode() const -> bool { return m_clear_fillmode; }
     void setClearFillmode(bool v);
     auto clearLocation() const -> bool { return m_clear_location; }
@@ -136,7 +145,10 @@ private:
     bool    m_align_set { false };
     int     m_align { 0 };
     bool    m_rotation_set { false };
+    bool    m_flip_set { false };
+    bool    m_clear_flip { false };
     int     m_rotation { 0 };
+    int     m_flip { 1 };
     bool    m_clear_fillmode { false };
     bool    m_clear_location { false };
     bool    m_clear_align { false };
@@ -155,7 +167,10 @@ export class CanvasLayoutSetQuery : public Query,
     Q_PROPERTY(int locationX READ locationX WRITE setLocationX NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int locationY READ locationY WRITE setLocationY NOTIFY paramsChanged FINAL)
     Q_PROPERTY(bool rotationSet READ rotationSet WRITE setRotationSet NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(bool flipSet READ flipSet WRITE setFlipSet NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(bool clearFlip READ clearFlip WRITE setClearFlip NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int rotation READ rotation WRITE setRotation NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(int flip READ flip WRITE setFlip NOTIFY paramsChanged FINAL)
     Q_PROPERTY(
         bool clearFillmode READ clearFillmode WRITE setClearFillmode NOTIFY paramsChanged FINAL)
     Q_PROPERTY(
@@ -180,8 +195,14 @@ public:
     void setLocationY(int v);
     auto rotationSet() const -> bool { return m_rotation_set; }
     void setRotationSet(bool v);
+    auto flipSet() const -> bool { return m_flip_set; }
+    void setFlipSet(bool v);
+    auto clearFlip() const -> bool { return m_clear_flip; }
+    void setClearFlip(bool v);
     auto rotation() const -> int { return m_rotation; }
     void setRotation(int v);
+    auto flip() const -> int { return m_flip; }
+    void setFlip(int v);
     auto clearFillmode() const -> bool { return m_clear_fillmode; }
     void setClearFillmode(bool v);
     auto clearLocation() const -> bool { return m_clear_location; }
@@ -201,7 +222,10 @@ private:
     int     m_location_x { 50 };
     int     m_location_y { 50 };
     bool    m_rotation_set { false };
+    bool    m_flip_set { false };
+    bool    m_clear_flip { false };
     int     m_rotation { 0 };
+    int     m_flip { 1 };
     bool    m_clear_fillmode { false };
     bool    m_clear_location { false };
     bool    m_clear_rotation { false };

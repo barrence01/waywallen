@@ -290,6 +290,7 @@ export class WallpaperLayoutSetQuery
     Q_PROPERTY(int locationX READ locationX WRITE setLocationX NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int locationY READ locationY WRITE setLocationY NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int rotation READ rotation WRITE setRotation NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(int flip READ flip WRITE setFlip NOTIFY paramsChanged FINAL)
 
 public:
     WallpaperLayoutSetQuery(QObject* parent = nullptr);
@@ -306,6 +307,8 @@ public:
     void setLocationY(int v);
     auto rotation() const -> int { return m_rotation; }
     void setRotation(int v);
+    auto flip() const -> int { return m_flip; }
+    void setFlip(int v);
 
     void reload() override;
 
@@ -318,6 +321,7 @@ private:
     int     m_location_x { 50 };
     int     m_location_y { 50 };
     int     m_rotation { 1 };
+    int     m_flip { 1 };
 };
 
 export class WallpaperApplyQuery : public Query,

@@ -398,6 +398,10 @@
 <context>
     <name>DisplayLayoutControls</name>
     <message>
+        <source>Flip</source>
+        <translation>翻转</translation>
+    </message>
+    <message>
         <location filename="../qml/page/display/DisplayLayoutControls.qml" line="50"/>
         <source>Layout</source>
         <translation>布局</translation>
@@ -1674,6 +1678,14 @@ Related display: #%1</source>
 </context>
 <context>
     <name>SettingsPage</name>
+    <message>
+        <source>Wallpaper layout</source>
+        <translation>壁纸布局</translation>
+    </message>
+    <message>
+        <source>Flip</source>
+        <translation>翻转</translation>
+    </message>
     <message><source>Excluded windows</source><translation>排除的窗口</translation></message>
     <message><source>Current display</source><translation>当前显示器</translation></message>
     <message><source>All displays</source><translation>所有显示器</translation></message>
@@ -2428,6 +2440,10 @@ Unsaved frame state may be lost.</source>
 <context>
     <name>WallpaperDetailPanel</name>
     <message>
+        <source>Flip</source>
+        <translation>翻转</translation>
+    </message>
+    <message>
         <location filename="../qml/page/WallpaperDetailPanel.qml" line="25"/>
         <source>Stretch</source>
         <translation>拉伸</translation>
@@ -3085,6 +3101,25 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/SidebarNowPlaying.qml" line="33"/>
         <source>Current wallpapers</source>
         <translation>当前壁纸</translation>
+    </message>
+</context>
+<context>
+    <name>FlipButtons</name>
+    <message>
+        <source>None</source>
+        <translation>不翻转</translation>
+    </message>
+    <message>
+        <source>Horizontal</source>
+        <translation>水平</translation>
+    </message>
+    <message>
+        <source>Vertical</source>
+        <translation>垂直</translation>
+    </message>
+    <message>
+        <source>Both</source>
+        <translation>双向</translation>
     </message>
 </context>
 </TS>

@@ -227,6 +227,7 @@ using proto::AlignGadget::Align;
 using proto::AutoActionGadget::AutoAction;
 using proto::AutoScopeGadget::AutoScope;
 using proto::FillModeGadget::FillMode;
+using proto::FlipGadget::Flip;
 using proto::LayoutSourceGadget::LayoutSource;
 using proto::PauseEffectKindGadget::PauseEffectKind;
 using proto::RotationGadget::Rotation;

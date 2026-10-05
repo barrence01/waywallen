@@ -97,6 +97,9 @@ void DisplayLayoutSetQuery::setAlignSet(bool v) { WW_SET(m_align_set, v); }
 void DisplayLayoutSetQuery::setAlign(int v) { WW_SET(m_align, v); }
 void DisplayLayoutSetQuery::setRotationSet(bool v) { WW_SET(m_rotation_set, v); }
 void DisplayLayoutSetQuery::setRotation(int v) { WW_SET(m_rotation, v); }
+void DisplayLayoutSetQuery::setFlip(int v) { WW_SET(m_flip, v); }
+void DisplayLayoutSetQuery::setFlipSet(bool v) { WW_SET(m_flip_set, v); }
+void DisplayLayoutSetQuery::setClearFlip(bool v) { WW_SET(m_clear_flip, v); }
 void DisplayLayoutSetQuery::setClearFillmode(bool v) { WW_SET(m_clear_fillmode, v); }
 void DisplayLayoutSetQuery::setClearLocation(bool v) { WW_SET(m_clear_location, v); }
 void DisplayLayoutSetQuery::setClearAlign(bool v) { WW_SET(m_clear_align, v); }
@@ -115,6 +118,8 @@ void DisplayLayoutSetQuery::reload() {
     ovr.setLocationY(static_cast<quint32>(std::clamp(m_location_y, 0, 100)));
     ovr.setAlignSet(m_align_set);
     ovr.setAlign(static_cast<proto::Align>(m_align));
+    ovr.setFlipSet(m_flip_set);
+    ovr.setFlip(static_cast<proto::Flip>(m_flip));
     ovr.setRotationSet(m_rotation_set);
     ovr.setRotation(static_cast<proto::Rotation>(m_rotation));
 
@@ -126,6 +131,7 @@ void DisplayLayoutSetQuery::reload() {
     inner.setClearLocation(m_clear_location);
     inner.setClearAlign(m_clear_align);
     inner.setClearRotation(m_clear_rotation);
+    inner.setClearFlip(m_clear_flip);
 
     auto req = proto::Request {};
     req.setDisplayLayoutSet(std::move(inner));
@@ -164,6 +170,9 @@ void CanvasLayoutSetQuery::setLocationX(int v) { WW_SET(m_location_x, v); }
 void CanvasLayoutSetQuery::setLocationY(int v) { WW_SET(m_location_y, v); }
 void CanvasLayoutSetQuery::setRotationSet(bool v) { WW_SET(m_rotation_set, v); }
 void CanvasLayoutSetQuery::setRotation(int v) { WW_SET(m_rotation, v); }
+void CanvasLayoutSetQuery::setFlip(int v) { WW_SET(m_flip, v); }
+void CanvasLayoutSetQuery::setFlipSet(bool v) { WW_SET(m_flip_set, v); }
+void CanvasLayoutSetQuery::setClearFlip(bool v) { WW_SET(m_clear_flip, v); }
 void CanvasLayoutSetQuery::setClearFillmode(bool v) { WW_SET(m_clear_fillmode, v); }
 void CanvasLayoutSetQuery::setClearLocation(bool v) { WW_SET(m_clear_location, v); }
 void CanvasLayoutSetQuery::setClearRotation(bool v) { WW_SET(m_clear_rotation, v); }
@@ -179,6 +188,8 @@ void CanvasLayoutSetQuery::reload() {
     ovr.setLocationSet(m_location_set);
     ovr.setLocationX(static_cast<quint32>(std::clamp(m_location_x, 0, 100)));
     ovr.setLocationY(static_cast<quint32>(std::clamp(m_location_y, 0, 100)));
+    ovr.setFlipSet(m_flip_set);
+    ovr.setFlip(static_cast<proto::Flip>(m_flip));
     ovr.setRotationSet(m_rotation_set);
     ovr.setRotation(static_cast<proto::Rotation>(m_rotation));
 
@@ -188,6 +199,7 @@ void CanvasLayoutSetQuery::reload() {
     inner.setClearFillmode(m_clear_fillmode);
     inner.setClearLocation(m_clear_location);
     inner.setClearRotation(m_clear_rotation);
+    inner.setClearFlip(m_clear_flip);
 
     auto req = proto::Request {};
     req.setCanvasLayoutSet(std::move(inner));

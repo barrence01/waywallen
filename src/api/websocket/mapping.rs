@@ -374,6 +374,8 @@ fn canvas_layout_override_to_pb(layout: crate::settings::CanvasLayoutPrefs) -> p
             .unwrap_or(pb::FillMode::Unspecified) as i32,
         align_set: false,
         align: pb::Align::Unspecified as i32,
+        flip_set: layout.flip.is_some(),
+        flip: layout.flip.map(flip_to_pb).unwrap_or(pb::Flip::Unspecified) as i32,
         rotation_set: layout.rotation.is_some(),
         rotation: layout
             .rotation
@@ -462,6 +464,7 @@ pub(super) fn layout_prefs_to_pb_resolved(r: &crate::settings::ResolvedLayout) -
         fillmode: fillmode_to_pb(r.fillmode) as i32,
         align: align_to_pb(r.location.to_align()) as i32,
         rotation: rotation_to_pb(r.rotation) as i32,
+        flip: flip_to_pb(r.flip) as i32,
         location_x: u32::from(r.location.x.min(100)),
         location_y: u32::from(r.location.y.min(100)),
         location_set: true,
@@ -481,6 +484,8 @@ pub(super) fn layout_override_to_pb(p: &crate::settings::DisplayPrefs) -> pb::La
             .unwrap_or(pb::FillMode::Unspecified) as i32,
         align_set: p.align.is_some(),
         align: p.align.map(align_to_pb).unwrap_or(pb::Align::Unspecified) as i32,
+        flip_set: p.flip.is_some(),
+        flip: p.flip.map(flip_to_pb).unwrap_or(pb::Flip::Unspecified) as i32,
         rotation_set: p.rotation.is_some(),
         rotation: p
             .rotation
@@ -528,6 +533,27 @@ pub(super) fn fillmode_from_pb(v: i32) -> Option<crate::wallframe::display::layo
         pb::FillMode::PreserveAspectFit => Some(F::PreserveAspectFit),
         pb::FillMode::PreserveAspectCrop => Some(F::PreserveAspectCrop),
         pb::FillMode::Centered => Some(F::Centered),
+    }
+}
+
+pub(super) fn flip_to_pb(flip: crate::wallframe::display::layout::Flip) -> pb::Flip {
+    use crate::wallframe::display::layout::Flip;
+    match flip {
+        Flip::None => pb::Flip::None,
+        Flip::Horizontal => pb::Flip::Horizontal,
+        Flip::Vertical => pb::Flip::Vertical,
+        Flip::Both => pb::Flip::Both,
+    }
+}
+
+pub(super) fn flip_from_pb(value: i32) -> Option<crate::wallframe::display::layout::Flip> {
+    use crate::wallframe::display::layout::Flip;
+    match pb::Flip::try_from(value).ok()? {
+        pb::Flip::Unspecified => None,
+        pb::Flip::None => Some(Flip::None),
+        pb::Flip::Horizontal => Some(Flip::Horizontal),
+        pb::Flip::Vertical => Some(Flip::Vertical),
+        pb::Flip::Both => Some(Flip::Both),
     }
 }
 
@@ -598,6 +624,7 @@ pub(super) fn resolved_layout_from_pb(p: &pb::LayoutPrefs) -> crate::settings::R
                 .unwrap_or_default()
         },
         rotation: rotation_from_pb(p.rotation).unwrap_or_default(),
+        flip: flip_from_pb(p.flip).unwrap_or_default(),
     }
 }
 
@@ -825,6 +852,7 @@ pub(super) fn global_to_pb(g: &crate::settings::GlobalSettings) -> pb::GlobalSet
                     .to_align(),
             ) as i32,
             rotation: rotation_to_pb(g.layout.rotation) as i32,
+            flip: flip_to_pb(g.layout.flip) as i32,
             location_x: u32::from(
                 g.layout
                     .location
@@ -1328,6 +1356,42 @@ pub(super) fn global_event_to_pb(e: &GlobalEvent, state: &Arc<DaemonContext>) ->
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn flip_protobuf_roundtrip() {
+        use crate::wallframe::display::layout::{FillMode, Flip, Location, Rotation};
+        assert_eq!(flip_from_pb(0), None);
+        assert_eq!(flip_from_pb(99), None);
+        assert_eq!(
+            resolved_layout_from_pb(&pb::LayoutPrefs::default()).flip,
+            Flip::None
+        );
+        for flip in [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both] {
+            let resolved = crate::settings::ResolvedLayout {
+                fillmode: FillMode::Centered,
+                location: Location::new(13, 79),
+                rotation: Rotation::Cw270,
+                flip,
+            };
+            assert_eq!(
+                resolved_layout_from_pb(&layout_prefs_to_pb_resolved(&resolved)),
+                resolved
+            );
+            let prefs = crate::settings::DisplayPrefs {
+                flip: Some(flip),
+                ..Default::default()
+            };
+            let mapped = layout_override_to_pb(&prefs);
+            assert!(mapped.flip_set);
+            assert_eq!(flip_from_pb(mapped.flip), Some(flip));
+            let mapped = canvas_layout_override_to_pb(crate::settings::CanvasLayoutPrefs {
+                flip: Some(flip),
+                ..Default::default()
+            });
+            assert!(mapped.flip_set);
+            assert_eq!(flip_from_pb(mapped.flip), Some(flip));
+        }
+    }
 
     #[test]
     fn window_exclusions_protobuf_roundtrip() {

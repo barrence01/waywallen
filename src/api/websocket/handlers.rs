@@ -54,6 +54,7 @@ fn canvas_layout_from_pb(
             .rotation_set
             .then(|| rotation_from_pb(layout.rotation))
             .flatten(),
+        flip: layout.flip_set.then(|| flip_from_pb(layout.flip)).flatten(),
     }
 }
 
@@ -854,7 +855,15 @@ pub(super) async fn dispatch_inner(
                         "wallpaper_layout_set requires layout unless clear=true".to_string(),
                     ));
                 };
-                Some(resolved_layout_from_pb(layout))
+                let mut resolved = resolved_layout_from_pb(layout);
+                if flip_from_pb(layout.flip).is_none() {
+                    resolved.flip =
+                        repo::get_wallpaper_layout_override_with_legacy(&state.db, entry.item_id)
+                            .await?
+                            .and_then(|existing| existing.flip)
+                            .unwrap_or_default();
+                }
+                Some(resolved)
             };
             repo::set_wallpaper_layout_override(&state.db, entry.item_id, layout).await?;
 
@@ -1046,6 +1055,11 @@ pub(super) async fn dispatch_inner(
                     r.clear_fillmode,
                     r.clear_align || r.clear_location,
                     r.clear_rotation,
+                    r.r#override
+                        .as_ref()
+                        .filter(|o| o.flip_set)
+                        .and_then(|o| flip_from_pb(o.flip)),
+                    r.clear_flip,
                 )
                 .await;
             let display = match target_id {
@@ -1245,6 +1259,11 @@ pub(super) async fn dispatch_inner(
                     r.clear_fillmode,
                     r.clear_location,
                     r.clear_rotation,
+                    r.r#override
+                        .as_ref()
+                        .filter(|o| o.flip_set)
+                        .and_then(|o| flip_from_pb(o.flip)),
+                    r.clear_flip,
                 )
                 .await?;
             let canvas = state
@@ -2013,6 +2032,9 @@ pub(super) async fn dispatch_inner(
                         if let Some(rt) = rotation_from_pb(ld.rotation) {
                             s.global.layout.rotation = rt;
                         }
+                        if let Some(flip) = flip_from_pb(ld.flip) {
+                            s.global.layout.flip = flip;
+                        }
                     }
                     if let Some(policy) = new_auto_replay {
                         s.global.auto_replay = Some(policy);
@@ -2078,6 +2100,7 @@ pub(super) async fn dispatch_inner(
                 // effective_layout values.
                 let snap = state.router.snapshot_displays().await;
                 state.router.emit_displays_replace_for_settings_change(snap);
+                state.router.publish_canvas_snapshot().await;
             }
             if current_settings.global.auto_replay != prev_auto_replay {
                 state.router.resync_auto_replay().await;

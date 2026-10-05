@@ -60,6 +60,8 @@ MD.Page {
         canvasLayoutSetQuery.fillmodeSet = false;
         canvasLayoutSetQuery.locationSet = false;
         canvasLayoutSetQuery.rotationSet = false;
+        canvasLayoutSetQuery.flipSet = false;
+        canvasLayoutSetQuery.clearFlip = false;
         canvasLayoutSetQuery.clearFillmode = false;
         canvasLayoutSetQuery.clearLocation = false;
         canvasLayoutSetQuery.clearRotation = false;
@@ -88,6 +90,8 @@ MD.Page {
         layoutSetQuery.clearLocation = false;
         layoutSetQuery.clearAlign = false;
         layoutSetQuery.clearRotation = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = false;
         layoutSetQuery.reload();
     }
 
@@ -112,6 +116,8 @@ MD.Page {
         layoutSetQuery.clearLocation = false;
         layoutSetQuery.clearAlign = false;
         layoutSetQuery.clearRotation = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = false;
         layoutSetQuery.reload();
     }
 
@@ -136,6 +142,34 @@ MD.Page {
         layoutSetQuery.clearLocation = false;
         layoutSetQuery.clearAlign = false;
         layoutSetQuery.clearRotation = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = false;
+        layoutSetQuery.reload();
+    }
+
+    function applyFlip(value) {
+        if (!root.selected)
+            return;
+        if (root.selectedKind === "canvas") {
+            root.prepareCanvasLayoutUpdate();
+            canvasLayoutSetQuery.flipSet = true;
+            canvasLayoutSetQuery.flip = value;
+            canvasLayoutSetQuery.reload();
+            return;
+        }
+        layoutSetQuery.name = root.selected.name;
+        layoutSetQuery.displayId = root.selected.id;
+        layoutSetQuery.fillmodeSet = false;
+        layoutSetQuery.locationSet = false;
+        layoutSetQuery.alignSet = false;
+        layoutSetQuery.rotationSet = false;
+        layoutSetQuery.flipSet = true;
+        layoutSetQuery.flip = value;
+        layoutSetQuery.clearFillmode = false;
+        layoutSetQuery.clearLocation = false;
+        layoutSetQuery.clearAlign = false;
+        layoutSetQuery.clearRotation = false;
+        layoutSetQuery.clearFlip = false;
         layoutSetQuery.reload();
     }
 
@@ -147,6 +181,7 @@ MD.Page {
             canvasLayoutSetQuery.clearFillmode = true;
             canvasLayoutSetQuery.clearLocation = true;
             canvasLayoutSetQuery.clearRotation = true;
+            canvasLayoutSetQuery.clearFlip = true;
             canvasLayoutSetQuery.reload();
             return;
         }
@@ -159,6 +194,9 @@ MD.Page {
         layoutSetQuery.clearLocation = true;
         layoutSetQuery.clearAlign = true;
         layoutSetQuery.clearRotation = true;
+        layoutSetQuery.rotationSet = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = true;
         layoutSetQuery.reload();
     }
 
@@ -1259,10 +1297,10 @@ MD.Page {
                                     return false;
                                 if (root.selectedKind === "canvas") {
                                     const override = root.selectedCanvasObject?.layoutOverride || ({});
-                                    return !canvasLayoutSetQuery.querying && (override.fillmodeSet === true || override.locationSet === true || override.rotationSet === true);
+                                    return !canvasLayoutSetQuery.querying && (override.fillmodeSet === true || override.locationSet === true || override.rotationSet === true || override.flipSet === true);
                                 }
                                 const override = root.selected.layoutOverride || ({});
-                                return override.fillmodeSet === true || override.locationSet === true || override.alignSet === true || override.rotationSet === true;
+                                return override.fillmodeSet === true || override.locationSet === true || override.alignSet === true || override.rotationSet === true || override.flipSet === true;
                             }
                             fillModeValues: root.kFillModeValues
                             fillModeLabels: root.kFillModeLabels
@@ -1271,6 +1309,7 @@ MD.Page {
                             onFillModeRequested: value => root.applyFillmode(value)
                             onLocationRequested: (x, y) => root.applyLocation(x, y)
                             onRotationRequested: value => root.applyRotation(value)
+                            onFlipRequested: value => root.applyFlip(value)
                             onResetRequested: resetDisplaySettingsDialog.open()
                         }
 

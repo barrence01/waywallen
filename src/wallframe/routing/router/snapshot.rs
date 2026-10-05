@@ -55,7 +55,7 @@ pub(super) fn project_link(
                 dest_y: 0.0,
                 dest_w: 0.0,
                 dest_h: 0.0,
-                transform: canvas_layout.rotation.to_wl_transform(),
+                transform: canvas_layout.transform(),
                 clear_rgba: link.clear_rgba,
             },
         };
@@ -95,7 +95,7 @@ pub(super) fn project_link(
             dest_y: out.dest.1,
             dest_w: out.dest.2,
             dest_h: out.dest.3,
-            transform: layout.rotation.to_wl_transform(),
+            transform: layout.transform(),
             clear_rgba: out.clear_rgba,
         };
     }
@@ -142,7 +142,7 @@ pub(super) fn project_link(
         dest_y,
         dest_w,
         dest_h,
-        transform: layout.rotation.to_wl_transform(),
+        transform: layout.transform(),
         clear_rgba: link.clear_rgba,
     }
 }

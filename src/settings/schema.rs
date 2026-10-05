@@ -17,6 +17,7 @@ pub struct LayoutDefaults {
     pub location: Option<Location>,
     pub align: Align,
     pub rotation: Rotation,
+    pub flip: Flip,
 }
 
 /// Per-display overrides keyed by display name.
@@ -28,6 +29,7 @@ pub struct DisplayPrefs {
     pub location: Option<Location>,
     pub align: Option<Align>,
     pub rotation: Option<Rotation>,
+    pub flip: Option<Flip>,
     pub auto_replay: Option<AutoReplayPolicy>,
     /// Last wallpaper id applied to this display.
     /// Used to restore per-display assignment on restart.
@@ -45,6 +47,7 @@ impl DisplayPrefs {
             && self.location.is_none()
             && self.align.is_none()
             && self.rotation.is_none()
+            && self.flip.is_none()
             && self.auto_replay.is_none()
             && self.last_wallpaper.is_none()
             && self.alias.is_none()
@@ -75,11 +78,15 @@ pub struct CanvasLayoutPrefs {
     pub fillmode: Option<FillMode>,
     pub location: Option<Location>,
     pub rotation: Option<Rotation>,
+    pub flip: Option<Flip>,
 }
 
 impl CanvasLayoutPrefs {
     pub fn is_empty(self) -> bool {
-        self.fillmode.is_none() && self.location.is_none() && self.rotation.is_none()
+        self.fillmode.is_none()
+            && self.location.is_none()
+            && self.rotation.is_none()
+            && self.flip.is_none()
     }
 }
 
@@ -89,6 +96,13 @@ pub struct ResolvedLayout {
     pub fillmode: FillMode,
     pub location: Location,
     pub rotation: Rotation,
+    pub flip: Flip,
+}
+
+impl ResolvedLayout {
+    pub fn transform(self) -> u32 {
+        self.flip.transform(self.rotation)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

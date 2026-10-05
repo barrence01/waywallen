@@ -9,7 +9,7 @@ use std::time::Duration;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::Notify;
 
-use crate::wallframe::display::layout::{Align, FillMode, Location, Rotation};
+use crate::wallframe::display::layout::{Align, FillMode, Flip, Location, Rotation};
 use crate::wallframe::display::placement::{CanvasRect, CanvasSize};
 
 mod paths;

@@ -139,12 +139,18 @@ pub fn project_canvas(
         return None;
     }
 
-    let member_x = f64::from(member.x) - f64::from(canvas.x);
-    let member_y = f64::from(member.y) - f64::from(canvas.y);
+    let mut member_x = f64::from(member.x) - f64::from(canvas.x);
+    let mut member_y = f64::from(member.y) - f64::from(canvas.y);
     let canvas_width = f64::from(canvas.width);
     let canvas_height = f64::from(canvas.height);
     let member_width = f64::from(member.width);
     let member_height = f64::from(member.height);
+    if layout.flip.horizontal() {
+        member_x = canvas_width - member_x - member_width;
+    }
+    if layout.flip.vertical() {
+        member_y = canvas_height - member_y - member_height;
+    }
     let (
         layout_width,
         layout_height,
@@ -232,7 +238,7 @@ pub fn project_canvas(
                 w: (f64::from(output.dest.2) / member_layout_width * dest_surface_width) as f32,
                 h: (f64::from(output.dest.3) / member_layout_height * dest_surface_height) as f32,
             },
-            transform: layout.rotation.to_wl_transform(),
+            transform: layout.transform(),
         });
     }
 
@@ -260,7 +266,7 @@ pub fn project_canvas(
             w: dest_w as f32,
             h: dest_h as f32,
         },
-        transform: layout.rotation.to_wl_transform(),
+        transform: layout.transform(),
     })
 }
 
@@ -269,11 +275,126 @@ mod tests {
     use super::*;
     use crate::wallframe::display::layout::{FillMode, Location};
 
+    #[test]
+    fn canvas_flip_matches_whole_canvas_mapping() {
+        use crate::wallframe::display::layout::Flip;
+        use crate::wallframe::scheduler::CompositionConfig;
+        let canvas = CanvasRect {
+            x: -120,
+            y: 30,
+            width: 900,
+            height: 500,
+        };
+        let members = [
+            CanvasRect {
+                x: -120,
+                y: 30,
+                width: 300,
+                height: 500,
+            },
+            CanvasRect {
+                x: 180,
+                y: 80,
+                width: 600,
+                height: 400,
+            },
+        ];
+        for rotation in [
+            Rotation::Normal,
+            Rotation::Cw90,
+            Rotation::Cw180,
+            Rotation::Cw270,
+        ] {
+            for flip in [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both] {
+                for fillmode in [
+                    FillMode::Stretched,
+                    FillMode::PreserveAspectFit,
+                    FillMode::PreserveAspectCrop,
+                    FillMode::Centered,
+                ] {
+                    let layout = ResolvedLayout {
+                        rotation,
+                        flip,
+                        fillmode,
+                        location: Location::new(23, 71),
+                    };
+                    let (width, height) = if matches!(rotation, Rotation::Cw90 | Rotation::Cw270) {
+                        (500.0, 900.0)
+                    } else {
+                        (900.0, 500.0)
+                    };
+                    let whole = layout::compute(LayoutInput {
+                        tex_w: 720.0,
+                        tex_h: 640.0,
+                        disp_w: width,
+                        disp_h: height,
+                        fillmode,
+                        location: layout.location,
+                        clear_rgba: [0.0; 4],
+                    });
+                    let global = CompositionConfig {
+                        generation: 1,
+                        buffer_generation: 1,
+                        display_w: 900.0,
+                        display_h: 500.0,
+                        source_x: whole.source.0,
+                        source_y: whole.source.1,
+                        source_w: whole.source.2,
+                        source_h: whole.source.3,
+                        dest_x: whole.dest.0,
+                        dest_y: whole.dest.1,
+                        dest_w: whole.dest.2,
+                        dest_h: whole.dest.3,
+                        transform: layout.transform(),
+                        clear_rgba: [0.0; 4],
+                    };
+                    for member in members {
+                        let projection =
+                            project_canvas(720, 640, 800, 600, canvas, member, layout, [0.0; 4])
+                                .unwrap();
+                        let local = CompositionConfig {
+                            display_w: 800.0,
+                            display_h: 600.0,
+                            source_x: projection.source.x,
+                            source_y: projection.source.y,
+                            source_w: projection.source.w,
+                            source_h: projection.source.h,
+                            dest_x: projection.dest.x,
+                            dest_y: projection.dest.y,
+                            dest_w: projection.dest.w,
+                            dest_h: projection.dest.h,
+                            transform: projection.transform,
+                            ..global.clone()
+                        };
+                        for (u, v) in [(0.13, 0.27), (0.5, 0.5), (0.87, 0.71)] {
+                            let expected = layout::display_point_to_texture(
+                                (member.x - canvas.x) as f32 + u * member.width as f32,
+                                (member.y - canvas.y) as f32 + v * member.height as f32,
+                                &global,
+                            );
+                            let actual =
+                                layout::display_point_to_texture(u * 800.0, v * 600.0, &local);
+                            match (actual, expected) {
+                                (Some(a), Some(b)) => assert!(
+                                    (a.0 - b.0).abs() < 0.001 && (a.1 - b.1).abs() < 0.001,
+                                    "{layout:?}: {a:?} != {b:?}"
+                                ),
+                                (None, None) => (),
+                                _ => panic!("{layout:?}: {actual:?} != {expected:?}"),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn layout(fillmode: FillMode) -> ResolvedLayout {
         ResolvedLayout {
             fillmode,
             location: Location::default(),
             rotation: Rotation::Normal,
+            flip: Default::default(),
         }
     }
 

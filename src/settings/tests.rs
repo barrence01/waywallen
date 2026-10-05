@@ -1,6 +1,73 @@
 use super::*;
 
 #[test]
+fn flip_defaults_inheritance_and_roundtrip() {
+    let mut settings: Settings = toml::from_str("").unwrap();
+    assert_eq!(settings.global.layout.flip, Flip::None);
+    settings.global.layout.flip = Flip::Horizontal;
+    settings
+        .displays
+        .insert("screen".into(), DisplayPrefs::default());
+    let store = SettingsStore::from_test_settings(settings.clone());
+    assert_eq!(store.resolved_layout("screen").flip, Flip::Horizontal);
+    store.update(|s| s.displays.get_mut("screen").unwrap().flip = Some(Flip::None));
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+    assert!(!store.display_prefs("screen").unwrap().is_empty());
+    store.update(|s| s.displays.get_mut("screen").unwrap().flip = None);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::Horizontal);
+    settings.canvases.insert(
+        "canvas".into(),
+        CanvasPrefs {
+            layout: Some(CanvasLayoutPrefs {
+                flip: Some(Flip::Vertical),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+    let encoded = toml::to_string(&settings).unwrap();
+    let decoded: Settings = toml::from_str(&encoded).unwrap();
+    assert_eq!(decoded, settings);
+    let store = SettingsStore::from_test_settings(decoded);
+    assert_eq!(
+        store
+            .resolved_canvas_layout("canvas", store.resolved_global_layout())
+            .flip,
+        Flip::Vertical
+    );
+    store.update(|s| {
+        s.canvases
+            .get_mut("canvas")
+            .unwrap()
+            .layout
+            .as_mut()
+            .unwrap()
+            .flip = Some(Flip::None)
+    });
+    assert_eq!(
+        store
+            .resolved_canvas_layout("canvas", store.resolved_global_layout())
+            .flip,
+        Flip::None
+    );
+    store.update(|s| {
+        s.canvases
+            .get_mut("canvas")
+            .unwrap()
+            .layout
+            .as_mut()
+            .unwrap()
+            .flip = None
+    });
+    assert_eq!(
+        store
+            .resolved_canvas_layout("canvas", store.resolved_global_layout())
+            .flip,
+        Flip::Horizontal
+    );
+}
+
+#[test]
 fn window_exclusions_normalize_validate_and_roundtrip() {
     let rules: WindowExclusions =
         toml::from_str("application_ids = ['cat', '', 'cat']\ntitles = ['猫']").unwrap();
@@ -394,6 +461,7 @@ fn canvas_runtime_layout_and_scale_to_reconciliation_do_not_change_topology_revi
         fillmode: Some(FillMode::PreserveAspectFit),
         location: Some(Location::new(25, 75)),
         rotation: Some(Rotation::Cw90),
+        flip: Some(Flip::Horizontal),
     };
 
     assert!(store

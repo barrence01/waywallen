@@ -37,6 +37,7 @@ Item {
             locationX: 50,
             locationY: 50,
             rotation: 1,
+            flip: 1,
             locationSet: true
         })
 
@@ -47,7 +48,7 @@ Item {
     function clampPercent(value) {
         return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
     }
-    function applyWallpaperLayout(fillmode, x, y, rotation) {
+    function applyWallpaperLayout(fillmode, x, y, rotation, flip) {
         if (!root.wp)
             return;
         layoutSetQuery.wallpaperId = root.wallpaperId;
@@ -56,6 +57,7 @@ Item {
         layoutSetQuery.locationX = root.clampPercent(x);
         layoutSetQuery.locationY = root.clampPercent(y);
         layoutSetQuery.rotation = rotation;
+        layoutSetQuery.flip = flip === undefined ? (root.wallpaperLayout.flip || 1) : flip;
         layoutSetQuery.reload();
     }
     function resetWallpaperLayout() {
@@ -686,6 +688,8 @@ Item {
                         readonly property var layout: root.wallpaperLayout || ({})
                         readonly property int currentFillmode: Number(layout.fillmode ?? 3)
                         readonly property int currentRotation: Number(layout.rotation ?? 1)
+                        readonly property int currentFlip: Number(layout.flip || 1)
+
                         readonly property int currentX: root.clampPercent(layout.locationX ?? 50)
                         readonly property int currentY: root.clampPercent(layout.locationY ?? 50)
                         readonly property bool locationEnabled: currentFillmode !== 1
@@ -811,6 +815,22 @@ Item {
                                     checked: wallpaperRotationGroup.isChecked(root.kRotationValues[3])
                                     onClicked: wallpaperRotationGroup.applyRotation(root.kRotationValues[3])
                                 }
+                            }
+
+                        }
+
+                        ColumnLayout {
+                            width: Math.min(m_wallpaper_layout_flow.width, implicitWidth)
+                            spacing: 4
+
+                            MD.Text {
+                                text: qsTr("Flip")
+                                typescale: MD.Token.typescale.label_medium
+                                color: MD.Token.color.on_surface_variant
+                            }
+                            W.FlipButtons {
+                                value: m_wallpaper_layout_flow.currentFlip
+                                onSelected: value => root.applyWallpaperLayout(m_wallpaper_layout_flow.currentFillmode, m_wallpaper_layout_flow.currentX, m_wallpaper_layout_flow.currentY, m_wallpaper_layout_flow.currentRotation, value)
                             }
                         }
                     }

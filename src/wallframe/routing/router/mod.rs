@@ -827,6 +827,7 @@ impl Router {
                 fillmode: FillMode::default(),
                 location: Default::default(),
                 rotation: Default::default(),
+                flip: Default::default(),
             };
         };
         if let Some(iid) = info.instance_id.as_deref() {
@@ -844,6 +845,7 @@ impl Router {
             fillmode: FillMode::default(),
             location: Default::default(),
             rotation: Default::default(),
+            flip: Default::default(),
         }
     }
 
@@ -875,6 +877,7 @@ impl Router {
                 || p.location.is_some()
                 || p.align.is_some()
                 || p.rotation.is_some()
+                || p.flip.is_some()
         }) {
             LayoutSource::Display
         } else {
@@ -936,8 +939,12 @@ impl Router {
             let key = Self::settings_key_for(info);
             match (extent, canvas.members.get(key)) {
                 (Some(extent), Some(member)) => {
-                    let inherited = Self::canvas_layout_for_link(&link)
-                        .unwrap_or_else(|| settings.resolved_global_layout());
+                    let inherited = inner
+                        .wallpaper_layout_overrides
+                        .get(&link.renderer_id)
+                        .copied()
+                        .unwrap_or_default()
+                        .apply_to(settings.resolved_global_layout());
                     let layout = settings.resolved_canvas_layout(canvas_id, inherited);
                     inner.table.update_canvas_projection(
                         link.id,
@@ -1083,6 +1090,8 @@ impl Router {
         clear_fillmode: bool,
         clear_align: bool,
         clear_rotation: bool,
+        new_flip: Option<crate::wallframe::display::layout::Flip>,
+        clear_flip: bool,
     ) -> Option<DisplayId> {
         let Some(settings) = self.settings.get().cloned() else {
             log::warn!(
@@ -1124,6 +1133,11 @@ impl Router {
             if let Some(v) = new_rotation {
                 entry.rotation = Some(v);
             }
+            if clear_flip {
+                entry.flip = None;
+            } else if let Some(v) = new_flip {
+                entry.flip = Some(v);
+            }
             // Prune empty entry to keep the on-disk file tidy.
             if entry.is_empty() {
                 s.displays.remove(&key);
@@ -1145,6 +1159,8 @@ impl Router {
         clear_fillmode: bool,
         clear_location: bool,
         clear_rotation: bool,
+        new_flip: Option<crate::wallframe::display::layout::Flip>,
+        clear_flip: bool,
     ) -> crate::error::Result<()> {
         let settings = self.settings.get().ok_or_else(|| {
             crate::error::Error::FailedPrecondition("settings are not attached".to_string())
@@ -1171,6 +1187,11 @@ impl Router {
         }
         if let Some(rotation) = new_rotation {
             layout.rotation = Some(rotation);
+        }
+        if clear_flip {
+            layout.flip = None;
+        } else if let Some(flip) = new_flip {
+            layout.flip = Some(flip);
         }
         let layout = (!layout.is_empty()).then_some(layout);
         if settings.set_canvas_layout(canvas_id, layout)? {
@@ -1303,7 +1324,16 @@ impl Router {
     /// the control surface after global layout settings change.
     pub async fn resync_all_compositions(self: &Arc<Self>) {
         let ids: Vec<DisplayId> = {
-            let inner = self.inner.lock().await;
+            let mut inner = self.inner.lock().await;
+            let canvas_ids = inner
+                .table
+                .all_links()
+                .iter()
+                .filter_map(Self::canvas_id_for_link)
+                .collect::<HashSet<_>>();
+            for canvas_id in canvas_ids {
+                self.refresh_canvas_locked(&mut inner, &canvas_id);
+            }
             inner.displays.keys().copied().collect()
         };
         self.resync_display_compositions(ids).await;
@@ -1656,6 +1686,9 @@ impl Router {
         if !display_ids.is_empty() {
             let all = self.snapshot_displays().await;
             self.emit(RouterEvent::DisplaysReplace(all));
+            if self.settings.get().is_some() {
+                self.publish_canvas_snapshot().await;
+            }
         }
         true
     }
@@ -3178,6 +3211,7 @@ impl Router {
         let revision = settings.canvas_revision();
         let inner = self.inner.lock().await;
         let inherited = settings.resolved_global_layout();
+        let links = inner.table.all_links();
         let mut snapshots = canvases
             .into_iter()
             .map(|(canvas_id, canvas)| {
@@ -3214,7 +3248,17 @@ impl Router {
                     ),
                     members,
                     layout_override: canvas.layout,
-                    effective_layout: settings.resolved_canvas_layout(&canvas_id, inherited),
+                    effective_layout: links
+                        .iter()
+                        .find_map(|link| match &link.projection {
+                            LinkProjection::Canvas {
+                                canvas_id: id,
+                                layout,
+                                ..
+                            } if id == &canvas_id => Some(*layout),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| settings.resolved_canvas_layout(&canvas_id, inherited)),
                     wallpaper_id: canvas.last_wallpaper,
                     revision,
                 }
@@ -4915,6 +4959,8 @@ mod tests {
                 false,
                 false,
                 false,
+                Some(crate::wallframe::display::layout::Flip::Horizontal),
+                false,
             )
             .await
             .unwrap();
@@ -4928,9 +4974,58 @@ mod tests {
                 fillmode: Some(FillMode::PreserveAspectFit),
                 location: Some(crate::wallframe::display::layout::Location::new(25, 75)),
                 rotation: Some(crate::wallframe::display::layout::Rotation::Cw90),
+                flip: Some(crate::wallframe::display::layout::Flip::Horizontal),
             })
         );
         assert_eq!(settings.canvas_revision(), receipt.revision);
+
+        router
+            .set_canvas_layout(
+                &receipt.canvas_id,
+                None,
+                None,
+                None,
+                false,
+                false,
+                false,
+                None,
+                true,
+            )
+            .await
+            .unwrap();
+        let canvas = settings.canvas(&receipt.canvas_id).unwrap();
+        let layout = canvas.layout.unwrap();
+        assert_eq!(layout.flip, None);
+        assert_eq!(
+            layout.rotation,
+            Some(crate::wallframe::display::layout::Rotation::Cw90)
+        );
+        assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 1);
+        assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 1);
+
+        settings
+            .update(|s| s.global.layout.flip = crate::wallframe::display::layout::Flip::Vertical);
+        router.resync_all_compositions().await;
+        assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 7);
+        assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 7);
+
+        router
+            .set_renderer_wallpaper_layout_override(
+                "canvas-renderer",
+                WallpaperLayoutOverride {
+                    flip: Some(crate::wallframe::display::layout::Flip::Both),
+                    ..Default::default()
+                },
+            )
+            .await;
+        assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 3);
+        assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 3);
+        assert_eq!(
+            router.snapshot_canvases().await.canvases[0]
+                .effective_layout
+                .flip,
+            crate::wallframe::display::layout::Flip::Both
+        );
     }
 
     #[tokio::test]
@@ -5141,6 +5236,8 @@ mod tests {
                 false,
                 false,
                 false,
+                None,
+                false,
             )
             .await;
 
@@ -5155,6 +5252,74 @@ mod tests {
         );
         assert!(snap.displays.get("iid-1").is_none());
         assert!(snap.displays.get("KDE Screen").is_none());
+    }
+
+    #[tokio::test]
+    async fn display_flip_override_and_reset_update_composition() {
+        use crate::wallframe::display::layout::{Flip, Rotation};
+
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr.clone());
+        let settings = test_settings_store().await;
+        settings.update(|s| s.global.layout.flip = Flip::Horizontal);
+        router.attach_settings(settings.clone());
+        let renderer = RendererHandle::test_stub("r1", "scene");
+        renderer.test_publish_pool(fake_published_pool(1, 1920, 1080));
+        mgr.register_test_handle(renderer.clone()).await;
+        router.register_renderer(renderer).await;
+        let mut display = router
+            .register_display(reg_iid("Screen", "flip-display"))
+            .await;
+        assert_eq!(
+            last_composition_config(&mut display.rx).unwrap().transform,
+            4
+        );
+
+        router
+            .set_display_layout(
+                Some(display.id),
+                "Screen".into(),
+                None,
+                None,
+                None,
+                Some(Rotation::Cw90),
+                false,
+                false,
+                false,
+                Some(Flip::None),
+                false,
+            )
+            .await;
+        assert_eq!(
+            last_composition_config(&mut display.rx).unwrap().transform,
+            1
+        );
+        assert_eq!(settings.resolved_layout("flip-display").flip, Flip::None);
+
+        router
+            .set_display_layout(
+                Some(display.id),
+                "Screen".into(),
+                None,
+                None,
+                None,
+                None,
+                false,
+                false,
+                false,
+                None,
+                true,
+            )
+            .await;
+        assert_eq!(
+            last_composition_config(&mut display.rx).unwrap().transform,
+            5
+        );
+        assert_eq!(
+            settings.resolved_layout("flip-display").flip,
+            Flip::Horizontal
+        );
+        assert_eq!(settings.snapshot().displays["flip-display"].flip, None);
     }
 
     #[tokio::test]
@@ -5876,6 +6041,7 @@ mod tests {
             fillmode: FillMode::PreserveAspectFit,
             location: Default::default(),
             rotation: Default::default(),
+            flip: Default::default(),
         };
         let cfg = project_link(&link, &pool, &info, 1, 7, &layout);
         assert_eq!((cfg.display_w, cfg.display_h), (1280.0, 720.0));
@@ -5900,6 +6066,7 @@ mod tests {
             fillmode: FillMode::PreserveAspectFit,
             location: Default::default(),
             rotation: Default::default(),
+            flip: Default::default(),
         };
         link.projection = LinkProjection::Canvas {
             canvas_id: "canvas".into(),
