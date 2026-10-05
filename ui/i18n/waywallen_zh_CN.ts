@@ -882,6 +882,10 @@
 <context>
     <name>PlaylistListSheet</name>
     <message>
+        <source>Hidden wallpapers</source>
+        <translation>隐藏的壁纸</translation>
+    </message>
+    <message>
         <location filename="../qml/page/wallpaper/PlaylistListSheet.qml" line="22"/>
         <source>Create playlist</source>
         <translation>创建播放列表</translation>
@@ -3136,6 +3140,41 @@ Unsaved frame state may be lost.</source>
     <message>
         <source>Both</source>
         <translation>双向</translation>
+    </message>
+</context>
+<context>
+    <name>HiddenWallpapersPage</name>
+    <message>
+        <source>Hidden wallpapers</source>
+        <translation>隐藏的壁纸</translation>
+    </message>
+    <message>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <source>Unhidden</source>
+        <translation>已取消隐藏</translation>
+    </message>
+    <message>
+        <source>Unhide failed</source>
+        <translation>取消隐藏失败</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>未命名</translation>
+    </message>
+    <message>
+        <source>Unhide</source>
+        <translation>取消隐藏</translation>
+    </message>
+    <message>
+        <source>No hidden wallpapers</source>
+        <translation>没有隐藏的壁纸</translation>
+    </message>
+    <message>
+        <source>Failed to load hidden wallpapers</source>
+        <translation>加载隐藏壁纸失败</translation>
     </message>
 </context>
 </TS>

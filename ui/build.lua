@@ -79,6 +79,7 @@ qt.qml_module({
     "qml/dialog/DaemonLogDialog.qml",
     "qml/page/WallpaperPage.qml",
     "qml/page/PlaylistEditPage.qml",
+    "qml/page/HiddenWallpapersPage.qml",
     "qml/page/WallpaperDetailPanel.qml",
     "qml/page/DiscoverState.qml",
     "qml/page/RemoteDetailPanel.qml",

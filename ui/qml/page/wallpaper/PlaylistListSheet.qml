@@ -9,12 +9,21 @@ MD.BottomSheet {
 
     required property Item popupParent
     required property var sheetState
+    signal hiddenWallpapersRequested
 
     parent: popupParent
     z: 30
     sheetType: MD.Enum.BottomSheetModal
     dismissOnDragDown: true
     maxSheetWidth: 560
+
+    MD.Action {
+        id: hiddenWallpapersAction
+        text: qsTr("Hidden wallpapers")
+        icon.name: MD.Token.icon.visibility_off
+        displayHint: MD.ToolBarLayout.KeepVisible
+        onTriggered: control.hiddenWallpapersRequested()
+    }
 
     MD.Action {
         id: createPlaylistAction
@@ -56,9 +65,13 @@ MD.BottomSheet {
 
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                actions: [createPlaylistAction]
+                actions: [hiddenWallpapersAction, createPlaylistAction]
                 iconDelegate: MD.BusyIconButton {
+                    id: actionButton
                     action: MD.ToolBarLayout.action
+                    hoverEnabled: true
+                    MD.ToolTip.text: actionButton.action?.text || ""
+                    MD.ToolTip.visible: actionButton.hovered && !actionButton.pressed
                 }
             }
         }

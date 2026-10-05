@@ -599,7 +599,11 @@ MD.Page {
     property double playlistEditorId: 0
     property bool playlistEditorReturnsToList: true
     property var filterPresentation: null
+    property var hiddenWallpapersPresentation: null
+    property bool hiddenWallpapersReturnToList: true
     Component.onDestruction: {
+        root.hiddenWallpapersReturnToList = false;
+        root.hiddenWallpapersPresentation?.cancel();
         root.filterPresentation?.cancel();
         root.playlistEditorReturnsToList = false;
         root.playlistEditorPresentation?.cancel();
@@ -776,6 +780,23 @@ MD.Page {
             root.wallpaperTweakSheet.close();
         playlistListQuery.reload();
         root.ensurePlaylistListSheet();
+    }
+
+    function openHiddenWallpapers() {
+        if (root.hiddenWallpapersPresentation?.active)
+            return;
+        root.playlistListSheet?.close();
+        const presentation = root.Window.window.presentPopup('waywallen.ui/PagePopup', {
+            source: 'waywallen.ui/HiddenWallpapersPage'
+        });
+        root.hiddenWallpapersPresentation = presentation;
+        presentation.activeChanged.connect(presentation, function () {
+            if (presentation.active || root.hiddenWallpapersPresentation !== presentation)
+                return;
+            root.hiddenWallpapersPresentation = null;
+            if (root.hiddenWallpapersReturnToList)
+                root.showPlaylistListSheet();
+        });
     }
 
     function releasePlaylistEditor(presentation) {
@@ -1319,6 +1340,7 @@ MD.Page {
         W.PlaylistListSheet {
             popupParent: root
             sheetState: playlistListSheetState
+            onHiddenWallpapersRequested: root.openHiddenWallpapers()
         }
     }
 
