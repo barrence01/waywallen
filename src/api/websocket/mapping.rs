@@ -1205,6 +1205,10 @@ pub(super) async fn playlist_changed_event(state: &Arc<DaemonContext>) -> pb::Ev
 /// into wire events. Returns `None` for daemon-internal events.
 pub(super) fn global_event_to_pb(e: &GlobalEvent, state: &Arc<DaemonContext>) -> Option<pb::Event> {
     match e {
+        GlobalEvent::WallpaperHiddenChanged {
+            wallpaper_ids,
+            hidden,
+        } => Some(wallpaper_hidden_changed_event(wallpaper_ids, *hidden)),
         GlobalEvent::SyncFinished { count } => Some(pb::Event {
             payload: Some(pb::event::Payload::WallpaperSyncFinished(
                 pb::WallpaperSyncFinished {
@@ -1352,10 +1356,36 @@ pub(super) fn global_event_to_pb(e: &GlobalEvent, state: &Arc<DaemonContext>) ->
 // ---------------------------------------------------------------------------
 // Dispatch
 
+fn wallpaper_hidden_changed_event(wallpaper_ids: &[String], hidden: bool) -> pb::Event {
+    pb::Event {
+        payload: Some(pb::event::Payload::WallpaperHiddenChanged(
+            pb::WallpaperHiddenChanged {
+                wallpaper_ids: wallpaper_ids.to_vec(),
+                hidden,
+            },
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn wallpaper_hidden_event_roundtrip() {
+        use prost::Message;
+        let ids = vec!["42".to_owned(), "99".to_owned()];
+        for hidden in [false, true] {
+            let event = wallpaper_hidden_changed_event(&ids, hidden);
+            let decoded = pb::Event::decode(event.encode_to_vec().as_slice()).unwrap();
+            let Some(pb::event::Payload::WallpaperHiddenChanged(changed)) = decoded.payload else {
+                panic!("missing hidden event");
+            };
+            assert_eq!(changed.wallpaper_ids, ids);
+            assert_eq!(changed.hidden, hidden);
+        }
+    }
 
     #[test]
     fn flip_protobuf_roundtrip() {

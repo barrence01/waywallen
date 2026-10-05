@@ -48,6 +48,10 @@ pub enum GlobalEvent {
     /// The persisted settings table just changed (either via
     /// `SettingsSet` RPC or startup reconciliation).
     SettingsChanged,
+    WallpaperHiddenChanged {
+        wallpaper_ids: Vec<String>,
+        hidden: bool,
+    },
     /// External display client failed the UDS handshake because of
     /// malformed or unsupported protocol data.
     DisplayConnectionFailed {

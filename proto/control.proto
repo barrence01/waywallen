@@ -661,7 +661,13 @@ message WallpaperHideRequest {
   bool hidden = 3;
 }
 message WallpaperHideResponse {
+  // Number of items whose hidden flag actually changed.
   uint32 updated_count = 1;
+}
+
+message WallpaperHiddenChanged {
+  repeated string wallpaper_ids = 1;
+  bool hidden = 2;
 }
 
 message WallpaperScanRequest {}
@@ -1424,6 +1430,7 @@ message Event {
     Empty                  plugin_state_changed      = 24;
     CanvasSnapshot         canvas_snapshot           = 25;
     WallpaperPresentationSnapshot wallpaper_presentation_snapshot = 26;
+    WallpaperHiddenChanged wallpaper_hidden_changed = 27;
   }
 }
 

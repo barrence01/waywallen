@@ -33,6 +33,9 @@ public:
 
     auto removableSelectedCount() const -> qint32;
     auto hiddenSelectedCount() const -> qint32;
+
+private:
+    QMetaObject::Connection m_hidden_data_connection;
 };
 
 export class PlaylistItemSelectStorage : public WallpaperSelectStorage {

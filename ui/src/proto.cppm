@@ -64,6 +64,7 @@ using proto::WallpaperApplyViaPortalResponse;
 using proto::WallpaperEntry;
 using proto::WallpaperGetRequest;
 using proto::WallpaperGetResponse;
+using proto::WallpaperHiddenChanged;
 using proto::WallpaperHideRequest;
 using proto::WallpaperHideResponse;
 using proto::WallpaperLayoutSetRequest;

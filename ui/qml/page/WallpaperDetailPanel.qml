@@ -229,9 +229,7 @@ Item {
     Connections {
         target: hideQuery
         function onUpdated(wallpaperIds, hidden, updatedCount) {
-            wallpaperGetQuery.reload();
             W.Action.toast(hidden ? qsTr("Hidden") : qsTr("Unhidden"));
-            root.hiddenChanged(hidden);
         }
         function onStatusChanged() {
             if (hideQuery.status === 3) {
@@ -243,6 +241,16 @@ Item {
 
     W.WallpaperPropertySetQuery {
         id: setQuery
+    }
+
+    Connections {
+        target: W.Notify
+        function onWallpaperHiddenChanged(wallpaperIds, hidden) {
+            if (!root.wallpaperId || wallpaperIds.indexOf(root.wallpaperId) < 0)
+                return;
+            wallpaperGetQuery.reload();
+            root.hiddenChanged(hidden);
+        }
     }
 
     W.WallpaperLayoutSetQuery {

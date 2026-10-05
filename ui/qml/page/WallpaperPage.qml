@@ -50,7 +50,6 @@ MD.Page {
         id: selectionHideQuery
         forwardError: false
         onUpdated: function (wallpaperIds, hidden, updatedCount) {
-            wallpaperQuery.reload();
             root.clearWallpaperSelection();
             W.Action.toast(hidden ? qsTr("Hidden %1").arg(updatedCount) : qsTr("Unhidden %1").arg(updatedCount));
         }
@@ -225,6 +224,9 @@ MD.Page {
             } else {
                 W.Action.toast(qsTr("Scanned %n wallpaper(s)", "", count));
             }
+            wallpaperQuery.reload();
+        }
+        function onWallpaperHiddenChanged(wallpaperIds, hidden) {
             wallpaperQuery.reload();
         }
         function onDaemonReady() {
@@ -483,11 +485,12 @@ MD.Page {
                 });
             }
             hiddenFilter: wallpaperQuery.hiddenFilter
-            onCycleHiddenFilter: function () {
-                const next = (Number(wallpaperQuery.hiddenFilter) + 1) % 3;
-                wallpaperQuery.hiddenFilter = next;
+            onHiddenFilterSelected: function (value) {
+                if (wallpaperQuery.hiddenFilter === value)
+                    return;
+                wallpaperQuery.hiddenFilter = value;
                 root._persistGlobalChange(g => {
-                    g.wallpaperHiddenFilter = next;
+                    g.wallpaperHiddenFilter = value;
                 });
             }
         }
@@ -1010,7 +1013,6 @@ MD.Page {
             detailPresenter.dismiss();
         }
         onHiddenChanged: function (hidden) {
-            wallpaperQuery.reload();
             const filter = wallpaperQuery.hiddenFilter;
             if ((hidden && filter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE) || (!hidden && filter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_ONLY))
                 back();

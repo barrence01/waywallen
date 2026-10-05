@@ -25,6 +25,15 @@ WallpaperSelectStorage::WallpaperSelectStorage(QObject* parent): SelectStorage(p
             &SelectStorage::modelChanged,
             this,
             &WallpaperSelectStorage::selectedHiddenCountChanged);
+    connect(this, &SelectStorage::modelChanged, this, [this] {
+        disconnect(m_hidden_data_connection);
+        if (auto* source = qobject_cast<QAbstractItemModel*>(model())) {
+            m_hidden_data_connection = connect(source,
+                                               &QAbstractItemModel::dataChanged,
+                                               this,
+                                               &WallpaperSelectStorage::selectedHiddenCountChanged);
+        }
+    });
 }
 
 WallpaperSelectStorage::~WallpaperSelectStorage() = default;

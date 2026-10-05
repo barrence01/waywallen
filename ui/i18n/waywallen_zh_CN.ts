@@ -2707,6 +2707,22 @@ Unsaved frame state may be lost.</source>
 <context>
     <name>WallpaperFilterDialog</name>
     <message>
+        <source>Visibility</source>
+        <translation>可见性</translation>
+    </message>
+    <message>
+        <source>Not hidden</source>
+        <translation>未隐藏</translation>
+    </message>
+    <message>
+        <source>Hidden only</source>
+        <translation>仅隐藏</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
+    <message>
         <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="11"/>
         <source>Filters</source>
         <translation>筛选</translation>

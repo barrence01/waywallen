@@ -714,8 +714,6 @@ pub(super) async fn dispatch_inner(
                     .into_iter()
                     .filter(|id| !id.trim().is_empty()),
             );
-            wallpaper_ids.sort();
-            wallpaper_ids.dedup();
             if wallpaper_ids.is_empty() {
                 return Err(Error::InvalidArgument("wallpaper_id is required".into()));
             }
@@ -725,14 +723,16 @@ pub(super) async fn dispatch_inner(
                 let item_id = wallpaper_id
                     .parse::<i64>()
                     .map_err(|_| Error::WallpaperNotFound(wallpaper_id.clone()))?;
-                let entry = repo::get_entry(&state.db, item_id)
-                    .await?
-                    .ok_or_else(|| Error::WallpaperNotFound(wallpaper_id.clone()))?;
-                item_ids.push(entry.item_id);
+                item_ids.push(item_id);
             }
-            item_ids.sort_unstable();
-            item_ids.dedup();
-            let updated_count = repo::set_items_hidden(&state.db, &item_ids, r.hidden).await?;
+            let changed = repo::set_items_hidden(&state.db, &item_ids, r.hidden).await?;
+            let updated_count = changed.len() as u32;
+            if !changed.is_empty() {
+                state.events.publish(GlobalEvent::WallpaperHiddenChanged {
+                    wallpaper_ids: changed.into_iter().map(|id| id.to_string()).collect(),
+                    hidden: r.hidden,
+                });
+            }
             Res::WallpaperHide(pb::WallpaperHideResponse { updated_count })
         }
 

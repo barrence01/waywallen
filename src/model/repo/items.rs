@@ -659,22 +659,51 @@ pub async fn update_item_media<C: ConnectionTrait>(
     Ok(ItemWriteOutcome { changed })
 }
 
-/// Sets the library-browser hidden flag for the given item ids.
+/// Validates all ids and returns the ids whose hidden flag changed after commit.
 pub async fn set_items_hidden(
     db: &DatabaseConnection,
     item_ids: &[i64],
     hidden: bool,
-) -> Result<u32> {
+) -> Result<Vec<i64>> {
     if item_ids.is_empty() {
-        return Ok(0);
+        return Ok(Vec::new());
+    }
+    let mut ids = item_ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    let txn = db.begin().await.context("begin item hidden update")?;
+    let mut changed = Vec::new();
+    // Bound SQL parameters for SQLite builds with a low variable limit.
+    for chunk in ids.chunks(500) {
+        let rows: HashMap<i64, bool> = item::Entity::find()
+            .select_only()
+            .columns([item::Column::Id, item::Column::Hidden])
+            .filter(item::Column::Id.is_in(chunk.iter().copied()))
+            .into_tuple::<(i64, bool)>()
+            .all(&txn)
+            .await
+            .context("select item hidden flags")?
+            .into_iter()
+            .collect();
+        for id in chunk {
+            let current = rows
+                .get(id)
+                .ok_or_else(|| Error::WallpaperNotFound(id.to_string()))?;
+            if *current != hidden {
+                changed.push(*id);
+            }
+        }
     }
     let now = now_ms();
-    let result = item::Entity::update_many()
-        .col_expr(item::Column::Hidden, Expr::value(hidden))
-        .col_expr(item::Column::UpdateAt, Expr::value(now))
-        .filter(item::Column::Id.is_in(item_ids.iter().copied()))
-        .exec(db)
-        .await
-        .context("update item hidden flags")?;
-    Ok(result.rows_affected as u32)
+    for chunk in changed.chunks(500) {
+        item::Entity::update_many()
+            .col_expr(item::Column::Hidden, Expr::value(hidden))
+            .col_expr(item::Column::UpdateAt, Expr::value(now))
+            .filter(item::Column::Id.is_in(chunk.iter().copied()))
+            .exec(&txn)
+            .await
+            .context("update item hidden flags")?;
+    }
+    txn.commit().await.context("commit item hidden update")?;
+    Ok(changed)
 }
