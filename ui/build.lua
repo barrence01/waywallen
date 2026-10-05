@@ -294,6 +294,11 @@ qt.qml_module({
       output = "waywallen/thumb/service",
     },
     {
+      source = "src/update_checker.cppm",
+      mode = "module-split",
+      output = "waywallen/update_checker",
+    },
+    {
       source = "include/waywallen/register/qml_register.hpp",
       mode = "separate",
       output = "waywallen/register/moc_qml_register.cpp",

@@ -9,6 +9,31 @@
         <translation>Версия %1</translation>
     </message>
     <message>
+        <location filename="../qml/page/AboutPage.qml" line="58"/>
+        <source>Checking for updates…</source>
+        <translation>Проверка обновлений…</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="61"/>
+        <source>You have the latest version</source>
+        <translation>У вас последняя версия</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="63"/>
+        <source>Could not check for updates</source>
+        <translation>Не удалось проверить обновления</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="65"/>
+        <source>Check for updates</source>
+        <translation>Проверить обновления</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="75"/>
+        <source>Version %1 is available</source>
+        <translation>Доступна версия %1</translation>
+    </message>
+    <message>
         <location filename="../qml/page/AboutPage.qml" line="57"/>
         <source>Wallpaper Manager for Linux</source>
         <translation>Менеджер обоев для Linux</translation>
@@ -1814,6 +1839,16 @@ Related display: #%1</source>
         <translation>Закрывать интерфейс при завершении демона. Отключите, чтобы оставить его открытым для повторного подключения.</translation>
     </message>
     <message>
+        <location filename="../qml/page/SettingsPage.qml" line="865"/>
+        <source>Check for updates</source>
+        <translation>Проверять обновления</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="868"/>
+        <source>Look for a new release on GitHub once a day and mark the app icon when one is available.</source>
+        <translation>Раз в день искать новый выпуск на GitHub и отмечать значок приложения, когда он выйдет.</translation>
+    </message>
+    <message>
         <location filename="../qml/page/SettingsPage.qml" line="681"/>
         <source>Start at login</source>
         <translation>Запускать при входе в систему</translation>
@@ -3007,6 +3042,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/Window.qml" line="311"/>
         <source>About</source>
         <translation>О программе</translation>
+    </message>
+    <message>
+        <location filename="../qml/Window.qml" line="288"/>
+        <source>Version %1 is available</source>
+        <translation>Доступна версия %1</translation>
     </message>
 </context>
 <context>

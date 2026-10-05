@@ -9,6 +9,31 @@
         <translation>版本 %1</translation>
     </message>
     <message>
+        <location filename="../qml/page/AboutPage.qml" line="58"/>
+        <source>Checking for updates…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="61"/>
+        <source>You have the latest version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="63"/>
+        <source>Could not check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="65"/>
+        <source>Check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="75"/>
+        <source>Version %1 is available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/AboutPage.qml" line="57"/>
         <source>Wallpaper Manager for Linux</source>
         <translation>Linux 壁纸管理器</translation>
@@ -1822,6 +1847,16 @@ Related display: #%1</source>
         <translation>守护进程关闭时退出 UI。禁用后 UI 将保持打开并等待重新连接。</translation>
     </message>
     <message>
+        <location filename="../qml/page/SettingsPage.qml" line="865"/>
+        <source>Check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="868"/>
+        <source>Look for a new release on GitHub once a day and mark the app icon when one is available.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/SettingsPage.qml" line="681"/>
         <source>Start at login</source>
         <translation>登录时启动</translation>
@@ -3006,6 +3041,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/Window.qml" line="311"/>
         <source>About</source>
         <translation>关于</translation>
+    </message>
+    <message>
+        <location filename="../qml/Window.qml" line="288"/>
+        <source>Version %1 is available</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

@@ -25,6 +25,7 @@ MD.ApplicationWindow {
 
     readonly property alias popupPresenter: m_popup_presenter
     property var changelogPresentation: null
+    property var aboutPresentation: null
 
     function presentPopup(source, properties) {
         const presentation = m_popup_presenter.present(source, properties || {});
@@ -42,6 +43,14 @@ MD.ApplicationWindow {
         changelogPresentation = presentPopup(changelogDialogComponent, {
             source: "qrc:/waywallen/ui/assets/waywallen-ui.releases.xml",
             title: qsTr("Changelog")
+        });
+    }
+
+    function showAbout() {
+        if (aboutPresentation?.active)
+            return;
+        aboutPresentation = presentPopup('waywallen.ui/PagePopup', {
+            source: 'waywallen.ui/AboutPage'
         });
     }
 
@@ -152,7 +161,10 @@ MD.ApplicationWindow {
             Qt.callLater(win.showChangelog);
     }
 
-    Component.onDestruction: changelogPresentation?.cancel()
+    Component.onDestruction: {
+        changelogPresentation?.cancel();
+        aboutPresentation?.cancel();
+    }
 
     MD.SnakeView {
         id: m_snake
@@ -254,6 +266,26 @@ MD.ApplicationWindow {
                             fillMode: Image.PreserveAspectFit
                             sourceSize.width: 64
                             sourceSize.height: 64
+
+                            readonly property bool updateAvailable: W.UpdateChecker.enabled && W.UpdateChecker.updateAvailable
+
+                            MD.Badge {
+                                dot: true
+                                visible: m_logo.updateAvailable
+                            }
+
+                            MouseArea {
+                                id: m_logo_area
+                                anchors.fill: parent
+                                enabled: m_logo.updateAvailable
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: win.showAbout()
+                            }
+
+                            MD.ToolTip.visible: m_logo_area.containsMouse && m_logo.updateAvailable
+                            MD.ToolTip.delay: 300
+                            MD.ToolTip.text: qsTr("Version %1 is available").arg(W.UpdateChecker.latestVersion)
                         }
 
                         MD.Label {
@@ -342,14 +374,7 @@ MD.ApplicationWindow {
                             text: qsTr("About")
                             height: implicitHeight * m_rail.expansionProgress
                             enabled: m_rail.expansionProgress === 1
-                            property var presentation: null
-                            onClicked: {
-                                if (presentation?.active)
-                                    return;
-                                presentation = win.presentPopup('waywallen.ui/PagePopup', {
-                                    source: 'waywallen.ui/AboutPage'
-                                });
-                            }
+                            onClicked: win.showAbout()
                         }
                     }
                 }
