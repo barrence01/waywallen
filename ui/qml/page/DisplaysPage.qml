@@ -17,10 +17,11 @@ MD.Page {
     readonly property real canvasPaddingPx: 8
     readonly property real canvasSnapPx: 12
 
-    property string selectedKind: ""
-    property var selectedId: null
+    property var selection: null
+    readonly property string selectedKind: selection?.kind || ""
+    readonly property var selectedId: selection?.id ?? null
     property string pendingCanvasId: ""
-    readonly property bool detailsVisible: !!root.selectedDisplayObject || !!root.selectedCanvasObject
+    readonly property bool detailsVisible: !!root.selected
     property bool detailsExpanded: false
     onDetailsVisibleChanged: {
         if (!detailsVisible)
@@ -231,8 +232,7 @@ MD.Page {
             if (root.selectedKind !== "canvas" || root.selectedId !== canvasId)
                 return;
             canvasEditor.clear();
-            root.selectedKind = "";
-            root.selectedId = null;
+            root.selection = null;
         }
     }
 
@@ -247,12 +247,11 @@ MD.Page {
             root.openPendingCanvas();
             if (root.selectedKind !== "canvas")
                 return;
-            const selected = root.findSelectedCanvas();
+            const selected = W.App.displayManager.getCanvas(String(root.selectedId));
             if (!selected) {
                 canvasDialog.close();
                 canvasEditor.clear();
-                root.selectedKind = "";
-                root.selectedId = null;
+                root.selection = null;
             } else if (!canvasEditor.dirty) {
                 canvasEditor.begin(selected);
             } else {
@@ -467,22 +466,6 @@ MD.Page {
     readonly property real boundsX: targets.length > 0 ? targets.reduce((value, item) => Math.min(value, item.x), targets[0].x) : 0
     readonly property real boundsY: targets.length > 0 ? targets.reduce((value, item) => Math.min(value, item.y), targets[0].y) : 0
 
-    function findSelectedDisplay() {
-        if (root.selectedKind !== "display" || root.selectedId === null)
-            return null;
-        for (const d of W.App.displayManager.displays || []) {
-            if (d.id === root.selectedId)
-                return d;
-        }
-        return null;
-    }
-
-    function findSelectedCanvas() {
-        if (root.selectedKind !== "canvas" || root.selectedId === null)
-            return null;
-        return W.App.displayManager.getCanvas(String(root.selectedId));
-    }
-
     function canChangeSelection(kind, id) {
         return !canvasEditor.dirty || (root.selectedKind === kind && root.selectedId === id);
     }
@@ -495,8 +478,10 @@ MD.Page {
             return;
         }
         canvasEditor.clear();
-        root.selectedKind = "display";
-        root.selectedId = displayObject.id;
+        root.selection = {
+            kind: "display",
+            id: displayObject.id
+        };
         root.detailsExpanded = true;
     }
 
@@ -504,8 +489,10 @@ MD.Page {
         if (!canvasObject || !root.canChangeSelection("canvas", canvasObject.id))
             return;
         if (root.selectedKind !== "canvas" || root.selectedId !== canvasObject.id) {
-            root.selectedKind = "canvas";
-            root.selectedId = canvasObject.id;
+            root.selection = {
+                kind: "canvas",
+                id: canvasObject.id
+            };
             canvasEditor.begin(canvasObject);
         }
         root.detailsExpanded = true;
@@ -521,8 +508,7 @@ MD.Page {
         if (root.detailsExpanded || canvasEditor.dirty)
             return;
         canvasEditor.clear();
-        root.selectedKind = "";
-        root.selectedId = null;
+        root.selection = null;
     }
 
     function applyCanvasDraft() {
@@ -552,9 +538,15 @@ MD.Page {
         };
     }
 
-    readonly property var selectedDisplayObject: findSelectedDisplay()
-    readonly property var selectedCanvasObject: findSelectedCanvas()
-    readonly property var selected: selectedDisplayObject || selectedCanvasObject
+    readonly property var selected: {
+        const key = root.selection;
+        if (!key)
+            return null;
+        const objects = key.kind === "canvas" ? W.App.displayManager.canvases : W.App.displayManager.displays;
+        return (objects || []).find(object => object.id === key.id) || null;
+    }
+    readonly property var selectedDisplayObject: selectedKind === "display" ? selected : null
+    readonly property var selectedCanvasObject: selectedKind === "canvas" ? selected : null
 
     MD.SplitView {
         id: pageContent
