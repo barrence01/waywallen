@@ -29,17 +29,29 @@ QtObject {
         restored = true;
     }
 
+    function saveNormalSize() {
+        if (!restored || window.visibility !== Window.Windowed)
+            return;
+        if (window.width > 0)
+            storedWindow.width = window.width;
+        if (window.height > 0)
+            storedWindow.height = window.height;
+    }
+
     readonly property Connections windowConnections: Connections {
         target: root.window
 
         function onWidthChanged() {
-            if (root.restored && root.window.visibility === Window.Windowed && root.window.width > 0)
-                storedWindow.width = root.window.width;
+            // Wayland can deliver maximized geometry before the window state.
+            Qt.callLater(root.saveNormalSize);
         }
 
         function onHeightChanged() {
-            if (root.restored && root.window.visibility === Window.Windowed && root.window.height > 0)
-                storedWindow.height = root.window.height;
+            Qt.callLater(root.saveNormalSize);
+        }
+
+        function onClosing() {
+            root.saveNormalSize();
         }
 
         function onVisibilityChanged() {

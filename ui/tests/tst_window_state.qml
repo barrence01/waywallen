@@ -75,6 +75,31 @@ TestCase {
         tryCompare(win.savedState.settings, "height", 500);
     }
 
+    function test_maximizedGeometryBeforeState() {
+        const win = createWindow(false);
+        win.savedState.restore();
+        wait(0);
+        win.width = 1920;
+        win.height = 1080;
+        win.showMaximized();
+        wait(0);
+        compare(win.savedState.settings.width, 640);
+        compare(win.savedState.settings.height, 480);
+        compare(win.savedState.settings.maximized, true);
+    }
+
+    function test_closeBeforeDeferredSave() {
+        const win = createWindow(false);
+        win.savedState.restore();
+        win.width = 700;
+        win.height = 500;
+        win.close();
+        compare(win.savedState.settings.width, 700);
+        compare(win.savedState.settings.height, 500);
+        wait(0);
+        compare(win.savedState.settings.maximized, false);
+    }
+
     function test_transientVisibility_data() {
         return [
             {
