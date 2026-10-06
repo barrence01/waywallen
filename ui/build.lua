@@ -123,7 +123,6 @@ qt.qml_module({
   imports = {
     "QtCore",
     "QtQuick",
-    "QtQuick.Controls",
     "QtQuick.Shapes",
     "QtQml.Models",
     "Qcm.Material",

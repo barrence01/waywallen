@@ -19,17 +19,17 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.4.3"
+version = "0.4.4"
 
 [workspace.dependencies]
 waywallen-bridge = { path = "bridge" }
 waywallen-plugin-common = { path = "plugins" }
-rstd-cppstd = { version = "0.1.6" }
-rstd-std = { version = "0.1.6" }
-rstd-json = { version = "0.1.6" }
-rstd-argparse = { version = "0.1.6" }
-rstd-log = { version = "0.1.6" }
-rstd-toml = { version = "0.1.6" }
+rstd-cppstd = { version = "0.1.7" }
+rstd-std = { version = "0.1.7" }
+rstd-json = { version = "0.1.7" }
+rstd-argparse = { version = "0.1.7" }
+rstd-log = { version = "0.1.7" }
+rstd-toml = { version = "0.1.7" }
 lito-qt = { version = "0.1.1" }
 vvk = { version = "0.1.0" }
 luato = { git = "https://github.com/litocpp/luato.git" }
