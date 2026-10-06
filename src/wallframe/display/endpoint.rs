@@ -16,7 +16,7 @@ use crate::wallframe::ipc::proto::{
 // Display-protocol failures are daemon-internal; this layer talks to
 // display consumers over a UDS, not public WS or D-Bus surfaces.
 use crate::error::{Error, Result, ResultExt};
-use crate::wallframe::display::layout::display_point_to_texture;
+use crate::wallframe::display::layout::{display_motion_to_texture, display_point_to_texture};
 use crate::wallframe::renderer_manager::{PublishedPool, RendererHandle};
 use crate::wallframe::routing::{
     ConsumerImportFailureKind, ConsumerImportFailureOutcome, DisplayConsumptionPermit,
@@ -333,7 +333,25 @@ async fn handshake_steps(
     .context("welcome join")?
     .map_err(|e| Error::Internal(anyhow!("send welcome: {e}")))?;
 
-    let (reg, _fds) = recv_handshake_frame(stream, "registration", shutdown_rx).await?;
+    let (mut reg, _fds) = recv_handshake_frame(stream, "registration", shutdown_rx).await?;
+    let mut window_observation_caps = None;
+    let mut pause_effect_caps = None;
+    let mut transition_caps = None;
+    if let Request::ClientCapabilities {
+        window_observation,
+        pause_effect,
+        transition,
+    } = reg
+    {
+        window_observation_caps = window_observation.map(|caps| caps.flags & 15);
+        pause_effect_caps = pause_effect
+            .map(|caps| caps.flags & crate::wallframe::routing::PAUSE_EFFECT_CAPS_KNOWN);
+        transition_caps =
+            transition.map(|caps| caps.flags & crate::wallframe::routing::TRANSITION_CAPS_KNOWN);
+        reg = recv_handshake_frame(stream, "registration", shutdown_rx)
+            .await?
+            .0;
+    }
     let Request::RegisterDisplay {
         name,
         instance_id,
@@ -368,7 +386,7 @@ async fn handshake_steps(
             format!("register_display has unknown window flags 0x{window_state_flags:x}"),
         ));
     }
-    if presentation_caps.flags & !crate::wallframe::routing::PRESENTATION_CAPS_KNOWN != 0 {
+    if presentation_caps.flags & !15 != 0 {
         return Err(reject(
             wire::DisplayErrorCode::ProtocolViolation,
             format!(
@@ -414,6 +432,7 @@ async fn handshake_steps(
         drm.minor,
     );
     Ok(DisplayRegistration {
+        window_observation_caps,
         name,
         instance_id,
         metrics: DisplayMetrics {
@@ -421,7 +440,8 @@ async fn handshake_steps(
             height: metrics.height,
             refresh_mhz: metrics.refresh_mhz,
         },
-        presentation_caps: presentation_caps.flags,
+        pause_effect_caps: pause_effect_caps.unwrap_or(presentation_caps.flags & 1),
+        transition_caps: transition_caps.unwrap_or((presentation_caps.flags >> 1) & 7),
         consumer_caps,
         window_state_flags,
     })
@@ -457,6 +477,9 @@ async fn run_frame_loop(
     // Latest SetCompositionConfig pushed to this display. Used to inverse-map
     // pointer coords from display pixels into renderer texture pixels.
     let mut latest_config: Option<CompositionConfig> = None;
+    // Keep display-space coordinates across pool replacement. Replaying the
+    // original timestamp must not steal focus from a newer sample on another output.
+    let mut pointer_sample: Option<RendererPointerMotion> = None;
     let mut pending_arms = HashMap::<(u64, u64), crate::wallframe::sync::FrameConsumerArm>::new();
     let mut release_sessions =
         HashMap::<String, crate::wallframe::sync::FrameConsumerSession>::new();
@@ -480,6 +503,11 @@ async fn run_frame_loop(
                     content_token,
                     presentation_config_generation,
                 }) => {
+                    if let Some(old) = bound_renderer.as_ref() {
+                        if old.id != renderer.id {
+                            leave_pointer(&router, display_id, old).await;
+                        }
+                    }
                     bound_renderer = Some(Arc::clone(&renderer));
                     latest_config = Some(initial_config.clone());
                     if let Err(e) = send_bind(
@@ -492,18 +520,39 @@ async fn run_frame_loop(
                     ).await {
                         break Err(e);
                     }
+                    if let Some(sample) = pointer_sample.as_ref() {
+                        forward_pointer_sample(&router, display_id, &renderer, &initial_config, sample).await;
+                    }
                 }
                 Some(DisplayOutEvent::Unbind { buffer_generation }) => {
+                    if let Some(renderer) = bound_renderer.as_ref() {
+                        leave_pointer(&router, display_id, renderer).await;
+                    }
                     bound_renderer = None;
                     latest_config = None;
                     if let Err(e) = send_unbind(&stream, buffer_generation).await {
                         break Err(e);
                     }
                 }
+                Some(DisplayOutEvent::SetWindowObservationConfig(config)) => {
+                    let event = Event::SetWindowObservationConfig { config: wire::WindowObservationConfig {
+                        generation: config.generation,
+                        excluded_application_ids: config.exclusions.application_ids,
+                        excluded_titles: config.exclusions.titles,
+                        excluded_application_id_patterns: (!config.exclusions.application_id_patterns.is_empty()).then_some(config.exclusions.application_id_patterns),
+                        excluded_title_patterns: (!config.exclusions.title_patterns.is_empty()).then_some(config.exclusions.title_patterns),
+                    } };
+                    if let Err(error) = send_window_observation_config(&stream, event).await {
+                        break Err(error);
+                    }
+                }
                 Some(DisplayOutEvent::SetCompositionConfig(cfg)) => {
                     latest_config = Some(cfg.clone());
                     if let Err(e) = send_composition_config(&stream, &cfg).await {
                         break Err(e);
+                    }
+                    if let (Some(renderer), Some(sample)) = (bound_renderer.as_ref(), pointer_sample.as_ref()) {
+                        forward_pointer_sample(&router, display_id, renderer, &cfg, sample).await;
                     }
                 }
                 Some(DisplayOutEvent::SetPresentationSnapshot(presentation)) => {
@@ -567,6 +616,15 @@ async fn run_frame_loop(
                         metrics.height,
                         metrics.refresh_mhz,
                     );
+                }
+                Some(Ok(Request::SetWindowObservationState { config_generation, flags })) => {
+                    let result = if flags & !crate::wallframe::routing::auto_replay::FLAGS_KNOWN != 0 {
+                        Err("unknown window state flags")
+                    } else { router.update_window_observation(display_id, config_generation, flags).await };
+                    if let Err(message) = result {
+                        let _ = send_error(&stream, wire::DisplayErrorCode::ProtocolViolation, message.into()).await;
+                        break Err(Error::Internal(anyhow!(message)));
+                    }
                 }
                 Some(Ok(Request::SetWindowState { flags })) => {
                     if flags & !crate::wallframe::routing::auto_replay::FLAGS_KNOWN != 0 {
@@ -651,25 +709,11 @@ async fn run_frame_loop(
                         ).await;
                         break Err(Error::Internal(anyhow!(message)));
                     }
+                    let sample = RendererPointerMotion { x, y, timestamp_us, modifiers };
                     if let (Some(r), Some(cfg)) = (bound_renderer.as_ref(), latest_config.as_ref()) {
-                        if let Some((tx, ty)) = display_point_to_texture(x, y, cfg) {
-                            // Pointer forwarding gates on the renderer's
-                            // manifest events list.
-                            if let Err(e) = router
-                                .forward_pointer_motion(
-                                    &r.id,
-                                    RendererPointerMotion {
-                                        x: tx,
-                                        y: ty,
-                                        timestamp_us,
-                                        modifiers,
-                                    },
-                                ).await
-                            {
-                                log::debug!("display {display_id}: pointer_motion forward failed: {e}");
-                            }
-                        }
+                        forward_pointer_sample(&router, display_id, r, cfg, &sample).await;
                     }
+                    pointer_sample = Some(sample);
                 }
                 Some(Ok(Request::PointerButton { x, y, button, state, timestamp_us, modifiers })) => {
                     if !pointer_values_valid(&[x, y], modifiers) {
@@ -778,11 +822,54 @@ async fn run_frame_loop(
     // operates on the socket itself, so all dup'd handles observe it.
     let _ = stream.shutdown(std::net::Shutdown::Both);
     let _ = reader_handle.await;
+    if let Some(renderer) = bound_renderer.as_ref() {
+        leave_pointer(&router, display_id, renderer).await;
+    }
     pending_arms.clear();
     for (_, session) in release_sessions {
         session.close();
     }
     result
+}
+
+async fn forward_pointer_sample(
+    router: &Router,
+    display_id: u64,
+    renderer: &RendererHandle,
+    config: &CompositionConfig,
+    sample: &RendererPointerMotion,
+) {
+    let (x, y) = display_motion_to_texture(sample.x, sample.y, config);
+    if let Err(error) = router
+        .forward_pointer_motion(
+            display_id,
+            &renderer.id,
+            RendererPointerMotion {
+                x,
+                y,
+                timestamp_us: sample.timestamp_us,
+                modifiers: sample.modifiers,
+            },
+        )
+        .await
+    {
+        log::debug!("display {display_id}: pointer_motion forward failed: {error}");
+    }
+}
+
+async fn leave_pointer(router: &Router, display_id: u64, renderer: &RendererHandle) {
+    let _ = router
+        .forward_pointer_motion(
+            display_id,
+            &renderer.id,
+            RendererPointerMotion {
+                x: -1.0,
+                y: -1.0,
+                timestamp_us: 0,
+                modifiers: 0,
+            },
+        )
+        .await;
 }
 
 fn pointer_values_valid(values: &[f32], modifiers: u32) -> bool {
@@ -958,6 +1045,15 @@ async fn send_error(
         .await
         .context("error join")?
         .map_err(|error| Error::Internal(anyhow!("send error: {error}")))?;
+    Ok(())
+}
+
+async fn send_window_observation_config(stream: &StdUnixStream, event: Event) -> Result<()> {
+    let stream = stream.try_clone().context("clone for observation config")?;
+    tokio::task::spawn_blocking(move || codec::send_event(&stream, &event, &[]))
+        .await
+        .context("observation config join")?
+        .map_err(|error| Error::Internal(anyhow!("send window observation config: {error}")))?;
     Ok(())
 }
 
@@ -1211,6 +1307,251 @@ struct ForwardedFrame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn stationary_pointer_replays_after_pool_rebind_and_layout_change() {
+        use crate::wallframe::ipc::{proto::ControlMsg, uds::recv_control};
+        use crate::wallframe::renderer_manager::RendererManager;
+        use crate::wallframe::routing::ContentToken;
+        use nix::sys::memfd::{memfd_create, MemFdCreateFlag};
+        use std::ffi::CString;
+        use std::time::Duration;
+
+        let manager = Arc::new(RendererManager::new_default());
+        let (renderer, peer) = RendererHandle::test_stub_with_peer("pointer", "scene");
+        manager.register_test_handle(renderer.clone()).await;
+        manager.test_subscribe_pointer("pointer");
+        let router = Router::new(manager);
+        let (server, client) = StdUnixStream::pair().unwrap();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        let client_task = tokio::task::spawn_blocking(move || {
+            client
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+            let pool = Arc::new(PublishedPool {
+                generation: 1,
+                flags: 0,
+                count: 1,
+                fourcc: 0x34325258,
+                width: 1600,
+                height: 1200,
+                modifier: 0,
+                planes_per_buffer: 1,
+                stride: vec![6400],
+                plane_offset: vec![0],
+                size: vec![7_680_000],
+                fds: vec![memfd_create(
+                    &CString::new("pointer-rebind").unwrap(),
+                    MemFdCreateFlag::MFD_CLOEXEC,
+                )
+                .unwrap()],
+            });
+            let mut config = CompositionConfig {
+                generation: 1,
+                buffer_generation: 1,
+                display_w: 800.0,
+                display_h: 600.0,
+                source_x: 0.0,
+                source_y: 0.0,
+                source_w: 800.0,
+                source_h: 600.0,
+                dest_x: 0.0,
+                dest_y: 0.0,
+                dest_w: 800.0,
+                dest_h: 600.0,
+                transform: 0,
+                clear_rgba: [0.0, 0.0, 0.0, 1.0],
+            };
+            let bind = |config: &CompositionConfig| {
+                tx.send(DisplayOutEvent::Bind {
+                    renderer: renderer.clone(),
+                    pool: pool.clone(),
+                    buffer_generation: config.buffer_generation,
+                    initial_config: config.clone(),
+                    content_token: ContentToken::new(1),
+                    presentation_config_generation: 1,
+                })
+                .unwrap();
+                assert!(matches!(
+                    codec::recv_event(&client).unwrap().0,
+                    Event::BindBuffers { .. }
+                ));
+            };
+            let expect_motion = |x, y, timestamp_us| {
+                let ControlMsg::PointerMotion { event } = recv_control(&peer).unwrap().0 else {
+                    panic!("expected pointer motion");
+                };
+                assert_eq!((event.x, event.y, event.timestamp_us), (x, y, timestamp_us));
+            };
+            bind(&config);
+            codec::send_request(
+                &client,
+                &Request::PointerMotion {
+                    x: 200.0,
+                    y: 150.0,
+                    timestamp_us: 100,
+                    modifiers: 0,
+                },
+                &[],
+            )
+            .unwrap();
+            expect_motion(200.0, 150.0, 100);
+            tx.send(DisplayOutEvent::Unbind {
+                buffer_generation: 1,
+            })
+            .unwrap();
+            assert!(matches!(
+                codec::recv_event(&client).unwrap().0,
+                Event::Unbind { .. }
+            ));
+            expect_motion(-1.0, -1.0, 0);
+            config.buffer_generation = 2;
+            config.source_w = 1600.0;
+            config.source_h = 1200.0;
+            bind(&config);
+            // No client-side motion or bind replay: the endpoint restores and remaps it.
+            expect_motion(400.0, 300.0, 100);
+            config.generation = 2;
+            config.source_w = 800.0;
+            tx.send(DisplayOutEvent::SetCompositionConfig(config.clone()))
+                .unwrap();
+            assert!(matches!(
+                codec::recv_event(&client).unwrap().0,
+                Event::SetCompositionConfig { .. }
+            ));
+            expect_motion(200.0, 300.0, 100);
+            codec::send_request(
+                &client,
+                &Request::PointerMotion {
+                    x: -1.0,
+                    y: -1.0,
+                    timestamp_us: 110,
+                    modifiers: 0,
+                },
+                &[],
+            )
+            .unwrap();
+            expect_motion(-1.0, -1.0, 110);
+            tx.send(DisplayOutEvent::Unbind {
+                buffer_generation: 2,
+            })
+            .unwrap();
+            assert!(matches!(
+                codec::recv_event(&client).unwrap().0,
+                Event::Unbind { .. }
+            ));
+            config.buffer_generation = 3;
+            bind(&config);
+            peer.set_read_timeout(Some(Duration::from_millis(20)))
+                .unwrap();
+            assert!(
+                recv_control(&peer).is_err(),
+                "rebind must not restore an absent pointer"
+            );
+            shutdown_tx.send(true).unwrap();
+        });
+        let (result, client_result) = tokio::join!(
+            run_frame_loop(server, router, 1, 1, rx, shutdown_rx),
+            client_task,
+        );
+        result.unwrap();
+        client_result.unwrap();
+    }
+
+    #[tokio::test]
+    async fn capabilities_handshake_accepts_legacy_and_independent_proposals() {
+        for (pause_effect, transition, legacy, expected) in [
+            (None, None, 15, (1, 7)),
+            (Some(0), None, 15, (0, 7)),
+            (None, Some(0), 15, (1, 0)),
+            (Some(0), Some(0), 15, (0, 0)),
+            (Some(1), Some(6), 0, (1, 6)),
+            (Some(1 << 31), Some(1 << 31), 15, (0, 0)),
+            (Some(u32::MAX), Some(u32::MAX), 0, (1, 7)),
+        ] {
+            for caps in [
+                None,
+                Some(None),
+                Some(Some(wire::WindowObservationCapabilities { flags: 3 })),
+                Some(Some(wire::WindowObservationCapabilities { flags: 15 })),
+            ] {
+                let (server, client) = StdUnixStream::pair().unwrap();
+                let expected_caps = caps.as_ref().and_then(|c| c.as_ref()).map(|c| c.flags);
+                let client = std::thread::spawn(move || {
+                    codec::send_request(
+                        &client,
+                        &Request::Hello {
+                            client_name: "test".into(),
+                            client_version: "test".into(),
+                            protocol_version: PROTOCOL_VERSION,
+                        },
+                        &[],
+                    )
+                    .unwrap();
+                    assert!(matches!(
+                        codec::recv_event(&client).unwrap().0,
+                        Event::Welcome { .. }
+                    ));
+                    if caps.is_some() || pause_effect.is_some() || transition.is_some() {
+                        codec::send_request(
+                            &client,
+                            &Request::ClientCapabilities {
+                                window_observation: caps.flatten(),
+                                pause_effect: pause_effect
+                                    .map(|flags| wire::PauseEffectCapabilities { flags }),
+                                transition: transition
+                                    .map(|flags| wire::TransitionCapabilities { flags }),
+                            },
+                            &[],
+                        )
+                        .unwrap();
+                    }
+                    codec::send_request(
+                        &client,
+                        &Request::RegisterDisplay {
+                            name: "DP-1".into(),
+                            instance_id: String::new(),
+                            metrics: wire::DisplayMetrics {
+                                width: 1920,
+                                height: 1080,
+                                refresh_mhz: 60000,
+                            },
+                            consumer_caps: wire::ConsumerCapabilities {
+                                fourccs: vec![0x34325258],
+                                mod_counts: vec![1],
+                                modifiers: vec![0],
+                                plane_counts: vec![1],
+                                device_uuid: vec![0; 4],
+                                driver_uuid: vec![0; 4],
+                                drm_render_major: 226,
+                                drm_render_minor: 128,
+                                mem_hints: 1,
+                                sync_caps: 1,
+                                color_caps: 1,
+                                extent_max_w: 7680,
+                                extent_max_h: 4320,
+                            },
+                            presentation_caps: wire::PresentationCapabilities { flags: legacy },
+                            window_state_flags: 8,
+                        },
+                        &[],
+                    )
+                    .unwrap();
+                });
+                let (events, _) = tokio::sync::broadcast::channel(4);
+                let (_shutdown_tx, mut shutdown) = tokio::sync::watch::channel(false);
+                let registration = do_handshake(&server, &events, &mut shutdown).await.unwrap();
+                assert_eq!(registration.window_observation_caps, expected_caps);
+                assert_eq!(
+                    (registration.pause_effect_caps, registration.transition_caps),
+                    expected
+                );
+                client.join().unwrap();
+            }
+        }
+    }
 
     #[tokio::test]
     async fn malformed_hello_publishes_connection_failure() {

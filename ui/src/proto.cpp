@@ -1,5 +1,6 @@
 module waywallen;
-import qextra;
+import qextra.qt;
+import rstd.cppstd;
 import :proto;
 
 using namespace Qt::Literals::StringLiterals;

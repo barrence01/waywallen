@@ -2,7 +2,7 @@ module;
 #include "waywallen/notify.moc.h"
 
 module waywallen;
-import qextra;
+import qextra.qt;
 import :notify;
 import :app;
 import :msg.store;
@@ -61,6 +61,9 @@ Notify::Notify(QObject* parent): QObject(parent) {
             if (evt.hasWallpaperSyncFinished()) {
                 const auto& done = evt.wallpaperSyncFinished();
                 Q_EMIT wallpaperSyncFinished(done.count(), done.error());
+            } else if (evt.hasWallpaperHiddenChanged()) {
+                const auto& changed = evt.wallpaperHiddenChanged();
+                Q_EMIT wallpaperHiddenChanged(changed.wallpaperIds(), changed.hidden());
             } else if (evt.hasLibrariesAdded()) {
                 const auto& src = evt.librariesAdded().paths();
                 QStringList paths;

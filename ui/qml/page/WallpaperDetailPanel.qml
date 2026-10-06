@@ -22,6 +22,7 @@ Item {
 
     signal back
     signal dismissAnchoredPopups
+    signal hiddenChanged(bool hidden)
 
     readonly property var wp: (wallpaperGetQuery.wallpaper?.id_proto ?? "") !== "" ? wallpaperGetQuery.wallpaper : root.fallbackWallpaper
 
@@ -36,6 +37,7 @@ Item {
             locationX: 50,
             locationY: 50,
             rotation: 1,
+            flip: 1,
             locationSet: true
         })
 
@@ -46,7 +48,7 @@ Item {
     function clampPercent(value) {
         return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
     }
-    function applyWallpaperLayout(fillmode, x, y, rotation) {
+    function applyWallpaperLayout(fillmode, x, y, rotation, flip) {
         if (!root.wp)
             return;
         layoutSetQuery.wallpaperId = root.wallpaperId;
@@ -55,6 +57,7 @@ Item {
         layoutSetQuery.locationX = root.clampPercent(x);
         layoutSetQuery.locationY = root.clampPercent(y);
         layoutSetQuery.rotation = rotation;
+        layoutSetQuery.flip = flip === undefined ? (root.wallpaperLayout.flip || 1) : flip;
         layoutSetQuery.reload();
     }
     function resetWallpaperLayout() {
@@ -219,6 +222,16 @@ Item {
 
     W.WallpaperPropertySetQuery {
         id: setQuery
+    }
+
+    Connections {
+        target: W.Notify
+        function onWallpaperHiddenChanged(wallpaperIds, hidden) {
+            if (!root.wallpaperId || wallpaperIds.indexOf(root.wallpaperId) < 0)
+                return;
+            wallpaperGetQuery.reload();
+            root.hiddenChanged(hidden);
+        }
     }
 
     W.WallpaperLayoutSetQuery {
@@ -419,9 +432,9 @@ Item {
 
                 W.ThumbnailImage {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: visible ? 200 : 0
+                    Layout.minimumHeight: 200
+                    Layout.preferredHeight: 200
                     Layout.topMargin: 4
-                    visible: (root.wp?.preview ?? "") !== "" || (["video", "image"].indexOf(root.wp?.wpType ?? "") >= 0 && (root.wp?.resource ?? "") !== "")
                     source: root.wp?.preview ?? ""
                     resource: root.wp?.resource ?? ""
                     wpType: root.wp?.wpType ?? ""
@@ -440,31 +453,29 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 0
 
                     MD.Text {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: implicitWidth
                         text: W.I18n.valueLabel(root.typeLabels, root.wp?.wpType)
                         typescale: MD.Token.typescale.label_large
                         color: MD.Token.color.on_surface_variant
-                        elide: Text.ElideRight
+                        elide: Text.ElideNone
                         maximumLineCount: 1
                     }
 
-                    RowLayout {
-                        spacing: 0
+                    W.DetailActionBar {
+                        actions: root.detailActions
+                    }
 
-                        W.DetailActionBar {
-                            actions: root.detailActions
-                        }
-
-                        MD.SmallIconButton {
-                            icon.name: MD.Token.icon.close
-                            hoverEnabled: true
-                            MD.ToolTip.text: qsTr("Close")
-                            MD.ToolTip.visible: hovered && !pressed
-                            onClicked: root.back()
-                        }
+                    MD.IconButton {
+                        mdState.size: MD.Enum.XS
+                        icon.name: MD.Token.icon.close
+                        hoverEnabled: true
+                        MD.ToolTip.text: qsTr("Close")
+                        MD.ToolTip.visible: hovered && !pressed
+                        onClicked: root.back()
                     }
                 }
 
@@ -649,6 +660,8 @@ Item {
                         readonly property var layout: root.wallpaperLayout || ({})
                         readonly property int currentFillmode: Number(layout.fillmode ?? 3)
                         readonly property int currentRotation: Number(layout.rotation ?? 1)
+                        readonly property int currentFlip: Number(layout.flip || 1)
+
                         readonly property int currentX: root.clampPercent(layout.locationX ?? 50)
                         readonly property int currentY: root.clampPercent(layout.locationY ?? 50)
                         readonly property bool locationEnabled: currentFillmode !== 1
@@ -774,6 +787,22 @@ Item {
                                     checked: wallpaperRotationGroup.isChecked(root.kRotationValues[3])
                                     onClicked: wallpaperRotationGroup.applyRotation(root.kRotationValues[3])
                                 }
+                            }
+
+                        }
+
+                        ColumnLayout {
+                            width: Math.min(m_wallpaper_layout_flow.width, implicitWidth)
+                            spacing: 4
+
+                            MD.Text {
+                                text: qsTr("Flip")
+                                typescale: MD.Token.typescale.label_medium
+                                color: MD.Token.color.on_surface_variant
+                            }
+                            W.FlipButtons {
+                                value: m_wallpaper_layout_flow.currentFlip
+                                onSelected: value => root.applyWallpaperLayout(m_wallpaper_layout_flow.currentFillmode, m_wallpaper_layout_flow.currentX, m_wallpaper_layout_flow.currentY, m_wallpaper_layout_flow.currentRotation, value)
                             }
                         }
                     }
@@ -950,30 +979,13 @@ Item {
                     value: m_prop_delegate.optionIndex(m_prop_delegate.currentValue)
                 }
 
-                MD.TextField {
+                W.ApplyTextField {
                     id: m_text_input
                     visible: m_prop_delegate.type === "textinput"
                     Layout.fillWidth: true
                     text: m_prop_delegate.currentValue
-                    mdState.size: MD.Enum.S
-                    onAccepted: submit()
-
-                    function submit() {
-                        if (text === m_prop_delegate.currentValue)
-                            return;
-                        propertyModel.setValue(m_prop_delegate.key, text);
-                    }
-
-                    trailing: MD.SmallIconButton {
-                        anchors.right: parent?.right
-                        anchors.verticalCenter: parent?.verticalCenter
-                        anchors.rightMargin: 8
-                        icon.name: MD.Token.icon.check
-                        enabled: m_text_input.text !== m_prop_delegate.currentValue
-                        onClicked: m_text_input.submit()
-                        MD.ToolTip.visible: hovered
-                        MD.ToolTip.text: qsTr("Apply")
-                    }
+                    canApply: text !== m_prop_delegate.currentValue
+                    onApplied: value => propertyModel.setValue(m_prop_delegate.key, value)
                 }
 
                 MD.Text {

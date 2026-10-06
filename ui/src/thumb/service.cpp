@@ -5,9 +5,10 @@ module;
 #include <utility>
 
 module waywallen;
-import qextra;
+import qextra.qt;
 
 import :thumb.service;
+import rstd;
 import rstd.cppstd;
 import wavsen.decode;
 

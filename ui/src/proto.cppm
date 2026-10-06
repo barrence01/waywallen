@@ -2,7 +2,7 @@ module;
 #include "control.qpb.h"
 
 export module waywallen:proto;
-import qextra;
+import qextra.qt;
 
 namespace proto = waywallen::control::v1;
 
@@ -64,6 +64,9 @@ using proto::WallpaperApplyViaPortalResponse;
 using proto::WallpaperEntry;
 using proto::WallpaperGetRequest;
 using proto::WallpaperGetResponse;
+using proto::WallpaperHiddenChanged;
+using proto::WallpaperHideRequest;
+using proto::WallpaperHideResponse;
 using proto::WallpaperLayoutSetRequest;
 using proto::WallpaperLayoutSetResponse;
 using proto::WallpaperListRequest;
@@ -82,6 +85,7 @@ using proto::WallpaperScanResponse;
 using proto::WallpaperSyncFinished;
 using proto::WallpaperUnsubscribeRequest;
 using proto::WallpaperUnsubscribeResponse;
+using proto::WallpaperHiddenFilterGadget::WallpaperHiddenFilter;
 using proto::WallpaperPresentationStateGadget::WallpaperPresentationState;
 
 using proto::DisplayBackendStatus;
@@ -219,10 +223,12 @@ using proto::SettingsGetRequest;
 using proto::SettingsGetResponse;
 using proto::SettingsSetRequest;
 using proto::TransitionConfig;
+using proto::WindowExclusions;
 using proto::AlignGadget::Align;
 using proto::AutoActionGadget::AutoAction;
 using proto::AutoScopeGadget::AutoScope;
 using proto::FillModeGadget::FillMode;
+using proto::FlipGadget::Flip;
 using proto::LayoutSourceGadget::LayoutSource;
 using proto::PauseEffectKindGadget::PauseEffectKind;
 using proto::RotationGadget::Rotation;

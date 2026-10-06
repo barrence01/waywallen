@@ -18,6 +18,8 @@ export class WallpaperSelectStorage : public SelectStorage {
 
     Q_PROPERTY(qint32 removableSelectedCount READ removableSelectedCount NOTIFY
                    selectedRemovableCountChanged FINAL)
+    Q_PROPERTY(
+        qint32 hiddenSelectedCount READ hiddenSelectedCount NOTIFY selectedHiddenCountChanged FINAL)
 
 public:
     WallpaperSelectStorage(QObject* parent = nullptr);
@@ -27,8 +29,13 @@ public:
     Q_INVOKABLE QStringList  removableSelectedWallpaperIds() const;
 
     Q_SIGNAL void selectedRemovableCountChanged();
+    Q_SIGNAL void selectedHiddenCountChanged();
 
     auto removableSelectedCount() const -> qint32;
+    auto hiddenSelectedCount() const -> qint32;
+
+private:
+    QMetaObject::Connection m_hidden_data_connection;
 };
 
 export class PlaylistItemSelectStorage : public WallpaperSelectStorage {

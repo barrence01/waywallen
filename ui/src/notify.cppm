@@ -6,7 +6,7 @@ module;
 #endif
 
 export module waywallen:notify;
-import qextra;
+import qextra.qt;
 export import :proto;
 
 namespace waywallen
@@ -92,6 +92,7 @@ Q_SIGNALS:
     /// empty on success, otherwise a one-line reason. Sync start is
     /// observable via the `scanInProgress` property.
     void wallpaperSyncFinished(quint32 count, const QString& error);
+    void wallpaperHiddenChanged(const QStringList& wallpaperIds, bool hidden);
     /// Daemon added one or more libraries — manually via `LibraryAdd`
     /// or via `LibraryAutoDetect`. `paths` is the absolute roots that
     /// were just inserted. The matching `LibraryChanged` per-library

@@ -29,6 +29,9 @@ MD.Dialog {
     // checked = shown, unchecked ones are recorded as skipped.
     property var skipContentRatings: []
     signal toggleSkipRating(string rating)
+    // 0=EXCLUDE, 1=ONLY, 2=INCLUDE — see WallpaperHiddenFilter.
+    property int hiddenFilter: 0
+    signal hiddenFilterSelected(int value)
     horizontalPadding: 16
     implicitWidth: Math.min(440, parent ? parent.width - 48 : 440)
     standardButtons: MD.Dialog.Close
@@ -170,6 +173,37 @@ MD.Dialog {
                 }
             }
 
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.bottomMargin: 4
+                spacing: 4
+
+                MD.Label {
+                    text: qsTr("Visibility")
+                    typescale: MD.Token.typescale.title_medium
+                }
+
+                MD.SegmentedButtonGroup {
+                    size: MD.Enum.XS
+
+                    MD.SegmentedButton {
+                        text: qsTr("Not hidden")
+                        checked: root.hiddenFilter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE
+                        onClicked: root.hiddenFilterSelected(WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE)
+                    }
+                    MD.SegmentedButton {
+                        text: qsTr("Hidden only")
+                        checked: root.hiddenFilter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_ONLY
+                        onClicked: root.hiddenFilterSelected(WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_ONLY)
+                    }
+                    MD.SegmentedButton {
+                        text: qsTr("All")
+                        checked: root.hiddenFilter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_INCLUDE
+                        onClicked: root.hiddenFilterSelected(WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_INCLUDE)
+                    }
+                }
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -250,11 +284,13 @@ MD.Dialog {
                 }
             }
 
-            MD.SmallIconButton {
+            MD.IconButton {
+                mdState.size: MD.Enum.XS
                 icon.name: MD.Token.icon.add
                 onClicked: root.model.appendRuleInGroup(sectionRow.groupId)
             }
-            MD.SmallIconButton {
+            MD.IconButton {
+                mdState.size: MD.Enum.XS
                 icon.name: MD.Token.icon.delete
                 onClicked: root.model.deleteGroup(sectionRow.groupId)
             }

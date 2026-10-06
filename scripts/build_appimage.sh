@@ -10,7 +10,7 @@ ENV_NAME="${WAYWALLEN_CONDA_ENV:-waywallen}"
 ENV_PREFIX="${WAYWALLEN_CONDA_PREFIX:-$PROJECT_DIR/build/conda-envs/$ENV_NAME}"
 TMP_DIR="${TMPDIR:-/tmp}"
 WAYWALLEN_DISPLAY_REPO="${WAYWALLEN_DISPLAY_REPO:-https://github.com/waywallen/waywallen-display.git}"
-WAYWALLEN_DISPLAY_REF="${WAYWALLEN_DISPLAY_REF:-4fc25d632125967de0be34d095206ca9420432e8}"
+WAYWALLEN_DISPLAY_REF="${WAYWALLEN_DISPLAY_REF:-0d0ed7a9137afbd0ce4f6ced240f09a091884f78}"
 APPDIR="$PROJECT_DIR/build/AppDir"
 INSTALL_DIR="$APPDIR/usr"
 TOOLS_DIR="$PROJECT_DIR/build/_tools"
@@ -291,6 +291,8 @@ cp -v "$CONDA_PREFIX/lib/libgcc_s.so.1" "$APPDIR/usr/lib/"
 
 pushd "$APPDIR"
 rm -rf ./usr/lib/qt6
+rm -rf ./usr/lib/libQt6QuickTemplates*
+rm -rf ./usr/lib/libQt6QuickControls2*
 rm -rf ./usr/lib/libQt6QuickDialogs*
 rm -rf ./usr/lib/libQt6QuickParticles.so.?
 rm -rf ./usr/lib/libQt6QuickShapesDesignHelpers.so.?

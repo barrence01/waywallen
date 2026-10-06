@@ -33,6 +33,8 @@ export class WallpaperListQuery
         QStringList filterTags READ filterTags WRITE setFilterTags NOTIFY filterTagsChanged FINAL)
     Q_PROPERTY(QStringList skipContentRatings READ skipContentRatings WRITE setSkipContentRatings
                    NOTIFY skipContentRatingsChanged FINAL)
+    Q_PROPERTY(
+        int hiddenFilter READ hiddenFilter WRITE setHiddenFilter NOTIFY hiddenFilterChanged FINAL)
     Q_PROPERTY(bool hasActiveFilters READ hasActiveFilters NOTIFY hasActiveFiltersChanged FINAL)
     Q_PROPERTY(qint32 total READ total NOTIFY totalChanged FINAL)
 
@@ -65,6 +67,9 @@ public:
     auto skipContentRatings() const -> const QStringList&;
     void setSkipContentRatings(const QStringList&);
 
+    auto hiddenFilter() const -> int;
+    void setHiddenFilter(int);
+
     auto hasActiveFilters() const -> bool;
 
     auto total() const -> qint32;
@@ -81,6 +86,7 @@ public:
     Q_SIGNAL void skipTypesChanged();
     Q_SIGNAL void filterTagsChanged();
     Q_SIGNAL void skipContentRatingsChanged();
+    Q_SIGNAL void hiddenFilterChanged();
     Q_SIGNAL void hasActiveFiltersChanged();
     Q_SIGNAL void totalChanged();
 
@@ -93,6 +99,7 @@ private:
     QStringList                             m_skip_types;
     QStringList                             m_filter_tags;
     QStringList                             m_skip_content_ratings;
+    int                                     m_hidden_filter { 0 };
     qint32                                  m_total { 0 };
 };
 
@@ -194,6 +201,36 @@ private:
     QString m_wallpaper_id;
 };
 
+export class WallpaperHideQuery : public Query,
+                                  public QueryExtra<control::v1::Response, WallpaperHideQuery> {
+    Q_OBJECT
+    QML_ELEMENT
+
+    Q_PROPERTY(
+        QString wallpaperId READ wallpaperId WRITE setWallpaperId NOTIFY wallpaperIdChanged FINAL)
+    Q_PROPERTY(bool hidden READ hidden WRITE setHidden NOTIFY hiddenChanged FINAL)
+
+public:
+    WallpaperHideQuery(QObject* parent = nullptr);
+
+    auto wallpaperId() const -> const QString&;
+    void setWallpaperId(const QString&);
+
+    auto hidden() const -> bool;
+    void setHidden(bool);
+
+    void             reload() override;
+    Q_INVOKABLE void setHiddenForIds(const QStringList& wallpaperIds, bool hidden);
+
+    Q_SIGNAL void wallpaperIdChanged();
+    Q_SIGNAL void hiddenChanged();
+    Q_SIGNAL void updated(const QStringList& wallpaperIds, bool hidden, quint32 updatedCount);
+
+private:
+    QString m_wallpaper_id;
+    bool    m_hidden { true };
+};
+
 export class WallpaperPropertySetQuery
     : public Query,
       public QueryExtra<control::v1::Response, WallpaperPropertySetQuery> {
@@ -253,6 +290,7 @@ export class WallpaperLayoutSetQuery
     Q_PROPERTY(int locationX READ locationX WRITE setLocationX NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int locationY READ locationY WRITE setLocationY NOTIFY paramsChanged FINAL)
     Q_PROPERTY(int rotation READ rotation WRITE setRotation NOTIFY paramsChanged FINAL)
+    Q_PROPERTY(int flip READ flip WRITE setFlip NOTIFY paramsChanged FINAL)
 
 public:
     WallpaperLayoutSetQuery(QObject* parent = nullptr);
@@ -269,6 +307,8 @@ public:
     void setLocationY(int v);
     auto rotation() const -> int { return m_rotation; }
     void setRotation(int v);
+    auto flip() const -> int { return m_flip; }
+    void setFlip(int v);
 
     void reload() override;
 
@@ -281,6 +321,7 @@ private:
     int     m_location_x { 50 };
     int     m_location_y { 50 };
     int     m_rotation { 1 };
+    int     m_flip { 1 };
 };
 
 export class WallpaperApplyQuery : public Query,

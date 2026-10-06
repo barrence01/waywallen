@@ -149,6 +149,7 @@ fn entry_from_item(
         create_at: it.create_at,
         plugin_name: plugin_name.to_string(),
         library_root: library_path.to_string(),
+        hidden: it.hidden,
     }
 }
 
@@ -658,4 +659,51 @@ pub async fn update_item_media<C: ConnectionTrait>(
     Ok(ItemWriteOutcome { changed })
 }
 
-// ---------------------------------------------------------------------------
+/// Validates all ids and returns the ids whose hidden flag changed after commit.
+pub async fn set_items_hidden(
+    db: &DatabaseConnection,
+    item_ids: &[i64],
+    hidden: bool,
+) -> Result<Vec<i64>> {
+    if item_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut ids = item_ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    let txn = db.begin().await.context("begin item hidden update")?;
+    let mut changed = Vec::new();
+    // Bound SQL parameters for SQLite builds with a low variable limit.
+    for chunk in ids.chunks(500) {
+        let rows: HashMap<i64, bool> = item::Entity::find()
+            .select_only()
+            .columns([item::Column::Id, item::Column::Hidden])
+            .filter(item::Column::Id.is_in(chunk.iter().copied()))
+            .into_tuple::<(i64, bool)>()
+            .all(&txn)
+            .await
+            .context("select item hidden flags")?
+            .into_iter()
+            .collect();
+        for id in chunk {
+            let current = rows
+                .get(id)
+                .ok_or_else(|| Error::WallpaperNotFound(id.to_string()))?;
+            if *current != hidden {
+                changed.push(*id);
+            }
+        }
+    }
+    let now = now_ms();
+    for chunk in changed.chunks(500) {
+        item::Entity::update_many()
+            .col_expr(item::Column::Hidden, Expr::value(hidden))
+            .col_expr(item::Column::UpdateAt, Expr::value(now))
+            .filter(item::Column::Id.is_in(chunk.iter().copied()))
+            .exec(&txn)
+            .await
+            .context("update item hidden flags")?;
+    }
+    txn.commit().await.context("commit item hidden update")?;
+    Ok(changed)
+}

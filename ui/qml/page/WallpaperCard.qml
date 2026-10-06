@@ -47,10 +47,11 @@ Item {
 
             W.ThumbnailImage {
                 id: m_thumb
+                retainWhileLoading: true
                 anchors.fill: parent
-                source  : root.wallpaper?.preview ?? ""
+                source: root.wallpaper?.preview ?? ""
                 resource: root.wallpaper?.resource ?? ""
-                wpType  : root.wallpaper?.wpType ?? ""
+                wpType: root.wallpaper?.wpType ?? ""
                 fillMode: Image.PreserveAspectCrop
                 radius: root._radius
             }
@@ -58,22 +59,28 @@ Item {
             // Scrim aligns to the image control's bounds; spans the
             // title-top → image-bottom overlap.
             Rectangle {
-                anchors.left  : m_thumb.left
-                anchors.right : m_thumb.right
+                anchors.left: m_thumb.left
+                anchors.right: m_thumb.right
                 anchors.bottom: m_thumb.bottom
                 height: Math.max(0, m_thumb.height - m_title.y)
                 visible: height > 0
                 radius: root._radius
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.6) }
+                    GradientStop {
+                        position: 0.0
+                        color: "transparent"
+                    }
+                    GradientStop {
+                        position: 1.0
+                        color: Qt.rgba(0, 0, 0, 0.6)
+                    }
                 }
             }
 
             MD.Text {
                 id: m_title
-                anchors.left  : parent.left
-                anchors.right : parent.right
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 6
                 text: root.wallpaper?.name || qsTr("Untitled")
@@ -133,6 +140,26 @@ Item {
             name: MD.Token.icon.check
             size: 20
             color: MD.Token.color.on_primary
+        }
+    }
+
+    Rectangle {
+        anchors.top: m_card.top
+        anchors.right: m_card.right
+        anchors.margins: 8
+        width: 32
+        height: 32
+        radius: width / 2
+        visible: !!(root.wallpaper?.hidden)
+        color: MD.Token.color.secondary_container
+        border.color: MD.Token.color.secondary
+        border.width: 3
+
+        MD.Icon {
+            anchors.centerIn: parent
+            name: MD.Token.icon.visibility_off
+            size: 20
+            color: MD.Token.color.on_secondary_container
         }
     }
 }

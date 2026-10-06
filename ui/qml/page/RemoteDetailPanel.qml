@@ -108,9 +108,9 @@ Item {
 
                 W.ThumbnailImage {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: visible ? 200 : 0
+                    Layout.minimumHeight: 200
+                    Layout.preferredHeight: 200
                     Layout.topMargin: 4
-                    visible: String(root.item?.previewUrl ?? "").length > 0
                     source: root.item?.previewUrl ?? ""
                     fillMode: Image.PreserveAspectFit
                 }

@@ -37,6 +37,37 @@ impl Rotation {
     }
 }
 
+/// Mirroring along the post-rotation display axes.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Flip {
+    #[default]
+    None,
+    Horizontal,
+    Vertical,
+    Both,
+}
+
+impl Flip {
+    pub fn horizontal(self) -> bool {
+        matches!(self, Self::Horizontal | Self::Both)
+    }
+
+    pub fn vertical(self) -> bool {
+        matches!(self, Self::Vertical | Self::Both)
+    }
+
+    pub fn transform(self, rotation: Rotation) -> u32 {
+        let rotation = rotation.to_wl_transform();
+        match self {
+            Self::None => rotation,
+            Self::Horizontal => 4 + rotation,
+            Self::Vertical => 4 + (rotation + 2) % 4,
+            Self::Both => (rotation + 2) % 4,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Align {
@@ -209,6 +240,16 @@ pub fn compute(i: LayoutInput) -> LayoutOutput {
             }
         }
     }
+}
+
+/// Map an actual display-surface point to renderer-texture-local pixels.
+/// Motion outside the displayed picture is a leave sample, rather than an
+/// event to discard: otherwise the renderer keeps the last pointer forever.
+pub fn display_motion_to_texture(x: f32, y: f32, cfg: &CompositionConfig) -> (f32, f32) {
+    if !(0.0..cfg.display_w).contains(&x) || !(0.0..cfg.display_h).contains(&y) {
+        return (-1.0, -1.0);
+    }
+    display_point_to_texture(x, y, cfg).unwrap_or((-1.0, -1.0))
 }
 
 /// Map an actual display-surface point to renderer-texture-local pixels.
@@ -550,6 +591,24 @@ mod tests {
     }
 
     #[test]
+    fn pointer_motion_preserves_leave_across_crop_and_rotation() {
+        for transform in 0..8 {
+            let c = cfg_with_display(
+                (400.0, 200.0, 800.0, 600.0),
+                (0.0, 0.0, 800.0, 600.0),
+                (800.0, 600.0),
+                transform,
+            );
+            for (x, y) in [(-1.0, -1.0), (-0.1, 100.0), (800.0, 100.0), (100.0, 600.0)] {
+                assert_eq!(display_motion_to_texture(x, y, &c), (-1.0, -1.0));
+            }
+            assert_ne!(display_motion_to_texture(400.0, 300.0, &c), (-1.0, -1.0));
+        }
+        let c = cfg((0.0, 0.0, 1920.0, 1080.0), (0.0, 75.0, 800.0, 450.0), 0);
+        assert_eq!(display_motion_to_texture(400.0, 10.0, &c), (-1.0, -1.0));
+    }
+
+    #[test]
     fn point_stretched_4k_to_1080p() {
         // 4K texture stretched onto a 1080p display.
         let c = cfg((0.0, 0.0, 3840.0, 2160.0), (0.0, 0.0, 1920.0, 1080.0), 0);
@@ -696,6 +755,51 @@ mod tests {
                 display_point_to_texture(point.0, point.1, &c).unwrap(),
                 expected,
             );
+        }
+    }
+
+    #[test]
+    fn flip_composes_after_rotation_and_roundtrips_pointer() {
+        let rotations = [
+            Rotation::Normal,
+            Rotation::Cw90,
+            Rotation::Cw180,
+            Rotation::Cw270,
+        ];
+        let flips = [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both];
+        let expected = [[0, 4, 6, 2], [1, 5, 7, 3], [2, 6, 4, 0], [3, 7, 5, 1]];
+        for (i, rotation) in rotations.into_iter().enumerate() {
+            for (j, flip) in flips.into_iter().enumerate() {
+                let transform = flip.transform(rotation);
+                assert_eq!(transform, expected[i][j]);
+                let (mut u, mut v) = match rotation {
+                    Rotation::Normal => (0.2, 0.7),
+                    Rotation::Cw90 => (0.3, 0.2),
+                    Rotation::Cw180 => (0.8, 0.3),
+                    Rotation::Cw270 => (0.7, 0.8),
+                };
+                if flip.horizontal() {
+                    u = 1.0 - u;
+                }
+                if flip.vertical() {
+                    v = 1.0 - v;
+                }
+                let (w, h) = if i % 2 == 0 {
+                    (400.0, 200.0)
+                } else {
+                    (200.0, 400.0)
+                };
+                let config = cfg_with_display(
+                    (0.0, 0.0, 400.0, 200.0),
+                    (0.0, 0.0, w, h),
+                    (400.0, 200.0),
+                    transform,
+                );
+                approx(
+                    display_point_to_texture(u * 400.0, v * 200.0, &config).unwrap(),
+                    (80.0, 140.0),
+                );
+            }
         }
     }
 

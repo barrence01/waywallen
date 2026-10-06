@@ -345,6 +345,14 @@ pub(super) fn display_snapshot_to_pb(
         canvas_rect: s.canvas_rect.map(canvas_rect_to_pb),
         canvas_overlap_count: s.canvas_overlap_count,
         selectable_target: s.selectable_target,
+        window_exclusion_support: if s.window_observation_caps.is_none() {
+            pb::WindowExclusionSupport::Legacy
+        } else if s.unsupported_window_exclusions != 0 {
+            pb::WindowExclusionSupport::Partial
+        } else {
+            pb::WindowExclusionSupport::Supported
+        } as i32,
+        unsupported_window_exclusions: s.unsupported_window_exclusions,
     }
 }
 
@@ -366,6 +374,8 @@ fn canvas_layout_override_to_pb(layout: crate::settings::CanvasLayoutPrefs) -> p
             .unwrap_or(pb::FillMode::Unspecified) as i32,
         align_set: false,
         align: pb::Align::Unspecified as i32,
+        flip_set: layout.flip.is_some(),
+        flip: layout.flip.map(flip_to_pb).unwrap_or(pb::Flip::Unspecified) as i32,
         rotation_set: layout.rotation.is_some(),
         rotation: layout
             .rotation
@@ -454,6 +464,7 @@ pub(super) fn layout_prefs_to_pb_resolved(r: &crate::settings::ResolvedLayout) -
         fillmode: fillmode_to_pb(r.fillmode) as i32,
         align: align_to_pb(r.location.to_align()) as i32,
         rotation: rotation_to_pb(r.rotation) as i32,
+        flip: flip_to_pb(r.flip) as i32,
         location_x: u32::from(r.location.x.min(100)),
         location_y: u32::from(r.location.y.min(100)),
         location_set: true,
@@ -473,6 +484,8 @@ pub(super) fn layout_override_to_pb(p: &crate::settings::DisplayPrefs) -> pb::La
             .unwrap_or(pb::FillMode::Unspecified) as i32,
         align_set: p.align.is_some(),
         align: p.align.map(align_to_pb).unwrap_or(pb::Align::Unspecified) as i32,
+        flip_set: p.flip.is_some(),
+        flip: p.flip.map(flip_to_pb).unwrap_or(pb::Flip::Unspecified) as i32,
         rotation_set: p.rotation.is_some(),
         rotation: p
             .rotation
@@ -494,6 +507,24 @@ pub(super) fn fillmode_to_pb(fm: crate::wallframe::display::layout::FillMode) ->
     }
 }
 
+pub(super) fn wallpaper_hidden_filter_to_pb(
+    filter: crate::settings::WallpaperHiddenFilter,
+) -> pb::WallpaperHiddenFilter {
+    match filter {
+        crate::settings::WallpaperHiddenFilter::Exclude => pb::WallpaperHiddenFilter::Exclude,
+        crate::settings::WallpaperHiddenFilter::Only => pb::WallpaperHiddenFilter::Only,
+        crate::settings::WallpaperHiddenFilter::Include => pb::WallpaperHiddenFilter::Include,
+    }
+}
+
+pub(super) fn wallpaper_hidden_filter_from_pb(v: i32) -> crate::settings::WallpaperHiddenFilter {
+    match pb::WallpaperHiddenFilter::try_from(v).unwrap_or(pb::WallpaperHiddenFilter::Exclude) {
+        pb::WallpaperHiddenFilter::Only => crate::settings::WallpaperHiddenFilter::Only,
+        pb::WallpaperHiddenFilter::Include => crate::settings::WallpaperHiddenFilter::Include,
+        pb::WallpaperHiddenFilter::Exclude => crate::settings::WallpaperHiddenFilter::Exclude,
+    }
+}
+
 pub(super) fn fillmode_from_pb(v: i32) -> Option<crate::wallframe::display::layout::FillMode> {
     use crate::wallframe::display::layout::FillMode as F;
     match pb::FillMode::try_from(v).ok()? {
@@ -502,6 +533,27 @@ pub(super) fn fillmode_from_pb(v: i32) -> Option<crate::wallframe::display::layo
         pb::FillMode::PreserveAspectFit => Some(F::PreserveAspectFit),
         pb::FillMode::PreserveAspectCrop => Some(F::PreserveAspectCrop),
         pb::FillMode::Centered => Some(F::Centered),
+    }
+}
+
+pub(super) fn flip_to_pb(flip: crate::wallframe::display::layout::Flip) -> pb::Flip {
+    use crate::wallframe::display::layout::Flip;
+    match flip {
+        Flip::None => pb::Flip::None,
+        Flip::Horizontal => pb::Flip::Horizontal,
+        Flip::Vertical => pb::Flip::Vertical,
+        Flip::Both => pb::Flip::Both,
+    }
+}
+
+pub(super) fn flip_from_pb(value: i32) -> Option<crate::wallframe::display::layout::Flip> {
+    use crate::wallframe::display::layout::Flip;
+    match pb::Flip::try_from(value).ok()? {
+        pb::Flip::Unspecified => None,
+        pb::Flip::None => Some(Flip::None),
+        pb::Flip::Horizontal => Some(Flip::Horizontal),
+        pb::Flip::Vertical => Some(Flip::Vertical),
+        pb::Flip::Both => Some(Flip::Both),
     }
 }
 
@@ -572,6 +624,7 @@ pub(super) fn resolved_layout_from_pb(p: &pb::LayoutPrefs) -> crate::settings::R
                 .unwrap_or_default()
         },
         rotation: rotation_from_pb(p.rotation).unwrap_or_default(),
+        flip: flip_from_pb(p.flip).unwrap_or_default(),
     }
 }
 
@@ -597,6 +650,12 @@ pub(super) fn auto_action_from_pb(v: i32) -> crate::settings::AutoAction {
 
 pub(super) fn auto_replay_to_pb(p: &crate::settings::AutoReplayPolicy) -> pb::AutoReplayPolicy {
     pb::AutoReplayPolicy {
+        window_exclusions: Some(pb::WindowExclusions {
+            application_ids: p.window_exclusions.application_ids.clone(),
+            titles: p.window_exclusions.titles.clone(),
+            application_id_patterns: p.window_exclusions.application_id_patterns.clone(),
+            title_patterns: p.window_exclusions.title_patterns.clone(),
+        }),
         any_window_scope: p.scope_for(crate::settings::AutoCondition::AnyWindow) as i32,
         focused_scope: p.scope_for(crate::settings::AutoCondition::Focused) as i32,
         maximized_scope: p.scope_for(crate::settings::AutoCondition::Maximized) as i32,
@@ -645,6 +704,16 @@ pub(super) fn auto_replay_from_pb(
         }
     };
     let mut policy = crate::settings::AutoReplayPolicy {
+        window_exclusions: p
+            .window_exclusions
+            .as_ref()
+            .map(|rules| crate::settings::WindowExclusions {
+                application_ids: rules.application_ids.clone(),
+                titles: rules.titles.clone(),
+                application_id_patterns: rules.application_id_patterns.clone(),
+                title_patterns: rules.title_patterns.clone(),
+            })
+            .unwrap_or_default(),
         any_window_scope: scope(p.any_window_scope),
         focused_scope: scope(p.focused_scope),
         maximized_scope: scope(p.maximized_scope),
@@ -783,6 +852,7 @@ pub(super) fn global_to_pb(g: &crate::settings::GlobalSettings) -> pb::GlobalSet
                     .to_align(),
             ) as i32,
             rotation: rotation_to_pb(g.layout.rotation) as i32,
+            flip: pb::Flip::Unspecified as i32,
             location_x: u32::from(
                 g.layout
                     .location
@@ -815,6 +885,7 @@ pub(super) fn global_to_pb(g: &crate::settings::GlobalSettings) -> pb::GlobalSet
         wallpaper_skip_types: g.wallpaper_skip_types.clone(),
         wallpaper_filter_tags: g.wallpaper_filter_tags.clone(),
         wallpaper_skip_content_ratings: g.wallpaper_skip_content_ratings.clone(),
+        wallpaper_hidden_filter: wallpaper_hidden_filter_to_pb(g.wallpaper_hidden_filter) as i32,
         disable_plugin_update_notifications: !g.plugin_update_notifications,
         duplicate_renderers_for_same_wallpaper: g.duplicate_renderers_for_same_wallpaper,
         renderer: Some(pb::GlobalRendererSettings {
@@ -1134,6 +1205,10 @@ pub(super) async fn playlist_changed_event(state: &Arc<DaemonContext>) -> pb::Ev
 /// into wire events. Returns `None` for daemon-internal events.
 pub(super) fn global_event_to_pb(e: &GlobalEvent, state: &Arc<DaemonContext>) -> Option<pb::Event> {
     match e {
+        GlobalEvent::WallpaperHiddenChanged {
+            wallpaper_ids,
+            hidden,
+        } => Some(wallpaper_hidden_changed_event(wallpaper_ids, *hidden)),
         GlobalEvent::SyncFinished { count } => Some(pb::Event {
             payload: Some(pb::event::Payload::WallpaperSyncFinished(
                 pb::WallpaperSyncFinished {
@@ -1281,10 +1356,91 @@ pub(super) fn global_event_to_pb(e: &GlobalEvent, state: &Arc<DaemonContext>) ->
 // ---------------------------------------------------------------------------
 // Dispatch
 
+fn wallpaper_hidden_changed_event(wallpaper_ids: &[String], hidden: bool) -> pb::Event {
+    pb::Event {
+        payload: Some(pb::event::Payload::WallpaperHiddenChanged(
+            pb::WallpaperHiddenChanged {
+                wallpaper_ids: wallpaper_ids.to_vec(),
+                hidden,
+            },
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn wallpaper_hidden_event_roundtrip() {
+        use prost::Message;
+        let ids = vec!["42".to_owned(), "99".to_owned()];
+        for hidden in [false, true] {
+            let event = wallpaper_hidden_changed_event(&ids, hidden);
+            let decoded = pb::Event::decode(event.encode_to_vec().as_slice()).unwrap();
+            let Some(pb::event::Payload::WallpaperHiddenChanged(changed)) = decoded.payload else {
+                panic!("missing hidden event");
+            };
+            assert_eq!(changed.wallpaper_ids, ids);
+            assert_eq!(changed.hidden, hidden);
+        }
+    }
+
+    #[test]
+    fn flip_protobuf_roundtrip() {
+        use crate::wallframe::display::layout::{FillMode, Flip, Location, Rotation};
+        assert_eq!(flip_from_pb(0), None);
+        assert_eq!(flip_from_pb(99), None);
+        assert_eq!(
+            resolved_layout_from_pb(&pb::LayoutPrefs::default()).flip,
+            Flip::None
+        );
+        for flip in [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both] {
+            let resolved = crate::settings::ResolvedLayout {
+                fillmode: FillMode::Centered,
+                location: Location::new(13, 79),
+                rotation: Rotation::Cw270,
+                flip,
+            };
+            assert_eq!(
+                resolved_layout_from_pb(&layout_prefs_to_pb_resolved(&resolved)),
+                resolved
+            );
+            let prefs = crate::settings::DisplayPrefs {
+                flip: Some(flip),
+                ..Default::default()
+            };
+            let mapped = layout_override_to_pb(&prefs);
+            assert!(mapped.flip_set);
+            assert_eq!(flip_from_pb(mapped.flip), Some(flip));
+            let mapped = canvas_layout_override_to_pb(crate::settings::CanvasLayoutPrefs {
+                flip: Some(flip),
+                ..Default::default()
+            });
+            assert!(mapped.flip_set);
+            assert_eq!(flip_from_pb(mapped.flip), Some(flip));
+        }
+    }
+
+    #[test]
+    fn window_exclusions_protobuf_roundtrip() {
+        let mut policy = crate::settings::AutoReplayPolicy::default();
+        policy.window_exclusions.application_ids = vec!["cat".into(), "cat".into(), String::new()];
+        policy.window_exclusions.titles = vec!["猫".into()];
+        policy.window_exclusions.application_id_patterns = vec!["cat*".into()];
+        policy.window_exclusions.title_patterns = vec!["猫?".into()];
+        let normalized = auto_replay_from_pb(&auto_replay_to_pb(&policy)).unwrap();
+        assert_eq!(normalized.window_exclusions.application_ids, ["cat"]);
+        assert_eq!(normalized.window_exclusions.titles, ["猫"]);
+        assert_eq!(
+            normalized.window_exclusions.application_id_patterns,
+            ["cat*"]
+        );
+        assert_eq!(normalized.window_exclusions.title_patterns, ["猫?"]);
+        policy.window_exclusions.titles = vec!["猫".repeat(86)];
+        assert!(auto_replay_from_pb(&auto_replay_to_pb(&policy)).is_err());
+    }
 
     #[test]
     fn gpu_info_mapping_keeps_name_and_description() {

@@ -132,6 +132,37 @@ MD.BottomSheet {
                     }
                 }
             }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                MD.Text {
+                    text: qsTr("Image decode cache")
+                    typescale: MD.Token.typescale.label_medium
+                    color: MD.Token.color.on_surface_variant
+                }
+
+                W.ValueSlider {
+                    Layout.fillWidth: true
+                    from: 0
+                    to: control.tweak.imageCacheOptions.length - 1
+                    stepSize: 1
+                    snapMode: MD.Slider.SnapAlways
+                    value: Math.max(0, control.tweak.imageCacheOptions.indexOf(control.tweak.imageCacheMiB))
+                    valueText: qsTr("%1 MiB").arg(control.tweak.imageCacheOptions[Math.round(value)])
+                    valueMaxText: qsTr("512 MiB")
+                    onMoved: control.tweak.setImageCacheMiB(control.tweak.imageCacheOptions[Math.round(value)])
+                }
+
+                MD.Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Lower values use less memory but may increase CPU usage when playing animated thumbnails. Set to 0 to disable caching.")
+                    wrapMode: Text.WordWrap
+                    typescale: MD.Token.typescale.body_small
+                    color: MD.Token.color.on_surface_variant
+                }
+            }
         }
     }
 }

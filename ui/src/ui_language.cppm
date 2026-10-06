@@ -1,7 +1,7 @@
 module;
 
 export module waywallen:ui_language;
-import qextra;
+import qextra.qt;
 import rstd;
 
 using rstd::boxed::Box;

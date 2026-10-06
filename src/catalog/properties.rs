@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::settings::ResolvedLayout;
-use crate::wallframe::display::layout::{FillMode, Location, Rotation};
+use crate::wallframe::display::layout::{FillMode, Flip, Location, Rotation};
 use serde::{Deserialize, Serialize};
 
 const SCHEME_COLOR_KEY: &str = "waywallen.scheme_color";
@@ -24,6 +24,7 @@ pub struct WallpaperLayoutOverride {
     pub fillmode: Option<FillMode>,
     pub location: Option<Location>,
     pub rotation: Option<Rotation>,
+    pub flip: Option<Flip>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,6 +32,8 @@ struct PersistedWallpaperLayoutOverride {
     fillmode: FillMode,
     location: Location,
     rotation: Rotation,
+    #[serde(default)]
+    flip: Flip,
 }
 
 impl WallpaperLayoutOverride {
@@ -39,6 +42,7 @@ impl WallpaperLayoutOverride {
             fillmode: Some(layout.fillmode),
             location: Some(layout.location),
             rotation: Some(layout.rotation),
+            flip: Some(layout.flip),
         }
     }
 
@@ -47,6 +51,7 @@ impl WallpaperLayoutOverride {
             fillmode: FillMode::default(),
             location: Location::default(),
             rotation: Rotation::default(),
+            flip: Flip::default(),
         })
     }
 
@@ -55,11 +60,15 @@ impl WallpaperLayoutOverride {
             fillmode: self.fillmode.unwrap_or(base.fillmode),
             location: self.location.unwrap_or(base.location),
             rotation: self.rotation.unwrap_or(base.rotation),
+            flip: self.flip.unwrap_or(base.flip),
         }
     }
 
     pub fn is_empty(self) -> bool {
-        self.fillmode.is_none() && self.location.is_none() && self.rotation.is_none()
+        self.fillmode.is_none()
+            && self.location.is_none()
+            && self.rotation.is_none()
+            && self.flip.is_none()
     }
 }
 
@@ -73,6 +82,7 @@ pub fn wallpaper_layout_override_from_json(raw: &str) -> Option<WallpaperLayoutO
             fillmode: persisted.fillmode,
             location: persisted.location,
             rotation: persisted.rotation,
+            flip: persisted.flip,
         }));
     }
     let parsed = serde_json::from_str::<WallpaperLayoutOverride>(raw).ok()?;
@@ -86,6 +96,7 @@ pub fn wallpaper_layout_override_to_json(
         fillmode: layout.fillmode,
         location: layout.location,
         rotation: layout.rotation,
+        flip: layout.flip,
     })
 }
 
@@ -285,6 +296,7 @@ pub fn split_renderer_properties(
         fillmode,
         location,
         rotation,
+        flip: None,
     };
     (renderer, layout)
 }
@@ -324,6 +336,40 @@ fn parse_percent(value: &str) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wallpaper_flip_roundtrip_and_legacy_default() {
+        let old = r#"{"fillmode":"centered","location":{"x":23,"y":71},"rotation":"cw90"}"#;
+        assert_eq!(
+            wallpaper_layout_override_from_json(old)
+                .unwrap()
+                .materialize()
+                .flip,
+            Flip::None
+        );
+        for flip in [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both] {
+            let layout = ResolvedLayout {
+                fillmode: FillMode::Centered,
+                location: Location::new(23, 71),
+                rotation: Rotation::Cw90,
+                flip,
+            };
+            let encoded = wallpaper_layout_override_to_json(layout).unwrap();
+            assert_eq!(
+                wallpaper_layout_override_from_json(&encoded)
+                    .unwrap()
+                    .materialize(),
+                layout
+            );
+            assert_eq!(WallpaperLayoutOverride::default().apply_to(layout), layout);
+            let override_layout = WallpaperLayoutOverride {
+                flip: Some(Flip::None),
+                ..Default::default()
+            };
+            assert!(!override_layout.is_empty());
+            assert_eq!(override_layout.apply_to(layout).flip, Flip::None);
+        }
+    }
 
     #[test]
     fn splits_daemon_display_properties_from_renderer_properties() {

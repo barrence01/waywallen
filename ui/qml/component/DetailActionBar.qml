@@ -3,33 +3,29 @@ import QtQuick
 import QtQuick.Layouts
 import Qcm.Material as MD
 
-Item {
+MD.ActionToolBar {
     id: root
 
-    property list<MD.Action> actions
-    readonly property real targetWidth: Math.ceil(actionToolBar.maximumContentWidth) + 2
-
-    implicitWidth: targetWidth
-    implicitHeight: actionToolBar.implicitHeight
-    Layout.minimumWidth: targetWidth
-    Layout.preferredWidth: targetWidth
-    Layout.maximumWidth: targetWidth
-    Layout.preferredHeight: actionToolBar.implicitHeight
+    Layout.fillWidth: true
+    Layout.preferredWidth: Math.ceil(maximumContentWidth) + 2
+    Layout.maximumWidth: Layout.preferredWidth
     Layout.alignment: Qt.AlignVCenter
 
-    MD.ActionToolBar {
-        id: actionToolBar
-        anchors.fill: parent
-        actions: root.actions
-        iconDelegate: MD.SmallIconButton {
-            id: button
+    component DetailActionButton: MD.IconButton {
+        id: button
+        mdState.size: MD.Enum.XS
 
-            readonly property string toolTipText: button.action?.text || ""
+        readonly property string toolTipText: button.action?.tooltip || button.action?.text || ""
 
-            action: MD.ToolBarLayout.action
-            hoverEnabled: true
-            MD.ToolTip.text: button.toolTipText
-            MD.ToolTip.visible: button.hovered && button.toolTipText.length > 0 && !button.pressed
-        }
+        hoverEnabled: true
+        MD.ToolTip.text: button.toolTipText
+        MD.ToolTip.visible: button.hovered && button.toolTipText.length > 0 && !button.pressed
+    }
+
+    iconDelegate: DetailActionButton {
+        action: MD.ToolBarLayout.action
+    }
+    moreDelegate: DetailActionButton {
+        action: root.moreAction
     }
 }

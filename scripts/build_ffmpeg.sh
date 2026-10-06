@@ -7,8 +7,8 @@
 #     because configure picks up CC and CFLAGS / LDFLAGS from the activated
 #     conda env (which the clang_linux-64 activation populates with --sysroot).
 #
-# Idempotent: skips the build if libavcodec.pc and the requested version stamp
-# are already present. Set FORCE=1 to rebuild.
+# Idempotent: skips the build if libavcodec.pc, the requested version, and this
+# build script's checksum match the installed stamps. Set FORCE=1 to rebuild.
 #
 # Tunables (env vars):
 #   FFMPEG_VERSION      git tag to check out, default n7.1.5
@@ -27,12 +27,17 @@ FFMPEG_REPOSITORY="${FFMPEG_REPOSITORY:-https://github.com/FFmpeg/FFmpeg.git}"
 FFMPEG_SRC="$CONDA_PREFIX/.ffmpeg-src"
 PKG_STAMP="$CONDA_PREFIX/lib/pkgconfig/libavcodec.pc"
 VERSION_STAMP="$CONDA_PREFIX/.waywallen-ffmpeg-version"
+CONFIG_STAMP="$CONDA_PREFIX/.waywallen-ffmpeg-config"
+CONFIG_HASH="$(sha256sum "${BASH_SOURCE[0]}")"
+CONFIG_HASH="${CONFIG_HASH%% *}"
 
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
 if [[ -f "$PKG_STAMP" \
     && -f "$VERSION_STAMP" \
     && "$(<"$VERSION_STAMP")" == "$FFMPEG_VERSION" \
+    && -f "$CONFIG_STAMP" \
+    && "$(<"$CONFIG_STAMP")" == "$CONFIG_HASH" \
     && -z "${FORCE:-}" ]]; then
     step "FFmpeg $FFMPEG_VERSION already installed in \$CONDA_PREFIX (set FORCE=1 to rebuild)"
     exit 0
@@ -60,19 +65,24 @@ DECODERS=(
     # in video_decoder.cpp: hw paths use native `av1`, sw uses libdav1d.
     h264 hevc av1 libdav1d vp8 vp9 mpeg4 mjpeg
     # image (also used for image-sequence demuxing)
-    png apng webp gif bmp tiff
+    png apng webp gif bmp tiff pam pbm pgm ppm
     # audio (probe-only)
     aac mp3 opus vorbis flac pcm_s16le pcm_s16be
 )
 ENCODERS=()  # waywallen never encodes
 DEMUXERS=(
-    mov matroska image2 gif webp_pipe apng_pipe png_pipe jpeg_pipe
+    mov matroska
+    # wavsen.image uses custom AVIO, including image2 -> image2pipe fallback.
+    # Configure names for the *_pipe formats have an image_ prefix.
+    image2 image2pipe gif apng ico
+    image_png_pipe image_jpeg_pipe image_webp_pipe image_bmp_pipe image_tiff_pipe
+    image_pam_pipe image_pbm_pipe image_pgm_pipe image_ppm_pipe
     aac mp3 ogg flac wav
 )
 PARSERS=(
     h264 hevc av1 vp8 vp9 mjpeg
     aac mpegaudio opus vorbis flac
-    png webp
+    png webp bmp gif pnm
 )
 BSFS=(
     h264_mp4toannexb hevc_mp4toannexb
@@ -145,5 +155,6 @@ for x in "${HWACCELS[@]}";  do CFG_ARGS+=( "--enable-hwaccel=$x"  ); done
     make install
 )
 printf '%s\n' "$FFMPEG_VERSION" > "$VERSION_STAMP"
+printf '%s\n' "$CONFIG_HASH" > "$CONFIG_STAMP"
 
 step "FFmpeg installed; pkg-config stamp -> $PKG_STAMP"

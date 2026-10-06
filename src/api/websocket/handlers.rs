@@ -54,6 +54,7 @@ fn canvas_layout_from_pb(
             .rotation_set
             .then(|| rotation_from_pb(layout.rotation))
             .flatten(),
+        flip: layout.flip_set.then(|| flip_from_pb(layout.flip)).flatten(),
     }
 }
 
@@ -432,6 +433,17 @@ pub(super) async fn dispatch_inner(
             if !r.skip_types.is_empty() {
                 raw_entries.retain(|e| !r.skip_types.iter().any(|t| t == &e.wp_type));
             }
+            match pb::WallpaperHiddenFilter::try_from(r.hidden_filter)
+                .unwrap_or(pb::WallpaperHiddenFilter::Exclude)
+            {
+                pb::WallpaperHiddenFilter::Exclude => {
+                    raw_entries.retain(|e| !e.hidden);
+                }
+                pb::WallpaperHiddenFilter::Only => {
+                    raw_entries.retain(|e| e.hidden);
+                }
+                pb::WallpaperHiddenFilter::Include => {}
+            }
 
             let mut effective_filters: Vec<_> =
                 r.filters.iter().filter_map(filter_rule_from_pb).collect();
@@ -692,6 +704,38 @@ pub(super) async fn dispatch_inner(
             Res::WallpaperUnsubscribe(pb::WallpaperUnsubscribeResponse {})
         }
 
+        Req::WallpaperHide(r) => {
+            let mut wallpaper_ids = Vec::new();
+            if !r.wallpaper_id.trim().is_empty() {
+                wallpaper_ids.push(r.wallpaper_id);
+            }
+            wallpaper_ids.extend(
+                r.wallpaper_ids
+                    .into_iter()
+                    .filter(|id| !id.trim().is_empty()),
+            );
+            if wallpaper_ids.is_empty() {
+                return Err(Error::InvalidArgument("wallpaper_id is required".into()));
+            }
+
+            let mut item_ids = Vec::with_capacity(wallpaper_ids.len());
+            for wallpaper_id in &wallpaper_ids {
+                let item_id = wallpaper_id
+                    .parse::<i64>()
+                    .map_err(|_| Error::WallpaperNotFound(wallpaper_id.clone()))?;
+                item_ids.push(item_id);
+            }
+            let changed = repo::set_items_hidden(&state.db, &item_ids, r.hidden).await?;
+            let updated_count = changed.len() as u32;
+            if !changed.is_empty() {
+                state.events.publish(GlobalEvent::WallpaperHiddenChanged {
+                    wallpaper_ids: changed.into_iter().map(|id| id.to_string()).collect(),
+                    hidden: r.hidden,
+                });
+            }
+            Res::WallpaperHide(pb::WallpaperHideResponse { updated_count })
+        }
+
         Req::WallpaperPropertySet(r) => {
             let entry = match r.wallpaper_id.parse::<i64>() {
                 Ok(iid) => repo::get_entry(&state.db, iid).await?,
@@ -811,7 +855,15 @@ pub(super) async fn dispatch_inner(
                         "wallpaper_layout_set requires layout unless clear=true".to_string(),
                     ));
                 };
-                Some(resolved_layout_from_pb(layout))
+                let mut resolved = resolved_layout_from_pb(layout);
+                if flip_from_pb(layout.flip).is_none() {
+                    resolved.flip =
+                        repo::get_wallpaper_layout_override_with_legacy(&state.db, entry.item_id)
+                            .await?
+                            .and_then(|existing| existing.flip)
+                            .unwrap_or_default();
+                }
+                Some(resolved)
             };
             repo::set_wallpaper_layout_override(&state.db, entry.item_id, layout).await?;
 
@@ -1003,6 +1055,11 @@ pub(super) async fn dispatch_inner(
                     r.clear_fillmode,
                     r.clear_align || r.clear_location,
                     r.clear_rotation,
+                    r.r#override
+                        .as_ref()
+                        .filter(|o| o.flip_set)
+                        .and_then(|o| flip_from_pb(o.flip)),
+                    r.clear_flip,
                 )
                 .await;
             let display = match target_id {
@@ -1202,6 +1259,11 @@ pub(super) async fn dispatch_inner(
                     r.clear_fillmode,
                     r.clear_location,
                     r.clear_rotation,
+                    r.r#override
+                        .as_ref()
+                        .filter(|o| o.flip_set)
+                        .and_then(|o| flip_from_pb(o.flip)),
+                    r.clear_flip,
                 )
                 .await?;
             let canvas = state
@@ -1923,7 +1985,7 @@ pub(super) async fn dispatch_inner(
             let previous_settings = state.settings.snapshot();
             let previous_filter = previous_settings.global.wallpaper_filter.clone();
             let prev_layout = previous_settings.global.layout.clone();
-            let prev_auto_replay = previous_settings.global.auto_replay;
+            let prev_auto_replay = previous_settings.global.auto_replay.clone();
             let prev_pause_effect = previous_settings.global.pause_effect;
             let prev_transition = previous_settings.global.transition;
             let prev_queue_mode = previous_settings.global.queue_mode.clone();
@@ -1954,6 +2016,8 @@ pub(super) async fn dispatch_inner(
                     s.global.wallpaper_filter_tags = g.wallpaper_filter_tags.clone();
                     s.global.wallpaper_skip_content_ratings =
                         g.wallpaper_skip_content_ratings.clone();
+                    s.global.wallpaper_hidden_filter =
+                        wallpaper_hidden_filter_from_pb(g.wallpaper_hidden_filter);
                     if let Some(ld) = g.layout_defaults.as_ref() {
                         if let Some(fm) = fillmode_from_pb(ld.fillmode) {
                             s.global.layout.fillmode = fm;
@@ -2033,6 +2097,7 @@ pub(super) async fn dispatch_inner(
                 // effective_layout values.
                 let snap = state.router.snapshot_displays().await;
                 state.router.emit_displays_replace_for_settings_change(snap);
+                state.router.publish_canvas_snapshot().await;
             }
             if current_settings.global.auto_replay != prev_auto_replay {
                 state.router.resync_auto_replay().await;
@@ -2124,34 +2189,7 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::LibraryAdd(r) => {
-            let plugin = repo::find_plugin_by_name(&state.db, &r.plugin_name)
-                .await?
-                .ok_or_else(|| Error::SourcePluginNotFound(r.plugin_name.clone()))?;
-            let lib = repo::add_library(&state.db, plugin.id, &r.path).await?;
-            let snap = LibrarySnapshot {
-                id: lib.id,
-                path: lib.path,
-                plugin_name: r.plugin_name,
-            };
-            let added_path = snap.path.clone();
-            state.router.upsert_library(snap);
-            state.events.publish(GlobalEvent::LibrariesAdded {
-                paths: vec![added_path],
-            });
-            // Rescan immediately so the new library reaches the DB and UI
-            // without waiting for restart.
-            let rescan_state = state.clone();
-            state.tasks.spawn_async_unique(
-                tasks::TaskKind::Generic,
-                "scan/refresh",
-                "scan/refresh-after-library-add",
-                async move {
-                    application::refresh_sources(&rescan_state)
-                        .await
-                        .map(|_| ())
-                        .map_err(anyhow::Error::from)
-                },
-            );
+            application::add_library(&state, &r.plugin_name, &r.path).await?;
             Res::LibraryAdd(pb::Empty {})
         }
 

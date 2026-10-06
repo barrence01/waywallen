@@ -17,10 +17,11 @@ MD.Page {
     readonly property real canvasPaddingPx: 8
     readonly property real canvasSnapPx: 12
 
-    property string selectedKind: ""
-    property var selectedId: null
+    property var selection: null
+    readonly property string selectedKind: selection?.kind || ""
+    readonly property var selectedId: selection?.id ?? null
     property string pendingCanvasId: ""
-    readonly property bool detailsVisible: !!root.selectedDisplayObject || !!root.selectedCanvasObject
+    readonly property bool detailsVisible: !!root.selected
     property bool detailsExpanded: false
     onDetailsVisibleChanged: {
         if (!detailsVisible)
@@ -60,6 +61,8 @@ MD.Page {
         canvasLayoutSetQuery.fillmodeSet = false;
         canvasLayoutSetQuery.locationSet = false;
         canvasLayoutSetQuery.rotationSet = false;
+        canvasLayoutSetQuery.flipSet = false;
+        canvasLayoutSetQuery.clearFlip = false;
         canvasLayoutSetQuery.clearFillmode = false;
         canvasLayoutSetQuery.clearLocation = false;
         canvasLayoutSetQuery.clearRotation = false;
@@ -88,6 +91,8 @@ MD.Page {
         layoutSetQuery.clearLocation = false;
         layoutSetQuery.clearAlign = false;
         layoutSetQuery.clearRotation = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = false;
         layoutSetQuery.reload();
     }
 
@@ -112,6 +117,8 @@ MD.Page {
         layoutSetQuery.clearLocation = false;
         layoutSetQuery.clearAlign = false;
         layoutSetQuery.clearRotation = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = false;
         layoutSetQuery.reload();
     }
 
@@ -136,6 +143,34 @@ MD.Page {
         layoutSetQuery.clearLocation = false;
         layoutSetQuery.clearAlign = false;
         layoutSetQuery.clearRotation = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = false;
+        layoutSetQuery.reload();
+    }
+
+    function applyFlip(value) {
+        if (!root.selected)
+            return;
+        if (root.selectedKind === "canvas") {
+            root.prepareCanvasLayoutUpdate();
+            canvasLayoutSetQuery.flipSet = true;
+            canvasLayoutSetQuery.flip = value;
+            canvasLayoutSetQuery.reload();
+            return;
+        }
+        layoutSetQuery.name = root.selected.name;
+        layoutSetQuery.displayId = root.selected.id;
+        layoutSetQuery.fillmodeSet = false;
+        layoutSetQuery.locationSet = false;
+        layoutSetQuery.alignSet = false;
+        layoutSetQuery.rotationSet = false;
+        layoutSetQuery.flipSet = true;
+        layoutSetQuery.flip = value;
+        layoutSetQuery.clearFillmode = false;
+        layoutSetQuery.clearLocation = false;
+        layoutSetQuery.clearAlign = false;
+        layoutSetQuery.clearRotation = false;
+        layoutSetQuery.clearFlip = false;
         layoutSetQuery.reload();
     }
 
@@ -147,6 +182,7 @@ MD.Page {
             canvasLayoutSetQuery.clearFillmode = true;
             canvasLayoutSetQuery.clearLocation = true;
             canvasLayoutSetQuery.clearRotation = true;
+            canvasLayoutSetQuery.clearFlip = true;
             canvasLayoutSetQuery.reload();
             return;
         }
@@ -159,6 +195,9 @@ MD.Page {
         layoutSetQuery.clearLocation = true;
         layoutSetQuery.clearAlign = true;
         layoutSetQuery.clearRotation = true;
+        layoutSetQuery.rotationSet = false;
+        layoutSetQuery.flipSet = false;
+        layoutSetQuery.clearFlip = true;
         layoutSetQuery.reload();
     }
 
@@ -193,8 +232,7 @@ MD.Page {
             if (root.selectedKind !== "canvas" || root.selectedId !== canvasId)
                 return;
             canvasEditor.clear();
-            root.selectedKind = "";
-            root.selectedId = null;
+            root.selection = null;
         }
     }
 
@@ -209,12 +247,11 @@ MD.Page {
             root.openPendingCanvas();
             if (root.selectedKind !== "canvas")
                 return;
-            const selected = root.findSelectedCanvas();
+            const selected = W.App.displayManager.getCanvas(String(root.selectedId));
             if (!selected) {
                 canvasDialog.close();
                 canvasEditor.clear();
-                root.selectedKind = "";
-                root.selectedId = null;
+                root.selection = null;
             } else if (!canvasEditor.dirty) {
                 canvasEditor.begin(selected);
             } else {
@@ -429,22 +466,6 @@ MD.Page {
     readonly property real boundsX: targets.length > 0 ? targets.reduce((value, item) => Math.min(value, item.x), targets[0].x) : 0
     readonly property real boundsY: targets.length > 0 ? targets.reduce((value, item) => Math.min(value, item.y), targets[0].y) : 0
 
-    function findSelectedDisplay() {
-        if (root.selectedKind !== "display" || root.selectedId === null)
-            return null;
-        for (const d of W.App.displayManager.displays || []) {
-            if (d.id === root.selectedId)
-                return d;
-        }
-        return null;
-    }
-
-    function findSelectedCanvas() {
-        if (root.selectedKind !== "canvas" || root.selectedId === null)
-            return null;
-        return W.App.displayManager.getCanvas(String(root.selectedId));
-    }
-
     function canChangeSelection(kind, id) {
         return !canvasEditor.dirty || (root.selectedKind === kind && root.selectedId === id);
     }
@@ -457,8 +478,10 @@ MD.Page {
             return;
         }
         canvasEditor.clear();
-        root.selectedKind = "display";
-        root.selectedId = displayObject.id;
+        root.selection = {
+            kind: "display",
+            id: displayObject.id
+        };
         root.detailsExpanded = true;
     }
 
@@ -466,8 +489,10 @@ MD.Page {
         if (!canvasObject || !root.canChangeSelection("canvas", canvasObject.id))
             return;
         if (root.selectedKind !== "canvas" || root.selectedId !== canvasObject.id) {
-            root.selectedKind = "canvas";
-            root.selectedId = canvasObject.id;
+            root.selection = {
+                kind: "canvas",
+                id: canvasObject.id
+            };
             canvasEditor.begin(canvasObject);
         }
         root.detailsExpanded = true;
@@ -483,8 +508,7 @@ MD.Page {
         if (root.detailsExpanded || canvasEditor.dirty)
             return;
         canvasEditor.clear();
-        root.selectedKind = "";
-        root.selectedId = null;
+        root.selection = null;
     }
 
     function applyCanvasDraft() {
@@ -514,9 +538,15 @@ MD.Page {
         };
     }
 
-    readonly property var selectedDisplayObject: findSelectedDisplay()
-    readonly property var selectedCanvasObject: findSelectedCanvas()
-    readonly property var selected: selectedDisplayObject || selectedCanvasObject
+    readonly property var selected: {
+        const key = root.selection;
+        if (!key)
+            return null;
+        const objects = key.kind === "canvas" ? W.App.displayManager.canvases : W.App.displayManager.displays;
+        return (objects || []).find(object => object.id === key.id) || null;
+    }
+    readonly property var selectedDisplayObject: selectedKind === "display" ? selected : null
+    readonly property var selectedCanvasObject: selectedKind === "canvas" ? selected : null
 
     MD.SplitView {
         id: pageContent
@@ -581,8 +611,9 @@ MD.Page {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: canvasEditor.dirty
                         actions: [resetCanvasAlignmentAction, applyCanvasAlignmentAction]
-                        iconDelegate: MD.SmallIconButton {
+                        iconDelegate: MD.IconButton {
                             id: canvasActionButton
+                            mdState.size: MD.Enum.XS
 
                             readonly property string toolTipText: canvasActionButton.action?.tooltip || canvasActionButton.action?.text || ""
 
@@ -591,13 +622,15 @@ MD.Page {
                             MD.ToolTip.text: toolTipText
                             MD.ToolTip.visible: hovered && toolTipText.length > 0 && !pressed
                         }
-                        moreDelegate: MD.SmallIconButton {
+                        moreDelegate: MD.IconButton {
+                            mdState.size: MD.Enum.XS
                             action: canvasAlignmentActionToolBar.moreAction
                         }
                     }
 
-                    MD.SmallIconButton {
+                    MD.IconButton {
                         id: refreshDisplaysButton
+                        mdState.size: MD.Enum.XS
 
                         anchors.right: createCanvasChip.left
                         anchors.rightMargin: 6
@@ -1256,10 +1289,10 @@ MD.Page {
                                     return false;
                                 if (root.selectedKind === "canvas") {
                                     const override = root.selectedCanvasObject?.layoutOverride || ({});
-                                    return !canvasLayoutSetQuery.querying && (override.fillmodeSet === true || override.locationSet === true || override.rotationSet === true);
+                                    return !canvasLayoutSetQuery.querying && (override.fillmodeSet === true || override.locationSet === true || override.rotationSet === true || override.flipSet === true);
                                 }
                                 const override = root.selected.layoutOverride || ({});
-                                return override.fillmodeSet === true || override.locationSet === true || override.alignSet === true || override.rotationSet === true;
+                                return override.fillmodeSet === true || override.locationSet === true || override.alignSet === true || override.rotationSet === true || override.flipSet === true;
                             }
                             fillModeValues: root.kFillModeValues
                             fillModeLabels: root.kFillModeLabels
@@ -1268,6 +1301,7 @@ MD.Page {
                             onFillModeRequested: value => root.applyFillmode(value)
                             onLocationRequested: (x, y) => root.applyLocation(x, y)
                             onRotationRequested: value => root.applyRotation(value)
+                            onFlipRequested: value => root.applyFlip(value)
                             onResetRequested: resetDisplaySettingsDialog.open()
                         }
 

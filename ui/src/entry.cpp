@@ -4,6 +4,7 @@ module;
 
 Q_IMPORT_QML_PLUGIN(waywallen_uiPlugin)
 Q_IMPORT_QML_PLUGIN(waywallen_controlPlugin)
+Q_IMPORT_QML_PLUGIN(QExtraPlugin)
 
 module waywallen.entry;
 import qextra;

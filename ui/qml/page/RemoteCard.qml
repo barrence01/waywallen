@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Qcm.Material as MD
+import waywallen.ui as W
 
 Item {
     id: root
@@ -15,7 +16,7 @@ Item {
     property real itemWidth: width
     property real itemHeight: height
 
-    signal clicked()
+    signal clicked
 
     width: GridView.view ? GridView.view.cellWidth : 0
     height: GridView.view ? GridView.view.cellHeight : 0
@@ -36,23 +37,13 @@ Item {
             anchors.margins: 6
             clip: true
 
-            AnimatedImage {
+            W.ThumbnailImage {
                 id: m_thumb
                 anchors.fill: parent
                 source: root.previewUrl
+                radius: root._radius
                 fillMode: Image.PreserveAspectCrop
-                horizontalAlignment: Image.AlignHCenter
                 verticalAlignment: Image.AlignVCenter
-                smooth: true
-                cache: true
-                playing: true
-                asynchronous: true
-                onStatusChanged: if (status === AnimatedImage.Ready) playing = true
-                layer.enabled: true
-                layer.effect: MD.RoundClip {
-                    corners: MD.Util.corners(root._radius)
-                    size: Qt.vector2d(m_thumb.width, m_thumb.height)
-                }
             }
 
             Rectangle {
@@ -63,8 +54,14 @@ Item {
                 visible: height > 0
                 radius: root._radius
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.65) }
+                    GradientStop {
+                        position: 0.0
+                        color: "transparent"
+                    }
+                    GradientStop {
+                        position: 1.0
+                        color: Qt.rgba(0, 0, 0, 0.65)
+                    }
                 }
             }
 
@@ -86,9 +83,12 @@ Item {
             }
 
             Rectangle {
-                visible: (root.remoteCapability === 1 && root.acquisitionState === 3)
-                    || (root.remoteCapability === 2 && root.acquisitionState === 2)
-                anchors { top: parent.top; right: parent.right; margins: 6 }
+                visible: (root.remoteCapability === 1 && root.acquisitionState === 3) || (root.remoteCapability === 2 && root.acquisitionState === 2)
+                anchors {
+                    top: parent.top
+                    right: parent.right
+                    margins: 6
+                }
                 width: m_badge.implicitWidth + 12
                 height: m_badge.implicitHeight + 6
                 radius: height / 2

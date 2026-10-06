@@ -22,6 +22,7 @@ ColumnLayout {
     signal fillModeRequested(int value)
     signal locationRequested(real x, real y)
     signal rotationRequested(int value)
+    signal flipRequested(int value)
     signal resetRequested
 
     spacing: 8
@@ -194,6 +195,22 @@ ColumnLayout {
                     checked: rotationGroup.isChecked(control.rotationValues[3])
                     onClicked: rotationGroup.applyRotation(control.rotationValues[3])
                 }
+            }
+
+        }
+
+        ColumnLayout {
+            width: Math.min(layoutFlow.width, implicitWidth)
+            spacing: 4
+
+            MD.Text {
+                text: qsTr("Flip")
+                typescale: MD.Token.typescale.label_medium
+                color: MD.Token.color.on_surface_variant
+            }
+            W.FlipButtons {
+                value: control.displayLayout.flip || 1
+                onSelected: value => control.flipRequested(value)
             }
         }
     }

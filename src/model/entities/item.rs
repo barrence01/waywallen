@@ -42,6 +42,9 @@ pub struct Model {
     /// JSON map of daemon-owned per-wallpaper display layout override.
     /// This is intentionally separate from renderer user properties.
     pub wallpaper_layout_override: Option<String>,
+    /// When true, the library browser hides this item unless the
+    /// show-hidden filter is enabled.
+    pub hidden: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -17,6 +17,23 @@ WallpaperSelectStorage::WallpaperSelectStorage(QObject* parent): SelectStorage(p
             &SelectStorage::modelChanged,
             this,
             &WallpaperSelectStorage::selectedRemovableCountChanged);
+    connect(this,
+            &SelectStorage::selectedCountChanged,
+            this,
+            &WallpaperSelectStorage::selectedHiddenCountChanged);
+    connect(this,
+            &SelectStorage::modelChanged,
+            this,
+            &WallpaperSelectStorage::selectedHiddenCountChanged);
+    connect(this, &SelectStorage::modelChanged, this, [this] {
+        disconnect(m_hidden_data_connection);
+        if (auto* source = qobject_cast<QAbstractItemModel*>(model())) {
+            m_hidden_data_connection = connect(source,
+                                               &QAbstractItemModel::dataChanged,
+                                               this,
+                                               &WallpaperSelectStorage::selectedHiddenCountChanged);
+        }
+    });
 }
 
 WallpaperSelectStorage::~WallpaperSelectStorage() = default;
@@ -44,6 +61,16 @@ auto WallpaperSelectStorage::removableSelectedWallpaperIds() const -> QStringLis
 
 auto WallpaperSelectStorage::removableSelectedCount() const -> qint32 {
     return static_cast<qint32>(removableSelectedWallpaperIds().size());
+}
+
+auto WallpaperSelectStorage::hiddenSelectedCount() const -> qint32 {
+    qint32     count = 0;
+    const auto items = selectedItems();
+    for (const auto& item : items) {
+        if (! item.canConvert<model::Wallpaper>()) continue;
+        if (item.value<model::Wallpaper>().hidden()) ++count;
+    }
+    return count;
 }
 
 PlaylistItemSelectStorage::PlaylistItemSelectStorage(QObject* parent)

@@ -236,8 +236,7 @@ void App::raiseMainWindow(const QString& xdgActivationToken) {
         d->m_main_win->setWindowStates(state & ~Qt::WindowMinimized);
     }
 
-    d->m_main_win->show();
-    d->m_main_win->showNormal();
+    d->m_main_win->setVisible(true);
     d->m_main_win->raise();
 
     d->m_main_win->requestActivate();

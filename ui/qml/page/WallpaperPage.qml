@@ -17,7 +17,7 @@ MD.Page {
     W.WallpaperSelectStorage {
         id: userWallpaperSelect
         model: wallpaperQuery.data
-        property list<MD.Action> actions: [removeSelectionAction, createPlaylistFromSelectionAction, addToPlaylistAction]
+        property list<MD.Action> actions: [hideSelectionAction, removeSelectionAction, createPlaylistFromSelectionAction, addToPlaylistAction]
     }
 
     W.PlaylistItemSelectStorage {
@@ -41,6 +41,21 @@ MD.Page {
         onStatusChanged: {
             if (selectionRemoveQuery.status === 3) {
                 const message = selectionRemoveQuery.error && selectionRemoveQuery.error.length > 0 ? selectionRemoveQuery.error : qsTr("Remove failed");
+                W.Action.toast(message, 6000, 1, null);
+            }
+        }
+    }
+
+    W.WallpaperHideQuery {
+        id: selectionHideQuery
+        forwardError: false
+        onUpdated: function (wallpaperIds, hidden, updatedCount) {
+            root.clearWallpaperSelection();
+            W.Action.toast(hidden ? qsTr("Hidden %1").arg(updatedCount) : qsTr("Unhidden %1").arg(updatedCount));
+        }
+        onStatusChanged: {
+            if (selectionHideQuery.status === 3) {
+                const message = selectionHideQuery.error && selectionHideQuery.error.length > 0 ? selectionHideQuery.error : qsTr("Hide failed");
                 W.Action.toast(message, 6000, 1, null);
             }
         }
@@ -211,6 +226,9 @@ MD.Page {
             }
             wallpaperQuery.reload();
         }
+        function onWallpaperHiddenChanged(wallpaperIds, hidden) {
+            wallpaperQuery.reload();
+        }
         function onDaemonReady() {
             root.reloadAll();
         }
@@ -262,6 +280,15 @@ MD.Page {
         busy: playlistItemsMutation.querying
         enabled: playlistWallpaperSelect.playlistId > 0 && !playlistItemsMutation.querying
         onTriggered: root.applyPlaylistSelection()
+    }
+
+    MD.Action {
+        id: hideSelectionAction
+        text: root.selectionAllHidden ? qsTr("Unhide %1").arg(root.selectedWallpaperCount) : qsTr("Hide %1").arg(root.selectedWallpaperCount)
+        icon.name: MD.Token.icon.visibility_off
+        busy: selectionHideQuery.querying
+        enabled: root.selectedWallpaperCount > 0 && !selectionHideQuery.querying
+        onTriggered: root.hideSelectedWallpapers()
     }
 
     MD.Action {
@@ -376,6 +403,7 @@ MD.Page {
                 wallpaperQuery.skipTypes = global.wallpaperSkipTypes || [];
                 wallpaperQuery.filterTags = global.wallpaperFilterTags || [];
                 wallpaperQuery.skipContentRatings = global.wallpaperSkipContentRatings || [];
+                wallpaperQuery.hiddenFilter = Number(global.wallpaperHiddenFilter || 0);
                 root._quickFiltersSeeded = true;
             }
             const filters = global.wallpaperFilters || [];
@@ -454,6 +482,15 @@ MD.Page {
                 wallpaperQuery.skipContentRatings = next;
                 root._persistGlobalChange(g => {
                     g.wallpaperSkipContentRatings = next;
+                });
+            }
+            hiddenFilter: wallpaperQuery.hiddenFilter
+            onHiddenFilterSelected: function (value) {
+                if (wallpaperQuery.hiddenFilter === value)
+                    return;
+                wallpaperQuery.hiddenFilter = value;
+                root._persistGlobalChange(g => {
+                    g.wallpaperHiddenFilter = value;
                 });
             }
         }
@@ -562,7 +599,11 @@ MD.Page {
     property double playlistEditorId: 0
     property bool playlistEditorReturnsToList: true
     property var filterPresentation: null
+    property var hiddenWallpapersPresentation: null
+    property bool hiddenWallpapersReturnToList: true
     Component.onDestruction: {
+        root.hiddenWallpapersReturnToList = false;
+        root.hiddenWallpapersPresentation?.cancel();
         root.filterPresentation?.cancel();
         root.playlistEditorReturnsToList = false;
         root.playlistEditorPresentation?.cancel();
@@ -570,6 +611,8 @@ MD.Page {
     readonly property int selectionSheetReserve: wallpaperSelectSheetRelay.currentComponent ? 360 : 160
     readonly property int selectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.selectedCount : 0
     readonly property int removableSelectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.removableSelectedCount : 0
+    readonly property int hiddenSelectedWallpaperCount: root.currentWallpaperSelect ? root.currentWallpaperSelect.hiddenSelectedCount : 0
+    readonly property bool selectionAllHidden: root.selectedWallpaperCount > 0 && root.hiddenSelectedWallpaperCount === root.selectedWallpaperCount
     readonly property bool selectionActive: root.currentWallpaperSelect ? root.currentWallpaperSelect.active : false
     readonly property bool selectionActionSheetActive: root.selectionActive && root.currentWallpaperSelect && (root.currentWallpaperSelect.actions || []).length > 0
 
@@ -737,6 +780,23 @@ MD.Page {
             root.wallpaperTweakSheet.close();
         playlistListQuery.reload();
         root.ensurePlaylistListSheet();
+    }
+
+    function openHiddenWallpapers() {
+        if (root.hiddenWallpapersPresentation?.active)
+            return;
+        root.playlistListSheet?.close();
+        const presentation = root.Window.window.presentPopup('waywallen.ui/PagePopup', {
+            source: 'waywallen.ui/HiddenWallpapersPage'
+        });
+        root.hiddenWallpapersPresentation = presentation;
+        presentation.activeChanged.connect(presentation, function () {
+            if (presentation.active || root.hiddenWallpapersPresentation !== presentation)
+                return;
+            root.hiddenWallpapersPresentation = null;
+            if (root.hiddenWallpapersReturnToList)
+                root.showPlaylistListSheet();
+        });
     }
 
     function releasePlaylistEditor(presentation) {
@@ -932,6 +992,24 @@ MD.Page {
         selectionRemoveQuery.remove(ids);
     }
 
+    function hideSelectedWallpapers() {
+        const select = root.currentWallpaperSelect;
+        if (!select || selectionHideQuery.querying)
+            return;
+
+        const raw = select.selectedWallpaperIds();
+        const ids = [];
+        for (let i = 0; i < raw.length; ++i) {
+            const id = String(raw[i] || "");
+            if (id.length > 0)
+                ids.push(id);
+        }
+        if (ids.length === 0)
+            return;
+
+        selectionHideQuery.setHiddenForIds(ids, !root.selectionAllHidden);
+    }
+
     function deletePlaylist(playlist) {
         if (!playlist || playlistMutation.querying)
             return;
@@ -954,6 +1032,11 @@ MD.Page {
         onBack: {
             dismissAnchoredPopups();
             detailPresenter.dismiss();
+        }
+        onHiddenChanged: function (hidden) {
+            const filter = wallpaperQuery.hiddenFilter;
+            if ((hidden && filter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_EXCLUDE) || (!hidden && filter === WC.WallpaperHiddenFilter.WALLPAPER_HIDDEN_FILTER_ONLY))
+                back();
         }
     }
 
@@ -1257,6 +1340,7 @@ MD.Page {
         W.PlaylistListSheet {
             popupParent: root
             sheetState: playlistListSheetState
+            onHiddenWallpapersRequested: root.openHiddenWallpapers()
         }
     }
 

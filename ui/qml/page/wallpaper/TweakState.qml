@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtCore
 import QtQml
+import waywallen.ui as W
 
 QtObject {
     id: root
@@ -14,6 +15,12 @@ QtObject {
     property int itemSize: 162
     property real itemAspectRatio: 1
     property int layoutMode: layoutFillCell
+    readonly property int imageCacheMiB: W.Global.imageCacheMiB
+    readonly property var imageCacheOptions: W.Global.imageCacheOptions
+
+    function setImageCacheMiB(value) {
+        W.Global.setImageCacheMiB(value);
+    }
     readonly property real itemHeight: itemSize / Math.max(itemAspectRatio, 0.1)
 
     readonly property Settings settings: Settings {

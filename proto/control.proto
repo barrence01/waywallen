@@ -105,6 +105,7 @@ message Request {
     LogReadRequest              log_read = 88;
     WallpaperLookupRequest      wallpaper_lookup = 89;
     DisplayPauseSetRequest      display_pause_set = 90;
+    WallpaperHideRequest        wallpaper_hide = 91;
   }
 }
 
@@ -197,6 +198,7 @@ message Response {
     LogReadResponse              log_read = 88;
     WallpaperLookupResponse      wallpaper_lookup = 89;
     DisplayPauseSetResponse      display_pause_set = 90;
+    WallpaperHideResponse        wallpaper_hide = 91;
   }
 }
 
@@ -547,6 +549,9 @@ message WallpaperEntry {
   // Source-provided page for this wallpaper on its remote service.
   // Empty for local wallpapers and sources that do not provide one.
   string web_url = 20;
+  // When true, the library browser hides this item unless the
+  // WallpaperListRequest hidden_filter includes it.
+  bool hidden = 21;
 }
 
 message WallpaperListRequest {
@@ -572,6 +577,18 @@ message WallpaperListRequest {
   // Content ratings to exclude (quick toggles, like skip_types). An
   // entry whose `content_rating` is listed here is dropped.
   repeated string skip_content_ratings = 11;
+  // How to treat wallpapers marked hidden. Default EXCLUDE.
+  WallpaperHiddenFilter hidden_filter = 12;
+}
+
+// Library-browser filter for the per-item `hidden` flag.
+enum WallpaperHiddenFilter {
+  // Show every wallpaper except those marked hidden.
+  WALLPAPER_HIDDEN_FILTER_EXCLUDE = 0;
+  // Show only wallpapers marked hidden.
+  WALLPAPER_HIDDEN_FILTER_ONLY = 1;
+  // Show all wallpapers, including hidden ones.
+  WALLPAPER_HIDDEN_FILTER_INCLUDE = 2;
 }
 message WallpaperListResponse {
   repeated WallpaperEntry wallpapers = 1;
@@ -637,6 +654,21 @@ message WallpaperUnsubscribeRequest {
   string wallpaper_id = 1;
 }
 message WallpaperUnsubscribeResponse {}
+
+message WallpaperHideRequest {
+  string wallpaper_id = 1;
+  repeated string wallpaper_ids = 2;
+  bool hidden = 3;
+}
+message WallpaperHideResponse {
+  // Number of items whose hidden flag actually changed.
+  uint32 updated_count = 1;
+}
+
+message WallpaperHiddenChanged {
+  repeated string wallpaper_ids = 1;
+  bool hidden = 2;
+}
 
 message WallpaperScanRequest {}
 // Ack-only — the rescan now runs asynchronously on the daemon. `count`
@@ -760,6 +792,15 @@ enum Rotation {
   ROTATION_CW_270      = 4;
 }
 
+// Mirrors the displayed wallpaper after rotation.
+enum Flip {
+  FLIP_UNSPECIFIED = 0;
+  FLIP_NONE = 1;
+  FLIP_HORIZONTAL = 2;
+  FLIP_VERTICAL = 3;
+  FLIP_BOTH = 4;
+}
+
 // 9-position alignment grid. Kept for older clients; new clients
 // should use location_x/location_y below for 0..100 positioning.
 enum Align {
@@ -788,6 +829,7 @@ message LayoutPrefs {
   uint32   location_x = 5; // 0..100, 50 = center
   uint32   location_y = 6; // 0..100, 50 = center
   bool     location_set = 7;
+  Flip     flip = 8; // Not used in GlobalSettings.layout_defaults.
   reserved 3;
   reserved "clear_rgba";
 }
@@ -807,6 +849,8 @@ message LayoutOverride {
   bool   location_set = 9;
   uint32 location_x = 10; // 0..100, 50 = center
   uint32 location_y = 11; // 0..100, 50 = center
+  bool flip_set = 12;
+  Flip flip = 13;
   reserved 5, 6;
   reserved "clear_rgba_set", "clear_rgba";
 }
@@ -854,6 +898,14 @@ message DisplayInfo {
   bool selectable_target = 20;
   bool manual_paused = 21;
   bool effective_paused = 22;
+  WindowExclusionSupport window_exclusion_support = 23;
+  uint32 unsupported_window_exclusions = 24;
+}
+
+enum WindowExclusionSupport {
+  WINDOW_EXCLUSION_SUPPORT_LEGACY = 0;
+  WINDOW_EXCLUSION_SUPPORT_SUPPORTED = 1;
+  WINDOW_EXCLUSION_SUPPORT_PARTIAL = 2;
 }
 
 message CanvasRect {
@@ -955,6 +1007,7 @@ message CanvasLayoutSetRequest {
   bool clear_fillmode = 3;
   bool clear_rotation = 4;
   bool clear_location = 5;
+  bool clear_flip = 6;
 }
 
 message CanvasLayoutSetResponse {
@@ -1302,6 +1355,7 @@ message DisplayLayoutSetRequest {
   bool clear_rotation = 6;
   uint64 display_id   = 7;
   bool clear_location = 8;
+  bool clear_flip = 9;
   reserved 5;
   reserved "clear_clear_rgba";
 }
@@ -1376,6 +1430,7 @@ message Event {
     Empty                  plugin_state_changed      = 24;
     CanvasSnapshot         canvas_snapshot           = 25;
     WallpaperPresentationSnapshot wallpaper_presentation_snapshot = 26;
+    WallpaperHiddenChanged wallpaper_hidden_changed = 27;
   }
 }
 
@@ -1602,6 +1657,10 @@ message GlobalSettings {
   // Content ratings hidden by the browser's quick toggles. Persisted.
   repeated string wallpaper_skip_content_ratings = 15;
 
+  // How the library browser treats wallpapers marked hidden. Persisted.
+  // Default EXCLUDE.
+  WallpaperHiddenFilter wallpaper_hidden_filter = 29;
+
   // Canonical automatic replay policy.
   AutoReplayPolicy auto_replay = 16;
 
@@ -1656,6 +1715,13 @@ enum AutoScope {
   AUTO_SCOPE_ALL_DISPLAYS = 1;
 }
 
+message WindowExclusions {
+  repeated string application_ids = 1;
+  repeated string titles = 2;
+  repeated string application_id_patterns = 3;
+  repeated string title_patterns = 4;
+}
+
 message AutoReplayPolicy {
   reserved 1, 2, 3;
   AutoAction any_window = 10;
@@ -1670,6 +1736,7 @@ message AutoReplayPolicy {
   AutoScope maximized_scope = 19;
   AutoScope fullscreen_scope = 20;
   AutoAction gamemode = 21;
+  WindowExclusions window_exclusions = 22;
 }
 
 enum PauseEffectKind {

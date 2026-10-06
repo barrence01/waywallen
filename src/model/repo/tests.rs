@@ -55,6 +55,120 @@ fn minimal_args<'a>(
 }
 
 #[tokio::test]
+async fn item_hidden_batch_validates_all_ids_and_preserves_scan_state() {
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "hidden-test", "1").await.unwrap();
+    let library = add_library(&db, plugin.id, "/hidden-test").await.unwrap();
+    let a = upsert_item(&db, minimal_args(plugin.id, library.id, "a.png", "image"))
+        .await
+        .unwrap();
+    let b = upsert_item(&db, minimal_args(plugin.id, library.id, "b.png", "image"))
+        .await
+        .unwrap();
+    assert!(!a.hidden && !b.hidden);
+    assert_eq!(
+        set_items_hidden(&db, &[b.id, a.id, a.id], true)
+            .await
+            .unwrap(),
+        vec![a.id, b.id]
+    );
+    item::Entity::update_many()
+        .col_expr(item::Column::UpdateAt, Expr::value(123_i64))
+        .filter(item::Column::Id.eq(a.id))
+        .exec(&db)
+        .await
+        .unwrap();
+    let saved = item::Entity::find_by_id(a.id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(set_items_hidden(&db, &[a.id], true)
+        .await
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        item::Entity::find_by_id(a.id)
+            .one(&db)
+            .await
+            .unwrap()
+            .unwrap()
+            .update_at,
+        saved.update_at
+    );
+    let invalid = b.id + 1;
+    assert!(
+        matches!(set_items_hidden(&db, &[a.id, invalid], false).await,
+        Err(Error::WallpaperNotFound(id)) if id == invalid.to_string())
+    );
+    assert!(get_entry(&db, a.id).await.unwrap().unwrap().hidden);
+
+    let rescanned = upsert_item(&db, minimal_args(plugin.id, library.id, "a.png", "image"))
+        .await
+        .unwrap();
+    assert!(rescanned.hidden);
+    assert_eq!(
+        set_items_hidden(&db, &[a.id], false).await.unwrap(),
+        vec![a.id]
+    );
+    assert_eq!(
+        set_items_hidden(&db, &[a.id, b.id], true).await.unwrap(),
+        vec![a.id]
+    );
+    assert!(set_items_hidden(&db, &[], true).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn item_hidden_batch_rolls_back_all_chunks_on_failure() {
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "hidden-test", "1").await.unwrap();
+    let library = add_library(&db, plugin.id, "/hidden-test").await.unwrap();
+    let mut ids = Vec::new();
+    for n in 0..501 {
+        ids.push(
+            upsert_item(
+                &db,
+                minimal_args(plugin.id, library.id, &format!("{n}.png"), "image"),
+            )
+            .await
+            .unwrap()
+            .id,
+        );
+    }
+    let mut invalid = ids.clone();
+    invalid.push(ids.last().unwrap() + 1);
+    assert!(set_items_hidden(&db, &invalid, true).await.is_err());
+    assert_eq!(
+        item::Entity::find()
+            .filter(item::Column::Hidden.eq(true))
+            .count(&db)
+            .await
+            .unwrap(),
+        0
+    );
+
+    db.execute(sea_orm::Statement::from_string(db.get_database_backend(), format!(
+        "CREATE TRIGGER reject_hidden BEFORE UPDATE OF hidden ON item WHEN NEW.id = {} BEGIN SELECT RAISE(ABORT, 'test failure'); END", ids.last().unwrap()
+    ))).await.unwrap();
+    assert!(set_items_hidden(&db, &ids, true).await.is_err());
+    assert_eq!(
+        item::Entity::find()
+            .filter(item::Column::Hidden.eq(true))
+            .count(&db)
+            .await
+            .unwrap(),
+        0
+    );
+    db.execute(sea_orm::Statement::from_string(
+        db.get_database_backend(),
+        "DROP TRIGGER reject_hidden".to_owned(),
+    ))
+    .await
+    .unwrap();
+    assert_eq!(set_items_hidden(&db, &ids, true).await.unwrap(), ids);
+}
+
+#[tokio::test]
 async fn upsert_plugin_inserts_then_updates_version() {
     let db = mem_db().await;
     let p1 = upsert_plugin(&db, "wescene", "1.0").await.unwrap();

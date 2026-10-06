@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Assertable
-import QtCore
 import QtQuick
 import QtQml
 import QtQuick.Window
@@ -18,13 +17,11 @@ MD.ApplicationWindow {
     MD.MProp.textColor: MD.MProp.color.getOn(MD.MProp.backgroundColor)
 
     color: MD.MProp.backgroundColor
-    visible: true
-    height: 632
-    width: 948
     title: "waywallen"
 
     readonly property alias popupPresenter: m_popup_presenter
     property var changelogPresentation: null
+    property var aboutPresentation: null
 
     function presentPopup(source, properties) {
         const presentation = m_popup_presenter.present(source, properties || {});
@@ -45,6 +42,14 @@ MD.ApplicationWindow {
         });
     }
 
+    function showAbout() {
+        if (aboutPresentation?.active)
+            return;
+        aboutPresentation = presentPopup('waywallen.ui/PagePopup', {
+            source: 'waywallen.ui/AboutPage'
+        });
+    }
+
     MD.PopupPresenter {
         id: m_popup_presenter
         host: win.contentItem
@@ -56,12 +61,9 @@ MD.ApplicationWindow {
         MD.ChangelogDialog {}
     }
 
-    // Persist the window size across runs. Wayland doesn't let clients
-    // restore their own position, so only width/height are stored.
-    Settings {
-        category: "window"
-        property alias width: win.width
-        property alias height: win.height
+    W.WindowState {
+        id: windowState
+        window: win
     }
 
     W.HealthQuery {
@@ -140,6 +142,7 @@ MD.ApplicationWindow {
     }
 
     Component.onCompleted: {
+        windowState.restore();
         currentPageChanged();
         // Level-check for the case where the daemon is already Ready
         // before this window finishes constructing (UI launched
@@ -152,7 +155,10 @@ MD.ApplicationWindow {
             Qt.callLater(win.showChangelog);
     }
 
-    Component.onDestruction: changelogPresentation?.cancel()
+    Component.onDestruction: {
+        changelogPresentation?.cancel();
+        aboutPresentation?.cancel();
+    }
 
     MD.SnakeView {
         id: m_snake
@@ -254,6 +260,26 @@ MD.ApplicationWindow {
                             fillMode: Image.PreserveAspectFit
                             sourceSize.width: 64
                             sourceSize.height: 64
+
+                            readonly property bool updateAvailable: W.UpdateChecker.enabled && W.UpdateChecker.updateAvailable
+
+                            MD.Badge {
+                                dot: true
+                                visible: m_logo.updateAvailable
+                            }
+
+                            MouseArea {
+                                id: m_logo_area
+                                anchors.fill: parent
+                                enabled: m_logo.updateAvailable
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: win.showAbout()
+                            }
+
+                            MD.ToolTip.visible: m_logo_area.containsMouse && m_logo.updateAvailable
+                            MD.ToolTip.delay: 300
+                            MD.ToolTip.text: qsTr("Version %1 is available").arg(W.UpdateChecker.latestVersion)
                         }
 
                         MD.Label {
@@ -268,7 +294,7 @@ MD.ApplicationWindow {
                     }
 
                     footer: Item {
-                        implicitHeight: m_rail_footer.implicitHeight
+                        implicitHeight: m_rail_footer.implicitHeight + m_about.height + m_rail_footer.spacing * m_rail.expansionProgress
 
                         Column {
                             id: m_rail_footer
@@ -328,26 +354,21 @@ MD.ApplicationWindow {
                                     });
                                 }
                             }
+                        }
 
-                            MD.RailItem {
-                                visible: opacity > 0
-                                opacity: m_rail.expansionProgress
-                                width: parent.width
-                                expand: true
-                                checked: false
-                                icon.name: MD.Token.icon.info
-                                text: qsTr("About")
-                                height: implicitHeight * m_rail.expansionProgress
-                                enabled: m_rail.expansionProgress === 1
-                                property var presentation: null
-                                onClicked: {
-                                    if (presentation?.active)
-                                        return;
-                                    presentation = win.presentPopup('waywallen.ui/PagePopup', {
-                                        source: 'waywallen.ui/AboutPage'
-                                    });
-                                }
-                            }
+                        MD.RailItem {
+                            id: m_about
+                            visible: opacity > 0
+                            opacity: m_rail.expansionProgress
+                            width: parent.width
+                            y: m_rail_footer.height + m_rail_footer.spacing * m_rail.expansionProgress
+                            expand: true
+                            checked: false
+                            icon.name: MD.Token.icon.info
+                            text: qsTr("About")
+                            height: implicitHeight * m_rail.expansionProgress
+                            enabled: m_rail.expansionProgress === 1
+                            onClicked: win.showAbout()
                         }
                     }
                 }

@@ -20,3 +20,4 @@ export import :model.filter_rule;
 export import :model.user_property;
 export import :query;
 export import :thumb.service;
+export import :update_checker;

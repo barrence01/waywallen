@@ -1,3 +1,31 @@
+<release version="0.4.4" date="2026-10-06">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>Automatic playback rules support window exclusions by application ID or title, with wildcard matching.</li>
+      <li>Wallpapers can be flipped horizontally, vertically, or both.</li>
+      <li>Wallpapers can be hidden from the library and managed from the playlist sheet. #300 by @barrence01</li>
+      <li>Optional update checks show a notification badge in the sidebar. #302 by @wehrwolfmann</li>
+    </ul>
+    <p>Improved:</p>
+    <ul>
+      <li>Thumbnails share animated playback and support configurable decoded-image caching.</li>
+      <li>Display controls stay open when switching between displays and canvases.</li>
+      <li>Detail actions fold to fit compact layouts.</li>
+      <li>Status page labels are translated. #303 by @wehrwolfmann</li>
+      <li>Russian translations are updated. #296 by @wehrwolfmann</li>
+      <li>The daemon restart button has been removed.</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Pointer leave events are forwarded correctly across shared outputs. #293 by @LostAttractor</li>
+      <li>Window size and maximized state are restored correctly, and detail thumbnails reserve space while loading.</li>
+      <li>Closed UI processes are reaped instead of remaining as zombie processes.</li>
+      <li>QML singleton registration and property bindings work with Qt 6.12.</li>
+      <li>AppImage FFmpeg builds include the image demuxers and parsers required for thumbnails.</li>
+    </ul>
+  </description>
+</release>
 <release version="0.4.3" date="2026-09-26">
   <description>
     <p>Improved:</p>

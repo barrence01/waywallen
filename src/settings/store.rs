@@ -344,6 +344,7 @@ impl SettingsStore {
                 .or_else(|| prefs.and_then(|p| p.align.map(Location::from_align)))
                 .unwrap_or(default_location),
             rotation: prefs.and_then(|p| p.rotation).unwrap_or(defaults.rotation),
+            flip: prefs.and_then(|p| p.flip).unwrap_or_default(),
         }
     }
 
@@ -356,6 +357,7 @@ impl SettingsStore {
                 .location
                 .unwrap_or_else(|| Location::from_align(defaults.align)),
             rotation: defaults.rotation,
+            flip: Flip::None,
         }
     }
 
@@ -384,6 +386,9 @@ impl SettingsStore {
             rotation: canvas
                 .and_then(|layout| layout.rotation)
                 .unwrap_or(inherited.rotation),
+            flip: canvas
+                .and_then(|layout| layout.flip)
+                .unwrap_or(inherited.flip),
         }
     }
 
@@ -392,12 +397,12 @@ impl SettingsStore {
         if let Some(policy) = g
             .displays
             .get(display_name)
-            .and_then(|prefs| prefs.auto_replay)
+            .and_then(|prefs| prefs.auto_replay.clone())
         {
             return policy;
         }
         if let Some(policy) = &g.global.auto_replay {
-            return *policy;
+            return policy.clone();
         }
         AutoReplayPolicy::default()
     }

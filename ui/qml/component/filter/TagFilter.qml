@@ -64,7 +64,8 @@ QtObject {
                 }
             }
 
-            MD.SmallIconButton {
+            MD.IconButton {
+                mdState.size: MD.Enum.XS
                 icon.name: MD.Token.icon.edit
                 onClicked: {
                     if (valueFlow.tagPresentation?.active)

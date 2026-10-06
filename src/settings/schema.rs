@@ -20,7 +20,7 @@ pub struct LayoutDefaults {
 }
 
 /// Per-display overrides keyed by display name.
-/// `None` fields inherit from the global defaults.
+/// `None` fields inherit from the global defaults; flip defaults to no flipping.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DisplayPrefs {
@@ -28,6 +28,7 @@ pub struct DisplayPrefs {
     pub location: Option<Location>,
     pub align: Option<Align>,
     pub rotation: Option<Rotation>,
+    pub flip: Option<Flip>,
     pub auto_replay: Option<AutoReplayPolicy>,
     /// Last wallpaper id applied to this display.
     /// Used to restore per-display assignment on restart.
@@ -45,6 +46,7 @@ impl DisplayPrefs {
             && self.location.is_none()
             && self.align.is_none()
             && self.rotation.is_none()
+            && self.flip.is_none()
             && self.auto_replay.is_none()
             && self.last_wallpaper.is_none()
             && self.alias.is_none()
@@ -75,11 +77,15 @@ pub struct CanvasLayoutPrefs {
     pub fillmode: Option<FillMode>,
     pub location: Option<Location>,
     pub rotation: Option<Rotation>,
+    pub flip: Option<Flip>,
 }
 
 impl CanvasLayoutPrefs {
     pub fn is_empty(self) -> bool {
-        self.fillmode.is_none() && self.location.is_none() && self.rotation.is_none()
+        self.fillmode.is_none()
+            && self.location.is_none()
+            && self.rotation.is_none()
+            && self.flip.is_none()
     }
 }
 
@@ -89,6 +95,13 @@ pub struct ResolvedLayout {
     pub fillmode: FillMode,
     pub location: Location,
     pub rotation: Rotation,
+    pub flip: Flip,
+}
+
+impl ResolvedLayout {
+    pub fn transform(self) -> u32 {
+        self.flip.transform(self.rotation)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -141,9 +154,89 @@ pub enum AutoAction {
     Stop,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "WindowExclusionsInput")]
+pub struct WindowExclusions {
+    pub application_ids: Vec<String>,
+    pub titles: Vec<String>,
+    pub application_id_patterns: Vec<String>,
+    pub title_patterns: Vec<String>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct WindowExclusionsInput {
+    application_ids: Vec<String>,
+    titles: Vec<String>,
+    application_id_patterns: Vec<String>,
+    title_patterns: Vec<String>,
+}
+
+impl TryFrom<WindowExclusionsInput> for WindowExclusions {
+    type Error = String;
+    fn try_from(input: WindowExclusionsInput) -> Result<Self, Self::Error> {
+        let mut exclusions = Self {
+            application_ids: input.application_ids,
+            titles: input.titles,
+            application_id_patterns: input.application_id_patterns,
+            title_patterns: input.title_patterns,
+        };
+        exclusions.normalize();
+        exclusions.validate()?;
+        Ok(exclusions)
+    }
+}
+
+impl WindowExclusions {
+    pub fn normalize(&mut self) {
+        for values in [
+            &mut self.application_ids,
+            &mut self.titles,
+            &mut self.application_id_patterns,
+            &mut self.title_patterns,
+        ] {
+            values.retain(|value| !value.is_empty());
+            values.sort();
+            values.dedup();
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.application_ids.len() + self.application_id_patterns.len() > 64
+            || self.titles.len() + self.title_patterns.len() > 64
+        {
+            return Err("at most 64 window exclusions per type are allowed".into());
+        }
+        for values in [
+            &self.application_ids,
+            &self.titles,
+            &self.application_id_patterns,
+            &self.title_patterns,
+        ] {
+            if values
+                .iter()
+                .any(|value| value.len() > 256 || value.contains('\0'))
+            {
+                return Err(
+                    "window exclusions must contain at most 256 UTF-8 bytes and no NUL".into(),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.application_ids.is_empty()
+            && self.titles.is_empty()
+            && self.application_id_patterns.is_empty()
+            && self.title_patterns.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AutoReplayPolicy {
+    pub window_exclusions: WindowExclusions,
     pub any_window_scope: AutoScope,
     pub focused_scope: AutoScope,
     pub maximized_scope: AutoScope,
@@ -161,6 +254,7 @@ pub struct AutoReplayPolicy {
 impl Default for AutoReplayPolicy {
     fn default() -> Self {
         Self {
+            window_exclusions: WindowExclusions::default(),
             any_window_scope: AutoScope::CurrentDisplay,
             focused_scope: AutoScope::CurrentDisplay,
             maximized_scope: AutoScope::CurrentDisplay,
@@ -178,7 +272,7 @@ impl Default for AutoReplayPolicy {
 }
 
 impl AutoReplayPolicy {
-    pub fn scope_for(self, condition: AutoCondition) -> AutoScope {
+    pub fn scope_for(&self, condition: AutoCondition) -> AutoScope {
         if condition.is_global()
             || self.action_for(condition) == AutoAction::Mute
             || (self.action_for(condition) == AutoAction::Stop
@@ -196,6 +290,7 @@ impl AutoReplayPolicy {
     }
 
     pub fn normalize_scopes(&mut self) {
+        self.window_exclusions.normalize();
         self.any_window_scope = self.scope_for(AutoCondition::AnyWindow);
         self.focused_scope = self.scope_for(AutoCondition::Focused);
         self.maximized_scope = self.scope_for(AutoCondition::Maximized);
@@ -203,6 +298,7 @@ impl AutoReplayPolicy {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        self.window_exclusions.validate()?;
         if self.any_window == AutoAction::Stop || self.focused == AutoAction::Stop {
             return Err("stop is not allowed for any-window or focused-window rules".into());
         }
@@ -210,7 +306,7 @@ impl AutoReplayPolicy {
     }
 
     pub fn migrate(&mut self) -> bool {
-        let before = *self;
+        let before = self.clone();
         for (action, scope) in [
             (&mut self.any_window, &mut self.any_window_scope),
             (&mut self.focused, &mut self.focused_scope),
@@ -225,7 +321,7 @@ impl AutoReplayPolicy {
         *self != before
     }
 
-    pub fn action_for(self, condition: AutoCondition) -> AutoAction {
+    pub fn action_for(&self, condition: AutoCondition) -> AutoAction {
         match condition {
             AutoCondition::AnyWindow => self.any_window,
             AutoCondition::Focused => self.focused,
@@ -250,7 +346,7 @@ impl AutoReplayPolicy {
         *slot = action;
     }
 
-    pub fn effective_resume_delay_ms(self) -> u32 {
+    pub fn effective_resume_delay_ms(&self) -> u32 {
         self.resume_delay_ms.min(MAX_AUTO_REPLAY_RESUME_DELAY_MS)
     }
 }
@@ -447,6 +543,10 @@ pub struct GlobalSettings {
     #[serde(default)]
     pub wallpaper_skip_content_ratings: Vec<String>,
 
+    /// How the library browser treats wallpapers marked hidden.
+    #[serde(default)]
+    pub wallpaper_hidden_filter: WallpaperHiddenFilter,
+
     #[serde(default)]
     pub auto_attach_playlist_id: Option<i64>,
 
@@ -487,6 +587,7 @@ impl Default for GlobalSettings {
             wallpaper_skip_types: Vec::new(),
             wallpaper_filter_tags: Vec::new(),
             wallpaper_skip_content_ratings: Vec::new(),
+            wallpaper_hidden_filter: WallpaperHiddenFilter::Exclude,
             auto_attach_playlist_id: None,
             plugin_update_notifications: true,
             duplicate_renderers_for_same_wallpaper: false,
@@ -500,7 +601,7 @@ impl Default for GlobalSettings {
 
 impl GlobalSettings {
     pub fn effective_auto_replay(&self) -> AutoReplayPolicy {
-        self.auto_replay.unwrap_or_default()
+        self.auto_replay.clone().unwrap_or_default()
     }
 
     pub fn effective_audio_fade_ms(&self) -> u32 {
@@ -604,6 +705,18 @@ impl WallpaperSortRuleState {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum WallpaperHiddenFilter {
+    /// Show every wallpaper except those marked hidden.
+    #[default]
+    Exclude = 0,
+    /// Show only wallpapers marked hidden.
+    Only = 1,
+    /// Show all wallpapers, including hidden ones.
+    Include = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]

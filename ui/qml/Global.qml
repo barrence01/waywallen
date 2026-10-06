@@ -3,6 +3,7 @@ import QtCore
 import QtQuick
 import Qcm.Material as MD
 import waywallen.ui as W
+import QExtra as QE
 
 // App-wide singleton state and derived theming.
 QtObject {
@@ -11,15 +12,17 @@ QtObject {
     property bool sidebarAutoExpand: true
     property bool singleUiEnabled: false
     property int networkCacheMaximumMiB: 1024
+    readonly property var imageCacheOptions: [0, 64, 128, 256, 512]
+    property int imageCacheMiB: 64
     property string themeMode: "system"
     readonly property color defaultAccentColor: "#6750A4"
     property string accentMode: "system"
     property color accentColor: defaultAccentColor
     property string lastOpenedVersion: ""
 
-    onNetworkCacheMaximumMiBChanged:
-        W.App.setNetworkCacheMaximumSize(networkCacheMaximumMiB * 1024 * 1024)
+    onNetworkCacheMaximumMiBChanged: W.App.setNetworkCacheMaximumSize(networkCacheMaximumMiB * 1024 * 1024)
     onThemeModeChanged: _applyThemeMode()
+    onImageCacheMiBChanged: QE.ImageCache.capacityMiB = imageCacheMiB
     onAccentModeChanged: _applyAccentColor()
     onAccentColorChanged: {
         if (accentMode === "custom")
@@ -27,9 +30,26 @@ QtObject {
     }
 
     Component.onCompleted: {
-        W.App.setNetworkCacheMaximumSize(networkCacheMaximumMiB * 1024 * 1024)
-        setThemeMode(themeMode)
-        setAccentMode(accentMode)
+        W.App.setNetworkCacheMaximumSize(networkCacheMaximumMiB * 1024 * 1024);
+        setThemeMode(themeMode);
+        setAccentMode(accentMode);
+        setImageCacheMiB(imageCacheMiB);
+        QE.ImageCache.capacityMiB = imageCacheMiB;
+    }
+
+    function setImageCacheMiB(value) {
+        const requested = Number(value);
+        let selected = 64;
+        if (requested <= 0) {
+            selected = 0;
+        } else if (Number.isFinite(requested)) {
+            for (let i = 1; i < imageCacheOptions.length; ++i) {
+                const option = imageCacheOptions[i];
+                if (Math.abs(option - requested) < Math.abs(selected - requested))
+                    selected = option;
+            }
+        }
+        imageCacheMiB = selected;
     }
 
     function setThemeMode(mode) {
@@ -93,6 +113,7 @@ QtObject {
         property alias sidebarAutoExpand: root.sidebarAutoExpand
         property alias singleUiEnabled: root.singleUiEnabled
         property alias networkCacheMaximumMiB: root.networkCacheMaximumMiB
+        property alias imageCacheMiB: root.imageCacheMiB
         property alias themeMode: root.themeMode
         property alias accentMode: root.accentMode
         property alias accentColor: root.accentColor

@@ -9,6 +9,31 @@
         <translation>版本 %1</translation>
     </message>
     <message>
+        <location filename="../qml/page/AboutPage.qml" line="58"/>
+        <source>Checking for updates…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="61"/>
+        <source>You have the latest version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="63"/>
+        <source>Could not check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="65"/>
+        <source>Check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="75"/>
+        <source>Version %1 is available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/AboutPage.qml" line="57"/>
         <source>Wallpaper Manager for Linux</source>
         <translation>Linux 壁纸管理器</translation>
@@ -87,11 +112,6 @@
         <translation>
             <numerusform>%n 个壁纸</numerusform>
         </translation>
-    </message>
-    <message>
-        <location filename="../qml/page/wallpaper/AddToPlaylistSheetContent.qml" line="79"/>
-        <source>Add selection</source>
-        <translation>添加所选项</translation>
     </message>
 </context>
 <context>
@@ -253,11 +273,6 @@
         <source>Exit</source>
         <translation>退出</translation>
     </message>
-    <message>
-        <location filename="../qml/dialog/DaemonNotRunDialog.qml" line="155"/>
-        <source>Restart</source>
-        <translation>重启</translation>
-    </message>
 </context>
 <context>
     <name>DiscoverPage</name>
@@ -382,6 +397,10 @@
 </context>
 <context>
     <name>DisplayLayoutControls</name>
+    <message>
+        <source>Flip</source>
+        <translation>翻转</translation>
+    </message>
     <message>
         <location filename="../qml/page/display/DisplayLayoutControls.qml" line="50"/>
         <source>Layout</source>
@@ -538,29 +557,14 @@
         <translation>ID：</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1116"/>
-        <source>Size:</source>
-        <translation>大小：</translation>
-    </message>
-    <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1126"/>
         <source>Empty</source>
         <translation>空</translation>
     </message>
     <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1138"/>
-        <source>Members:</source>
-        <translation>成员：</translation>
-    </message>
-    <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1144"/>
         <source>%1 total, %2 online</source>
         <translation>共 %1 个，%2 个在线</translation>
-    </message>
-    <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1154"/>
-        <source>Refresh:</source>
-        <translation>刷新率：</translation>
     </message>
     <message>
         <location filename="../qml/page/DisplaysPage.qml" line="227"/>
@@ -581,11 +585,6 @@
         <location filename="../qml/page/DisplaysPage.qml" line="582"/>
         <source>Canvas %1</source>
         <translation>画布 %1</translation>
-    </message>
-    <message>
-        <location filename="../qml/page/DisplaysPage.qml" line="1169"/>
-        <source>Canvas area:</source>
-        <translation>画布区域：</translation>
     </message>
     <message>
         <location filename="../qml/page/DisplaysPage.qml" line="1187"/>
@@ -883,6 +882,10 @@
 <context>
     <name>PlaylistListSheet</name>
     <message>
+        <source>Hidden wallpapers</source>
+        <translation>隐藏的壁纸</translation>
+    </message>
+    <message>
         <location filename="../qml/page/wallpaper/PlaylistListSheet.qml" line="22"/>
         <source>Create playlist</source>
         <translation>创建播放列表</translation>
@@ -1160,6 +1163,11 @@
         <location filename="../qml/page/PluginManagePage.qml" line="513"/>
         <source>Delete</source>
         <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/PluginManagePage.qml" line="529"/>
+        <source>Incompatible</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1652,7 +1660,29 @@ Related display: #%1</source>
     </message>
 </context>
 <context>
+    <name>ApplyTextField</name>
+    <message>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+</context>
+<context>
+    <name>WindowExclusionsPage</name>
+    <message><source>Type</source><translation>类型</translation></message>
+    <message><source>New exclusion</source><translation>新增排除规则</translation></message>
+    <message><source>Exclusions</source><translation>排除规则</translation></message>
+    <message><source>Remove</source><translation>移除</translation></message>
+    <message><source>No excluded windows</source><translation>暂无排除的窗口</translation></message>
+    <message><source>Excluded windows</source><translation>排除的窗口</translation></message>
+    <message><source>Add</source><translation>添加</translation></message>
+    <message><source>Application ID</source><translation>应用 ID</translation></message>
+    <message><source>Window title</source><translation>窗口标题</translation></message>
+    <message><source>Matching is case-sensitive. Wildcards: * matches any number of characters, ? matches one character. Other characters are literal.</source><translation>匹配区分大小写。通配符 * 匹配任意数量的字符，? 匹配一个字符，其他字符按字面匹配。</translation></message>
+    <message><source>%1 cannot apply all window exclusions. Update its display client or use supported rule types.</source><translation>%1 无法应用全部窗口排除规则。请更新其显示客户端或使用受支持的规则类型。</translation></message>
+</context>
+<context>
     <name>SettingsPage</name>
+    <message><source>Excluded windows</source><translation>排除的窗口</translation></message>
     <message><source>Current display</source><translation>当前显示器</translation></message>
     <message><source>All displays</source><translation>所有显示器</translation></message>
     <message><source>Applies to</source><translation>作用范围</translation></message>
@@ -1823,6 +1853,16 @@ Related display: #%1</source>
         <location filename="../qml/page/SettingsPage.qml" line="655"/>
         <source>Close the UI when the daemon shuts down. Disable to keep it open for reconnection.</source>
         <translation>守护进程关闭时退出 UI。禁用后 UI 将保持打开并等待重新连接。</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="865"/>
+        <source>Check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/SettingsPage.qml" line="868"/>
+        <source>Look for a new release on GitHub once a day and mark the app icon when one is available.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="681"/>
@@ -2140,9 +2180,44 @@ Related display: #%1</source>
         <translation>停止守护进程失败</translation>
     </message>
     <message>
+        <location filename="../qml/page/StatusPage.qml" line="183"/>
+        <source>unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="185"/>
+        <source>healthy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="191"/>
+        <source>starting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="193"/>
+        <source>playing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="195"/>
+        <source>paused</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/StatusPage.qml" line="196"/>
         <source>Kill renderer?</source>
         <translation>终止渲染器？</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="197"/>
+        <source>muted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="199"/>
+        <source>stopping</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="201"/>
@@ -2152,6 +2227,21 @@ Unsaved frame state may be lost.</source>
         <translation>停止渲染器进程
 “%1”？
 未保存的帧状态可能会丢失。</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="201"/>
+        <source>stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="203"/>
+        <source>killed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="205"/>
+        <source>failed</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="240"/>
@@ -2192,6 +2282,11 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/page/StatusPage.qml" line="366"/>
         <source>No renderers</source>
         <translation>没有渲染器</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/StatusPage.qml" line="452"/>
+        <source>keep</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/page/StatusPage.qml" line="460"/>
@@ -2324,6 +2419,11 @@ Unsaved frame state may be lost.</source>
         <source>Playback speed</source>
         <translation>播放速度</translation>
     </message>
+    <message>
+        <location filename="../src/model/user_property_model.cpp" line="319"/>
+        <source>Mouse parallax</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>WallpaperCard</name>
@@ -2335,6 +2435,10 @@ Unsaved frame state may be lost.</source>
 </context>
 <context>
     <name>WallpaperDetailPanel</name>
+    <message>
+        <source>Flip</source>
+        <translation>翻转</translation>
+    </message>
     <message>
         <location filename="../qml/page/WallpaperDetailPanel.qml" line="25"/>
         <source>Stretch</source>
@@ -2598,6 +2702,22 @@ Unsaved frame state may be lost.</source>
 </context>
 <context>
     <name>WallpaperFilterDialog</name>
+    <message>
+        <source>Visibility</source>
+        <translation>可见性</translation>
+    </message>
+    <message>
+        <source>Not hidden</source>
+        <translation>未隐藏</translation>
+    </message>
+    <message>
+        <source>Hidden only</source>
+        <translation>仅隐藏</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
     <message>
         <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="11"/>
         <source>Filters</source>
@@ -2950,6 +3070,11 @@ Unsaved frame state may be lost.</source>
         <source>About</source>
         <translation>关于</translation>
     </message>
+    <message>
+        <location filename="../qml/Window.qml" line="288"/>
+        <source>Version %1 is available</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>WpTypeFilter</name>
@@ -2988,6 +3113,60 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/SidebarNowPlaying.qml" line="33"/>
         <source>Current wallpapers</source>
         <translation>当前壁纸</translation>
+    </message>
+</context>
+<context>
+    <name>FlipButtons</name>
+    <message>
+        <source>None</source>
+        <translation>不翻转</translation>
+    </message>
+    <message>
+        <source>Horizontal</source>
+        <translation>水平</translation>
+    </message>
+    <message>
+        <source>Vertical</source>
+        <translation>垂直</translation>
+    </message>
+    <message>
+        <source>Both</source>
+        <translation>双向</translation>
+    </message>
+</context>
+<context>
+    <name>HiddenWallpapersPage</name>
+    <message>
+        <source>Hidden wallpapers</source>
+        <translation>隐藏的壁纸</translation>
+    </message>
+    <message>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <source>Unhidden</source>
+        <translation>已取消隐藏</translation>
+    </message>
+    <message>
+        <source>Unhide failed</source>
+        <translation>取消隐藏失败</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>未命名</translation>
+    </message>
+    <message>
+        <source>Unhide</source>
+        <translation>取消隐藏</translation>
+    </message>
+    <message>
+        <source>No hidden wallpapers</source>
+        <translation>没有隐藏的壁纸</translation>
+    </message>
+    <message>
+        <source>Failed to load hidden wallpapers</source>
+        <translation>加载隐藏壁纸失败</translation>
     </message>
 </context>
 </TS>

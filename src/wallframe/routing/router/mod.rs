@@ -38,6 +38,7 @@ use crate::wallframe::scheduler::{CompositionConfig, DisplayId, DisplayInfo, Dis
 
 use super::auto_replay;
 use super::table::{Link, LinkDstRect, LinkId, LinkProjection, LinkSrcRect, RoutingTable};
+use super::window_observation;
 
 mod auto_policy;
 mod composition;
@@ -61,6 +62,7 @@ use snapshot::project_link;
 /// Wire-translated event streamed from router to a display endpoint.
 /// The endpoint owns translation to the on-the-wire `Event`.
 pub enum DisplayOutEvent {
+    SetWindowObservationConfig(window_observation::Config),
     /// Bind this exact immutable pool using the display-local generation.
     Bind {
         renderer: Arc<RendererHandle>,
@@ -71,7 +73,9 @@ pub enum DisplayOutEvent {
         presentation_config_generation: u64,
     },
     /// Retire the named buffer pool generation.
-    Unbind { buffer_generation: u64 },
+    Unbind {
+        buffer_generation: u64,
+    },
     /// Update composition geometry / clear color.
     SetCompositionConfig(CompositionConfig),
     /// Replace persistent presentation config and its current dynamic result.
@@ -110,14 +114,13 @@ enum ContentIdentity {
     Renderer(RendererId),
 }
 
-pub const PRESENTATION_CAP_PAUSE_BLUR: u32 = 1 << 0;
-pub const PRESENTATION_CAP_FADE_TRANSITION: u32 = 1 << 1;
-pub const PRESENTATION_CAP_WIPE_TRANSITION: u32 = 1 << 2;
-pub const PRESENTATION_CAP_GROW_TRANSITION: u32 = 1 << 3;
-pub const PRESENTATION_CAPS_KNOWN: u32 = PRESENTATION_CAP_PAUSE_BLUR
-    | PRESENTATION_CAP_FADE_TRANSITION
-    | PRESENTATION_CAP_WIPE_TRANSITION
-    | PRESENTATION_CAP_GROW_TRANSITION;
+pub const PAUSE_EFFECT_CAP_BLUR: u32 = 1 << 0;
+pub const PAUSE_EFFECT_CAPS_KNOWN: u32 = PAUSE_EFFECT_CAP_BLUR;
+pub const TRANSITION_CAP_FADE: u32 = 1 << 0;
+pub const TRANSITION_CAP_WIPE: u32 = 1 << 1;
+pub const TRANSITION_CAP_GROW: u32 = 1 << 2;
+pub const TRANSITION_CAPS_KNOWN: u32 =
+    TRANSITION_CAP_FADE | TRANSITION_CAP_WIPE | TRANSITION_CAP_GROW;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConsumerImportFailureKind {
@@ -247,12 +250,14 @@ fn resume_retry_delay(failures: u32) -> Duration {
 
 /// Initial-registration payload from `display::endpoint::do_handshake`.
 pub struct DisplayRegistration {
+    pub window_observation_caps: Option<u32>,
     pub name: String,
     /// Stable identifier persisted by the consumer (e.g. UUID4 stored in
     /// the shell extension config). Used as the settings key when present.
     pub instance_id: Option<String>,
     pub metrics: DisplayMetrics,
-    pub presentation_caps: u32,
+    pub pause_effect_caps: u32,
+    pub transition_caps: u32,
     pub consumer_caps: crate::wallframe::dma::negotiate::PeerCaps,
     pub window_state_flags: u32,
 }
@@ -384,6 +389,8 @@ pub struct RendererSnapshot {
 /// `Router::snapshot_displays`; carries metadata from DisplayInfo.
 #[derive(Debug, Clone)]
 pub struct DisplaySnapshot {
+    pub window_observation_caps: Option<u32>,
+    pub unsupported_window_exclusions: u32,
     pub id: DisplayId,
     pub manual_paused: bool,
     pub effective_paused: bool,
@@ -472,6 +479,7 @@ struct DisplayBinding {
 }
 
 struct DisplayState {
+    window_observation: window_observation::State,
     info: DisplayInfo,
     session_id: crate::wallframe::sync::DisplaySessionId,
     /// DRM render-node id of the consumer's GPU. Compared against
@@ -482,7 +490,8 @@ struct DisplayState {
     next_wire_buffer_generation: u64,
     consumer_caps: crate::wallframe::dma::negotiate::PeerCaps,
     failed_binding_generation: Option<u64>,
-    presentation_caps: u32,
+    pause_effect_caps: u32,
+    transition_caps: u32,
     presentation: PresentationSnapshot,
     accepted: bool,
     /// Per-display auto replay machine driven by display facts and
@@ -702,10 +711,13 @@ impl Router {
 
     pub async fn forward_pointer_motion(
         &self,
+        display_id: DisplayId,
         renderer_id: &str,
         event: crate::wallframe::ipc::proto::PointerMotion,
     ) -> crate::error::Result<()> {
-        self.mgr.send_pointer_motion(renderer_id, event).await
+        self.mgr
+            .send_display_pointer_motion(renderer_id, display_id, event)
+            .await
     }
 
     pub async fn forward_pointer_button(
@@ -815,6 +827,7 @@ impl Router {
                 fillmode: FillMode::default(),
                 location: Default::default(),
                 rotation: Default::default(),
+                flip: Default::default(),
             };
         };
         if let Some(iid) = info.instance_id.as_deref() {
@@ -832,6 +845,7 @@ impl Router {
             fillmode: FillMode::default(),
             location: Default::default(),
             rotation: Default::default(),
+            flip: Default::default(),
         }
     }
 
@@ -863,6 +877,7 @@ impl Router {
                 || p.location.is_some()
                 || p.align.is_some()
                 || p.rotation.is_some()
+                || p.flip.is_some()
         }) {
             LayoutSource::Display
         } else {
@@ -924,8 +939,12 @@ impl Router {
             let key = Self::settings_key_for(info);
             match (extent, canvas.members.get(key)) {
                 (Some(extent), Some(member)) => {
-                    let inherited = Self::canvas_layout_for_link(&link)
-                        .unwrap_or_else(|| settings.resolved_global_layout());
+                    let inherited = inner
+                        .wallpaper_layout_overrides
+                        .get(&link.renderer_id)
+                        .copied()
+                        .unwrap_or_default()
+                        .apply_to(settings.resolved_global_layout());
                     let layout = settings.resolved_canvas_layout(canvas_id, inherited);
                     inner.table.update_canvas_projection(
                         link.id,
@@ -984,7 +1003,7 @@ impl Router {
         s.resolved_auto_replay(&info.name)
     }
 
-    fn resolved_pause_effect(&self, presentation_caps: u32) -> PauseEffectConfig {
+    fn resolved_pause_effect(&self, pause_effect_caps: u32) -> PauseEffectConfig {
         let stored = self
             .settings
             .get()
@@ -992,7 +1011,7 @@ impl Router {
             .unwrap_or_else(StoredPauseEffectConfig::default)
             .effective();
         let kind = if stored.kind == PauseEffectKind::Blur
-            && presentation_caps & PRESENTATION_CAP_PAUSE_BLUR != 0
+            && pause_effect_caps & PAUSE_EFFECT_CAP_BLUR != 0
         {
             PauseEffectKind::Blur
         } else {
@@ -1010,7 +1029,7 @@ impl Router {
         }
     }
 
-    fn resolved_transition(&self, presentation_caps: u32) -> TransitionConfig {
+    fn resolved_transition(&self, transition_caps: u32) -> TransitionConfig {
         let stored = self
             .settings
             .get()
@@ -1020,11 +1039,11 @@ impl Router {
         let supported = |kind| {
             let cap = match kind {
                 TransitionKind::None => return true,
-                TransitionKind::Fade => PRESENTATION_CAP_FADE_TRANSITION,
-                TransitionKind::Wipe => PRESENTATION_CAP_WIPE_TRANSITION,
-                TransitionKind::Grow => PRESENTATION_CAP_GROW_TRANSITION,
+                TransitionKind::Fade => TRANSITION_CAP_FADE,
+                TransitionKind::Wipe => TRANSITION_CAP_WIPE,
+                TransitionKind::Grow => TRANSITION_CAP_GROW,
             };
-            presentation_caps & cap != 0
+            transition_caps & cap != 0
         };
         // A consumer that cannot draw the configured shape still gets a fade.
         let kind = if supported(stored.kind) {
@@ -1071,6 +1090,8 @@ impl Router {
         clear_fillmode: bool,
         clear_align: bool,
         clear_rotation: bool,
+        new_flip: Option<crate::wallframe::display::layout::Flip>,
+        clear_flip: bool,
     ) -> Option<DisplayId> {
         let Some(settings) = self.settings.get().cloned() else {
             log::warn!(
@@ -1112,6 +1133,11 @@ impl Router {
             if let Some(v) = new_rotation {
                 entry.rotation = Some(v);
             }
+            if clear_flip {
+                entry.flip = None;
+            } else if let Some(v) = new_flip {
+                entry.flip = Some(v);
+            }
             // Prune empty entry to keep the on-disk file tidy.
             if entry.is_empty() {
                 s.displays.remove(&key);
@@ -1133,6 +1159,8 @@ impl Router {
         clear_fillmode: bool,
         clear_location: bool,
         clear_rotation: bool,
+        new_flip: Option<crate::wallframe::display::layout::Flip>,
+        clear_flip: bool,
     ) -> crate::error::Result<()> {
         let settings = self.settings.get().ok_or_else(|| {
             crate::error::Error::FailedPrecondition("settings are not attached".to_string())
@@ -1159,6 +1187,11 @@ impl Router {
         }
         if let Some(rotation) = new_rotation {
             layout.rotation = Some(rotation);
+        }
+        if clear_flip {
+            layout.flip = None;
+        } else if let Some(flip) = new_flip {
+            layout.flip = Some(flip);
         }
         let layout = (!layout.is_empty()).then_some(layout);
         if settings.set_canvas_layout(canvas_id, layout)? {
@@ -1291,7 +1324,16 @@ impl Router {
     /// the control surface after global layout settings change.
     pub async fn resync_all_compositions(self: &Arc<Self>) {
         let ids: Vec<DisplayId> = {
-            let inner = self.inner.lock().await;
+            let mut inner = self.inner.lock().await;
+            let canvas_ids = inner
+                .table
+                .all_links()
+                .iter()
+                .filter_map(Self::canvas_id_for_link)
+                .collect::<HashSet<_>>();
+            for canvas_id in canvas_ids {
+                self.refresh_canvas_locked(&mut inner, &canvas_id);
+            }
             inner.displays.keys().copied().collect()
         };
         self.resync_display_compositions(ids).await;
@@ -1644,6 +1686,9 @@ impl Router {
         if !display_ids.is_empty() {
             let all = self.snapshot_displays().await;
             self.emit(RouterEvent::DisplaysReplace(all));
+            if self.settings.get().is_some() {
+                self.publish_canvas_snapshot().await;
+            }
         }
         true
     }
@@ -1791,8 +1836,22 @@ impl Router {
                 bound: false,
             };
             let canvas = self.canvas_for_info(&info);
-            let pause_effect = self.resolved_pause_effect(reg.presentation_caps);
-            let transition = self.resolved_transition(reg.presentation_caps);
+            let mut window_observation = window_observation::State {
+                capabilities: reg.window_observation_caps,
+                ..Default::default()
+            };
+            if let Some(config) =
+                window_observation.reconcile(&self.resolved_auto_replay(&info).window_exclusions)
+            {
+                let _ = tx.send(DisplayOutEvent::SetWindowObservationConfig(config));
+            }
+            if window_observation.unsupported != 0 {
+                log::warn!(
+                    "display {id}: window exclusions are not fully supported by this client"
+                );
+            }
+            let pause_effect = self.resolved_pause_effect(reg.pause_effect_caps);
+            let transition = self.resolved_transition(reg.transition_caps);
             let presentation = PresentationSnapshot {
                 config: PresentationConfig {
                     generation: 1,
@@ -1819,6 +1878,7 @@ impl Router {
             inner.displays.insert(
                 id,
                 DisplayState {
+                    window_observation,
                     info,
                     session_id,
                     gpu: reg.consumer_caps.identity.drm,
@@ -1827,7 +1887,8 @@ impl Router {
                     next_wire_buffer_generation: 0,
                     consumer_caps: reg.consumer_caps,
                     failed_binding_generation: None,
-                    presentation_caps: reg.presentation_caps,
+                    pause_effect_caps: reg.pause_effect_caps,
+                    transition_caps: reg.transition_caps,
                     presentation,
                     accepted: false,
                     auto_replay: auto_replay::State::new(),
@@ -2202,7 +2263,15 @@ impl Router {
             let Some(state) = inner.displays.get_mut(&display_id) else {
                 return;
             };
-            state.auto_replay.last_flags = flags;
+            let rules = self.resolved_auto_replay(&state.info).window_exclusions;
+            if let Some(config) = state.window_observation.reconcile(&rules) {
+                let _ = state
+                    .tx
+                    .send(DisplayOutEvent::SetWindowObservationConfig(config));
+            }
+            if state.window_observation.accepts_legacy() {
+                state.auto_replay.last_flags = flags;
+            }
         }
         self.refresh_auto_policy(false).await;
     }
@@ -2212,8 +2281,8 @@ impl Router {
         let Some(current) = inner.displays.get(&display_id) else {
             return;
         };
-        let desired_config = self.resolved_pause_effect(current.presentation_caps);
-        let desired_transition = self.resolved_transition(current.presentation_caps);
+        let desired_config = self.resolved_pause_effect(current.pause_effect_caps);
+        let desired_transition = self.resolved_transition(current.transition_caps);
         let desired_dynamic = PauseEffectState {
             active: Self::pause_effect_active(&inner, current, desired_config.kind),
         };
@@ -2953,6 +3022,8 @@ impl Router {
             })
             .collect();
         Some(DisplaySnapshot {
+            window_observation_caps: s.window_observation.capabilities,
+            unsupported_window_exclusions: s.window_observation.unsupported,
             id,
             name: s.info.name.clone(),
             manual_paused: s.manual_paused,
@@ -3100,6 +3171,8 @@ impl Router {
                     })
                     .collect();
                 Some(DisplaySnapshot {
+                    window_observation_caps: s.window_observation.capabilities,
+                    unsupported_window_exclusions: s.window_observation.unsupported,
                     id,
                     name: s.info.name.clone(),
                     manual_paused: s.manual_paused,
@@ -3138,6 +3211,7 @@ impl Router {
         let revision = settings.canvas_revision();
         let inner = self.inner.lock().await;
         let inherited = settings.resolved_global_layout();
+        let links = inner.table.all_links();
         let mut snapshots = canvases
             .into_iter()
             .map(|(canvas_id, canvas)| {
@@ -3174,7 +3248,17 @@ impl Router {
                     ),
                     members,
                     layout_override: canvas.layout,
-                    effective_layout: settings.resolved_canvas_layout(&canvas_id, inherited),
+                    effective_layout: links
+                        .iter()
+                        .find_map(|link| match &link.projection {
+                            LinkProjection::Canvas {
+                                canvas_id: id,
+                                layout,
+                                ..
+                            } if id == &canvas_id => Some(*layout),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| settings.resolved_canvas_layout(&canvas_id, inherited)),
                     wallpaper_id: canvas.last_wallpaper,
                     revision,
                 }
@@ -4052,6 +4136,7 @@ mod tests {
     fn reg(name: &str, w: u32, h: u32) -> DisplayRegistration {
         use crate::wallframe::dma::negotiate as N;
         DisplayRegistration {
+            window_observation_caps: None,
             name: name.into(),
             instance_id: None,
             metrics: DisplayMetrics {
@@ -4059,7 +4144,8 @@ mod tests {
                 height: h,
                 refresh_mhz: 60_000,
             },
-            presentation_caps: 0,
+            pause_effect_caps: 0,
+            transition_caps: 0,
             consumer_caps: build_caps(N::DRM_FORMAT_ABGR8888, &[(N::DRM_FORMAT_MOD_LINEAR, 1)], 0),
             window_state_flags: 0,
         }
@@ -4873,6 +4959,8 @@ mod tests {
                 false,
                 false,
                 false,
+                Some(crate::wallframe::display::layout::Flip::Horizontal),
+                false,
             )
             .await
             .unwrap();
@@ -4886,9 +4974,52 @@ mod tests {
                 fillmode: Some(FillMode::PreserveAspectFit),
                 location: Some(crate::wallframe::display::layout::Location::new(25, 75)),
                 rotation: Some(crate::wallframe::display::layout::Rotation::Cw90),
+                flip: Some(crate::wallframe::display::layout::Flip::Horizontal),
             })
         );
         assert_eq!(settings.canvas_revision(), receipt.revision);
+
+        router
+            .set_canvas_layout(
+                &receipt.canvas_id,
+                None,
+                None,
+                None,
+                false,
+                false,
+                false,
+                None,
+                true,
+            )
+            .await
+            .unwrap();
+        let canvas = settings.canvas(&receipt.canvas_id).unwrap();
+        let layout = canvas.layout.unwrap();
+        assert_eq!(layout.flip, None);
+        assert_eq!(
+            layout.rotation,
+            Some(crate::wallframe::display::layout::Rotation::Cw90)
+        );
+        assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 1);
+        assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 1);
+
+        router
+            .set_renderer_wallpaper_layout_override(
+                "canvas-renderer",
+                WallpaperLayoutOverride {
+                    flip: Some(crate::wallframe::display::layout::Flip::Both),
+                    ..Default::default()
+                },
+            )
+            .await;
+        assert_eq!(last_composition_config(&mut left.rx).unwrap().transform, 3);
+        assert_eq!(last_composition_config(&mut right.rx).unwrap().transform, 3);
+        assert_eq!(
+            router.snapshot_canvases().await.canvases[0]
+                .effective_layout
+                .flip,
+            crate::wallframe::display::layout::Flip::Both
+        );
     }
 
     #[tokio::test]
@@ -5099,6 +5230,8 @@ mod tests {
                 false,
                 false,
                 false,
+                None,
+                false,
             )
             .await;
 
@@ -5113,6 +5246,73 @@ mod tests {
         );
         assert!(snap.displays.get("iid-1").is_none());
         assert!(snap.displays.get("KDE Screen").is_none());
+    }
+
+    #[tokio::test]
+    async fn display_flip_override_and_reset_update_composition() {
+        use crate::wallframe::display::layout::{Flip, Rotation};
+
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr.clone());
+        let settings = test_settings_store().await;
+        router.attach_settings(settings.clone());
+        let renderer = RendererHandle::test_stub("r1", "scene");
+        renderer.test_publish_pool(fake_published_pool(1, 1920, 1080));
+        mgr.register_test_handle(renderer.clone()).await;
+        router.register_renderer(renderer).await;
+        let mut display = router
+            .register_display(reg_iid("Screen", "flip-display"))
+            .await;
+        assert_eq!(
+            last_composition_config(&mut display.rx).unwrap().transform,
+            0
+        );
+
+        router
+            .set_display_layout(
+                Some(display.id),
+                "Screen".into(),
+                None,
+                None,
+                None,
+                Some(Rotation::Cw90),
+                false,
+                false,
+                false,
+                Some(Flip::Horizontal),
+                false,
+            )
+            .await;
+        assert_eq!(
+            last_composition_config(&mut display.rx).unwrap().transform,
+            5
+        );
+        assert_eq!(
+            settings.resolved_layout("flip-display").flip,
+            Flip::Horizontal
+        );
+
+        router
+            .set_display_layout(
+                Some(display.id),
+                "Screen".into(),
+                None,
+                None,
+                None,
+                None,
+                false,
+                false,
+                false,
+                None,
+                true,
+            )
+            .await;
+        assert_eq!(
+            last_composition_config(&mut display.rx).unwrap().transform,
+            1
+        );
+        assert_eq!(settings.resolved_layout("flip-display").flip, Flip::None);
+        assert_eq!(settings.snapshot().displays["flip-display"].flip, None);
     }
 
     #[tokio::test]
@@ -5834,6 +6034,7 @@ mod tests {
             fillmode: FillMode::PreserveAspectFit,
             location: Default::default(),
             rotation: Default::default(),
+            flip: Default::default(),
         };
         let cfg = project_link(&link, &pool, &info, 1, 7, &layout);
         assert_eq!((cfg.display_w, cfg.display_h), (1280.0, 720.0));
@@ -5858,6 +6059,7 @@ mod tests {
             fillmode: FillMode::PreserveAspectFit,
             location: Default::default(),
             rotation: Default::default(),
+            flip: Default::default(),
         };
         link.projection = LinkProjection::Canvas {
             canvas_id: "canvas".into(),
@@ -6547,7 +6749,7 @@ mod tests {
         mgr.register_test_handle(renderer.clone()).await;
         router.register_renderer(renderer).await;
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         let mut display = router.register_display(registration).await;
 
         assert_eq!(
@@ -6630,27 +6832,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn independent_presentation_capabilities_resolve_separately() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr);
+        let settings = settings_with_pause_effect(blur_pause_effect(30)).await;
+        settings.update(|s| s.global.transition.kind = TransitionKind::Fade);
+        router.attach_settings(settings);
+
+        let mut pause_only = reg("pause-only", 1920, 1080);
+        pause_only.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
+        let pause_only = router.register_display(pause_only).await;
+        assert_eq!(
+            pause_only.presentation.config.pause_effect.kind,
+            PauseEffectKind::Blur
+        );
+        assert_eq!(
+            pause_only.presentation.config.transition.kind,
+            TransitionKind::None
+        );
+
+        let mut transition_only = reg("transition-only", 1920, 1080);
+        transition_only.transition_caps = TRANSITION_CAP_FADE;
+        let transition_only = router.register_display(transition_only).await;
+        assert_eq!(
+            transition_only.presentation.config.pause_effect.kind,
+            PauseEffectKind::None
+        );
+        assert_eq!(
+            transition_only.presentation.config.transition.kind,
+            TransitionKind::Fade
+        );
+    }
+
+    #[tokio::test]
     async fn transition_kind_falls_back_to_consumer_capabilities() {
         let mgr = Arc::new(RendererManager::new_default());
         let router = Router::new(mgr);
         router.attach_settings(settings_with_transition(TransitionKind::Wipe).await);
 
         assert_eq!(
-            router
-                .resolved_transition(PRESENTATION_CAP_WIPE_TRANSITION)
-                .kind,
+            router.resolved_transition(TRANSITION_CAP_WIPE).kind,
             TransitionKind::Wipe
         );
         assert_eq!(
-            router
-                .resolved_transition(PRESENTATION_CAP_FADE_TRANSITION)
-                .kind,
+            router.resolved_transition(TRANSITION_CAP_FADE).kind,
             TransitionKind::Fade
         );
-        assert_eq!(
-            router.resolved_transition(PRESENTATION_CAP_PAUSE_BLUR).kind,
-            TransitionKind::None
-        );
+        assert_eq!(router.resolved_transition(0).kind, TransitionKind::None);
     }
 
     #[tokio::test]
@@ -6670,7 +6898,7 @@ mod tests {
         router.register_renderer(r2.clone()).await;
 
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_FADE_TRANSITION;
+        registration.transition_caps = TRANSITION_CAP_FADE;
         let mut display = router.register_display(registration).await;
         assert_eq!(
             display.presentation.config.transition.kind,
@@ -6746,7 +6974,7 @@ mod tests {
         router.register_renderer(renderer).await;
 
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_FADE_TRANSITION;
+        registration.transition_caps = TRANSITION_CAP_FADE;
         let mut display = router.register_display(registration).await;
         let _ = drain_display_events(&mut display.rx);
         drain_renderer_controls(&peer);
@@ -6798,7 +7026,7 @@ mod tests {
         router.set_manual_pause(true).await;
 
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         let mut display = router.register_display(registration).await;
 
         assert!(display.presentation.state.pause_effect.active);
@@ -6819,9 +7047,9 @@ mod tests {
         mgr.register_test_handle(renderer.clone()).await;
         router.register_renderer(renderer).await;
         let mut a_registration = reg("A", 1920, 1080);
-        a_registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        a_registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         let mut b_registration = reg("B", 1920, 1080);
-        b_registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        b_registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         let mut a = router.register_display(a_registration).await;
         let mut b = router.register_display(b_registration).await;
         drain_display_events(&mut a.rx);
@@ -6872,7 +7100,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn pause_effect_consumes_auto_replay_renderer_state() {
+    async fn pause_effect_tracks_auto_pause_while_waiting_for_initial_frame() {
         let mgr = Arc::new(RendererManager::new_default());
         let router = Router::new(mgr.clone());
         let settings = settings_with_pause_effect(blur_pause_effect(30)).await;
@@ -6884,12 +7112,12 @@ mod tests {
         });
         router.attach_settings(settings);
 
-        let renderer = RendererHandle::test_stub("r1", "scene");
+        let (renderer, _records) = RendererHandle::test_stub_with_frame_records("r1", "scene");
         renderer.test_publish_pool(fake_published_pool(1, 1920, 1080));
         mgr.register_test_handle(renderer.clone()).await;
         router.register_renderer(renderer).await;
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         let mut display = router.register_display(registration).await;
         drain_display_events(&mut display.rx);
 
@@ -6897,9 +7125,36 @@ mod tests {
             .update_display_window_state(display.id, ar::FLAG_NON_MINIMIZED | ar::FLAG_FULLSCREEN)
             .await;
 
-        assert!(router.is_paused("r1").await);
+        assert!(
+            router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        assert!(!router.is_paused("r1").await);
         assert!(last_presentation_state(&mut display.rx)
             .is_some_and(|config| config.pause_effect.active));
+
+        router.on_renderer_frame("r1", 1, 0, 1, 1).await;
+        assert!(drain_display_events(&mut display.rx)
+            .iter()
+            .any(|event| matches!(event, DisplayOutEvent::Frame { seq: 1, .. })));
+        assert!(router.is_paused("r1").await);
+
+        router
+            .update_display_window_state(display.id, ar::FLAG_NON_MINIMIZED)
+            .await;
+        assert!(!router.is_paused("r1").await);
+        assert!(
+            !router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        assert!(last_presentation_state(&mut display.rx)
+            .is_some_and(|config| !config.pause_effect.active));
     }
 
     #[tokio::test]
@@ -6915,18 +7170,31 @@ mod tests {
         });
         router.attach_settings(settings);
 
-        let renderer = RendererHandle::test_stub("r1", "scene");
+        let (renderer, _records) = RendererHandle::test_stub_with_frame_records("r1", "scene");
         renderer.test_publish_pool(fake_published_pool(1, 1920, 1080));
         mgr.register_test_handle(renderer.clone()).await;
         router.register_renderer(renderer).await;
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         registration.window_state_flags = ar::FLAG_NON_MINIMIZED | ar::FLAG_FULLSCREEN;
         let mut display = router.register_display(registration).await;
 
-        assert!(router.is_paused("r1").await);
+        assert!(
+            router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        assert!(!router.is_paused("r1").await);
         assert!(display.presentation.state.pause_effect.active);
         assert!(last_presentation_state(&mut display.rx).is_none());
+
+        router.on_renderer_frame("r1", 1, 0, 1, 1).await;
+        assert!(drain_display_events(&mut display.rx)
+            .iter()
+            .any(|event| matches!(event, DisplayOutEvent::Frame { seq: 1, .. })));
+        assert!(router.is_paused("r1").await);
     }
 
     #[tokio::test]
@@ -6947,7 +7215,7 @@ mod tests {
         mgr.register_test_handle(renderer.clone()).await;
         router.register_renderer(renderer).await;
         let mut registration = reg("HDMI-A-1", 1920, 1080);
-        registration.presentation_caps = PRESENTATION_CAP_PAUSE_BLUR;
+        registration.pause_effect_caps = PAUSE_EFFECT_CAP_BLUR;
         let mut display = router.register_display(registration).await;
         drain_display_events(&mut display.rx);
 
@@ -6994,6 +7262,84 @@ mod tests {
             .update_display_window_state(h.id, ar::FLAG_NON_MINIMIZED | ar::FLAG_FULLSCREEN)
             .await;
         assert!(router.is_paused("r1").await);
+    }
+
+    #[tokio::test]
+    async fn window_observation_ignores_unfiltered_registration_and_stale_reports() {
+        let mgr = Arc::new(RendererManager::new_default());
+        let router = Router::new(mgr.clone());
+        let mut policy = auto_replay(&[(AutoCondition::Fullscreen, AutoAction::Pause)]);
+        policy.window_exclusions.application_ids = vec!["cat".into()];
+        router.attach_settings(settings_with_auto_replay(policy).await);
+        let renderer = RendererHandle::test_stub("r1", "scene");
+        mgr.register_test_handle(renderer.clone()).await;
+        router.register_renderer(renderer).await;
+        let mut registration = reg("HDMI-A-1", 1920, 1080);
+        registration.window_observation_caps = Some(3);
+        registration.window_state_flags = ar::FLAG_FULLSCREEN;
+        let mut display = router.register_display(registration).await;
+        assert!(
+            !router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        let configs = std::iter::from_fn(|| display.rx.try_recv().ok())
+            .filter_map(|event| match event {
+                DisplayOutEvent::SetWindowObservationConfig(config) => Some(config),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(configs.len(), 1);
+        assert_eq!(configs[0].generation, 1);
+        router
+            .update_display_window_state(display.id, ar::FLAG_FULLSCREEN)
+            .await;
+        router
+            .update_window_observation(display.id, 0, ar::FLAG_FULLSCREEN)
+            .await
+            .unwrap();
+        assert!(
+            !router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        router
+            .update_window_observation(display.id, 1, ar::FLAG_FULLSCREEN)
+            .await
+            .unwrap();
+        assert!(
+            router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        assert!(router
+            .update_window_observation(display.id, 2, 0)
+            .await
+            .is_err());
+        assert!(
+            router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
+        router
+            .update_window_observation(display.id, 1, 0)
+            .await
+            .unwrap();
+        assert!(
+            !router
+                .snapshot_display(display.id)
+                .await
+                .unwrap()
+                .effective_paused
+        );
     }
 
     #[tokio::test]
@@ -7088,7 +7434,7 @@ mod tests {
         let mgr = Arc::new(RendererManager::new_default());
         let router = Router::new(mgr.clone());
         let policy = auto_replay(&[(AutoCondition::SessionLocked, AutoAction::Stop)]);
-        let settings = settings_with_auto_replay(policy).await;
+        let settings = settings_with_auto_replay(policy.clone()).await;
         settings.update(|s| {
             let mut override_policy = policy;
             override_policy.session_locked = AutoAction::None;

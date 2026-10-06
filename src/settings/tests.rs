@@ -1,6 +1,138 @@
 use super::*;
 
 #[test]
+fn flip_defaults_inheritance_and_roundtrip() {
+    let mut settings: Settings = toml::from_str("").unwrap();
+    settings
+        .displays
+        .insert("screen".into(), DisplayPrefs::default());
+    let store = SettingsStore::from_test_settings(settings.clone());
+    assert_eq!(store.resolved_global_layout().flip, Flip::None);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+    store.update(|s| s.displays.get_mut("screen").unwrap().flip = Some(Flip::Horizontal));
+    assert_eq!(store.resolved_layout("screen").flip, Flip::Horizontal);
+    store.update(|s| s.displays.get_mut("screen").unwrap().flip = Some(Flip::None));
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+    assert!(!store.display_prefs("screen").unwrap().is_empty());
+    store.update(|s| s.displays.get_mut("screen").unwrap().flip = None);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+    settings.displays.get_mut("screen").unwrap().flip = Some(Flip::Horizontal);
+    settings.canvases.insert(
+        "canvas".into(),
+        CanvasPrefs {
+            layout: Some(CanvasLayoutPrefs {
+                flip: Some(Flip::Vertical),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+    let encoded = toml::to_string(&settings).unwrap();
+    let decoded: Settings = toml::from_str(&encoded).unwrap();
+    assert_eq!(decoded, settings);
+    let store = SettingsStore::from_test_settings(decoded);
+    assert_eq!(
+        store
+            .resolved_canvas_layout("canvas", store.resolved_global_layout())
+            .flip,
+        Flip::Vertical
+    );
+    store.update(|s| {
+        s.canvases
+            .get_mut("canvas")
+            .unwrap()
+            .layout
+            .as_mut()
+            .unwrap()
+            .flip = Some(Flip::None)
+    });
+    assert_eq!(
+        store
+            .resolved_canvas_layout("canvas", store.resolved_global_layout())
+            .flip,
+        Flip::None
+    );
+    store.update(|s| {
+        s.canvases
+            .get_mut("canvas")
+            .unwrap()
+            .layout
+            .as_mut()
+            .unwrap()
+            .flip = None
+    });
+    assert_eq!(
+        store
+            .resolved_canvas_layout("canvas", store.resolved_global_layout())
+            .flip,
+        Flip::None
+    );
+}
+
+#[test]
+fn legacy_global_flip_is_ignored() {
+    let settings: Settings = toml::from_str("[global.layout]\nflip = 'horizontal'").unwrap();
+    assert_eq!(settings.global.layout, LayoutDefaults::default());
+    assert!(!toml::to_string(&settings.global.layout)
+        .unwrap()
+        .contains("flip"));
+    let store = SettingsStore::from_test_settings(settings);
+    assert_eq!(store.resolved_global_layout().flip, Flip::None);
+    assert_eq!(store.resolved_layout("screen").flip, Flip::None);
+}
+
+#[test]
+fn window_exclusions_normalize_validate_and_roundtrip() {
+    let rules: WindowExclusions =
+        toml::from_str("application_ids = ['cat', '', 'cat']\ntitles = ['猫']").unwrap();
+    assert_eq!(rules.application_ids, ["cat"]);
+    assert!(rules.application_id_patterns.is_empty());
+    assert!(rules.title_patterns.is_empty());
+    assert_eq!(
+        toml::from_str::<WindowExclusions>(&toml::to_string(&rules).unwrap()).unwrap(),
+        rules
+    );
+    assert!(
+        toml::from_str::<WindowExclusions>(&format!("titles = ['{}']", "猫".repeat(86))).is_err()
+    );
+    let too_many = WindowExclusions {
+        application_ids: (0..65).map(|i| i.to_string()).collect(),
+        ..Default::default()
+    };
+    assert!(too_many.validate().is_err());
+    assert!(toml::from_str::<WindowExclusions>(&toml::to_string(&too_many).unwrap()).is_err());
+    assert!(WindowExclusions {
+        titles: vec!["a\0b".into()],
+        ..Default::default()
+    }
+    .validate()
+    .is_err());
+}
+
+#[test]
+fn window_exclusions_patterns_preserve_exact_and_share_limits() {
+    let rules: WindowExclusions = toml::from_str(
+        "application_ids = ['cat*']\napplication_id_patterns = ['cat*', '', 'cat*']\ntitle_patterns = ['时钟?']"
+    ).unwrap();
+    assert_eq!(rules.application_ids, ["cat*"]);
+    assert_eq!(rules.application_id_patterns, ["cat*"]);
+    assert_eq!(rules.title_patterns, ["时钟?"]);
+    assert_eq!(
+        toml::from_str::<WindowExclusions>(&toml::to_string(&rules).unwrap()).unwrap(),
+        rules
+    );
+    let mut combined = rules;
+    combined.application_ids = (0..64).map(|i| i.to_string()).collect();
+    assert!(combined.validate().is_err());
+    combined.application_ids.pop();
+    assert!(combined.validate().is_ok());
+    combined.title_patterns = vec!["a\0b".into()];
+    assert!(combined.validate().is_err());
+    combined.title_patterns = vec!["猫".repeat(86)];
+    assert!(combined.validate().is_err());
+}
+
+#[test]
 fn default_roundtrip() {
     let s: Settings = toml::from_str("").unwrap();
     assert!(s.global.last_wallpaper.is_none());
@@ -343,6 +475,7 @@ fn canvas_runtime_layout_and_scale_to_reconciliation_do_not_change_topology_revi
         fillmode: Some(FillMode::PreserveAspectFit),
         location: Some(Location::new(25, 75)),
         rotation: Some(Rotation::Cw90),
+        flip: Some(Flip::Horizontal),
     };
 
     assert!(store
@@ -686,7 +819,7 @@ fn auto_replay_migrates_legacy_rules_once_and_round_trips_scopes() {
     assert_eq!(policy.any_window_scope, AutoScope::AllDisplays);
     assert_eq!(policy.focused_scope, AutoScope::AllDisplays);
     assert_eq!(policy.fullscreen_scope, AutoScope::CurrentDisplay);
-    let display = settings.displays["A"].auto_replay.unwrap();
+    let display = settings.displays["A"].auto_replay.as_ref().unwrap();
     assert_eq!(display.focused, AutoAction::Pause);
     assert_eq!(display.focused_scope, AutoScope::AllDisplays);
     assert_eq!(display.session_locked, policy.session_locked);

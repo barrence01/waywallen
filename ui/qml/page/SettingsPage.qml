@@ -15,6 +15,18 @@ MD.Page {
     title: qsTr('Settings')
     scrolling: !m_flick.atYBeginning
 
+    Component {
+        id: excludedWindowsPage
+
+        W.WindowExclusionsPage {
+            policy: root._autoReplay()
+            onRulesEdited: changes => root._mutAutoReplay(policy => {
+                Object.assign(policy, changes);
+            })
+            onFlushRequested: root.prepareClose()
+        }
+    }
+
     actions: [
         MD.Action {
             icon.name: MD.Token.icon.settings_backup_restore
@@ -161,15 +173,22 @@ MD.Page {
         id: m_flush
         interval: 200
         repeat: false
-        onTriggered: {
-            const g = m_pending.nextGlobal;
-            if (!g) return;
-            setQ.global = g;
-            setQ.plugins = getQ.plugins;
-            setQ.reload();
-            m_pending.submittedGlobal = g;
-            m_pending.nextGlobal = null;
-        }
+        onTriggered: root.flushPending()
+    }
+
+    function flushPending() {
+        const g = m_pending.nextGlobal;
+        if (!g) return;
+        setQ.global = g;
+        setQ.plugins = getQ.plugins;
+        setQ.reload();
+        m_pending.submittedGlobal = g;
+        m_pending.nextGlobal = null;
+    }
+
+    function prepareClose() {
+        m_flush.stop();
+        root.flushPending();
     }
 
     function _mut(fn) {
@@ -260,7 +279,11 @@ MD.Page {
             maximizedScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             fullscreenScope: WC.AutoScope.AUTO_SCOPE_CURRENT_DISPLAY,
             gamemode: WC.AutoAction.AUTO_ACTION_NONE,
-            resumeDelayMs: 250
+            resumeDelayMs: 250,
+            excludedApplicationIds: [],
+            excludedWindowTitles: [],
+            excludedApplicationIdPatterns: [],
+            excludedWindowTitlePatterns: []
         };
     }
 
@@ -296,6 +319,7 @@ MD.Page {
         W.Global.singleUiEnabled = false;
         W.App.setSingleUiEnabled(false);
         W.DaemonDBusClient.quitOnDaemonShutdown = true;
+        W.UpdateChecker.enabled = true;
         W.Global.networkCacheMaximumMiB = 1024;
         W.Global.setThemeMode("system");
         W.Global.accentColor = W.Global.defaultAccentColor;
@@ -674,7 +698,7 @@ MD.Page {
 
             SettingItem {
                 first: false
-                last: true
+                last: false
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -711,6 +735,22 @@ MD.Page {
                         color: MD.Token.color.on_surface_variant
                     }
                 }
+            }
+
+            MD.ListItem {
+                Layout.fillWidth: true
+                index: root.kAutoReplayRows.length + 1
+                model: null
+                count: root.kAutoReplayRows.length + 2
+                showDivider: false
+                text: qsTr("Excluded windows")
+                corners: MD.Util.listCorners(index, count, 16)
+                mdState.backgroundColor: MD.Token.color.surface_container
+                enabled: Object.keys(getQ.global).length > 0
+                trailing: MD.Icon {
+                    name: MD.Token.icon.chevron_right
+                }
+                onClicked: root.MD.MProp.page.pushItem(excludedWindowsPage)
             }
 
             SettingHeader { text: qsTr("Behavior") }
@@ -806,6 +846,36 @@ MD.Page {
                     MD.Switch {
                         checked: W.DaemonDBusClient.quitOnDaemonShutdown
                         onToggled: W.DaemonDBusClient.quitOnDaemonShutdown = checked
+                    }
+                }
+            }
+
+            SettingItem {
+                first: false
+                last: false
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        FieldLabel { text: qsTr("Check for updates") }
+
+                        MD.Text {
+                            text: qsTr("Look for a new release on GitHub once a day and mark the app icon when one is available.")
+                            typescale: MD.Token.typescale.body_small
+                            color: MD.Token.color.on_surface_variant
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    MD.Switch {
+                        checked: W.UpdateChecker.enabled
+                        onToggled: W.UpdateChecker.enabled = checked
                     }
                 }
             }
@@ -1499,7 +1569,7 @@ MD.Page {
                     MD.TextField {
                         id: m_rot_field
                         Layout.preferredWidth: 120
-                        mdState.size: MD.Enum.S
+                        mdState.size: MD.Enum.XS
                         placeholderText: qsTr("Interval")
                         inputMethodHints: Qt.ImhDigitsOnly
                         validator: RegularExpressionValidator { regularExpression: /^\d*$/ }
