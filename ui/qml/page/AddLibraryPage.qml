@@ -7,6 +7,7 @@ import waywallen.ui as W
 MD.Page {
     id: root
     title: qsTr("Add Library")
+    property string pathError: ""
 
     W.SourceListQuery {
         id: sourceQuery
@@ -34,6 +35,10 @@ MD.Page {
 
     W.LibraryAddQuery {
         id: addQuery
+        forwardError: false
+        onErrorOccurred: function(error) {
+            root.pathError = error;
+        }
         // Toast now fires globally from Window.qml on the daemon's
         // `LibrariesAdded` event (mirrored via Notify).
         onFinished: MD.Util.closePopup(root.MD.MProp.page)
@@ -43,6 +48,7 @@ MD.Page {
         id: pluginGroup
         exclusive: true
         property string selectedPlugin: ""
+        onSelectedPluginChanged: root.pathError = ""
     }
 
     readonly property var selectedSource: {
@@ -81,6 +87,7 @@ MD.Page {
             Flow {
                 Layout.fillWidth: true
                 spacing: 8
+                enabled: !addQuery.querying
 
                 Repeater {
                     model: sourceQuery.sources
@@ -105,6 +112,10 @@ MD.Page {
                     id: pathInput
                     Layout.fillWidth: true
                     mdState.size: MD.Enum.S
+                    enabled: !addQuery.querying
+                    error: root.pathError.length > 0
+                    errorText: root.pathError
+                    onTextChanged: root.pathError = ""
                     placeholderText: root.selectedSource
                                      ? (W.I18n.tr(root.selectedSource.libraryLabelText)
                                         || qsTr("Library Path"))
@@ -113,6 +124,7 @@ MD.Page {
 
                 MD.IconButton {
                     Layout.alignment: Qt.AlignVCenter
+                    enabled: !addQuery.querying
                     icon.name: MD.Token.icon.folder
                     onClicked: folderDialog.open()
                 }
@@ -135,9 +147,10 @@ MD.Page {
                 Layout.fillWidth: true
                 text: qsTr("Add Library")
                 busy: addQuery.querying
-                enabled: pluginGroup.selectedPlugin !== "" && pathInput.text !== ""
+                enabled: !addQuery.querying && pluginGroup.selectedPlugin !== "" && pathInput.text !== ""
                 mdState.type: MD.Enum.BtFilled
                 onClicked: {
+                    root.pathError = "";
                     addQuery.pluginName = pluginGroup.selectedPlugin;
                     addQuery.path = pathInput.text;
                     addQuery.reload();

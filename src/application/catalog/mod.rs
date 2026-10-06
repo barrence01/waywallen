@@ -8,9 +8,11 @@ use crate::error::{Error, Result};
 use crate::model::{repo, sync};
 use crate::DaemonContext;
 
+mod libraries;
 mod query;
 mod remote;
 
+pub use libraries::add_library;
 pub use query::ordered_entry_ids;
 pub use remote::{
     download_remote, publish_remote_download_progress, remote_capability,

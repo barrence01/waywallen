@@ -2189,34 +2189,7 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::LibraryAdd(r) => {
-            let plugin = repo::find_plugin_by_name(&state.db, &r.plugin_name)
-                .await?
-                .ok_or_else(|| Error::SourcePluginNotFound(r.plugin_name.clone()))?;
-            let lib = repo::add_library(&state.db, plugin.id, &r.path).await?;
-            let snap = LibrarySnapshot {
-                id: lib.id,
-                path: lib.path,
-                plugin_name: r.plugin_name,
-            };
-            let added_path = snap.path.clone();
-            state.router.upsert_library(snap);
-            state.events.publish(GlobalEvent::LibrariesAdded {
-                paths: vec![added_path],
-            });
-            // Rescan immediately so the new library reaches the DB and UI
-            // without waiting for restart.
-            let rescan_state = state.clone();
-            state.tasks.spawn_async_unique(
-                tasks::TaskKind::Generic,
-                "scan/refresh",
-                "scan/refresh-after-library-add",
-                async move {
-                    application::refresh_sources(&rescan_state)
-                        .await
-                        .map(|_| ())
-                        .map_err(anyhow::Error::from)
-                },
-            );
+            application::add_library(&state, &r.plugin_name, &r.path).await?;
             Res::LibraryAdd(pb::Empty {})
         }
 
