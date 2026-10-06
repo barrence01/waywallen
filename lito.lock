@@ -11,6 +11,12 @@ dependencies = [
 ]
 
 [[packages]]
+name = "lito-qt"
+version = "0.1.1"
+source = "registry+https://registry.litocpp.org/"
+checksum = "dbc4671deb79a843fe48430adc463d4ff5132437949d6c86bf325de97a224409"
+
+[[packages]]
 name = "luato"
 version = "0.1.0"
 source = "git+https://github.com/litocpp/luato.git#df0c6f2d1cce2051b4711d36067619eda7933683"
@@ -41,8 +47,9 @@ dependencies = [
 [[packages]]
 name = "qextra"
 version = "0.1.0"
-source = "git+https://github.com/hypengw/QExtra.git#89b6478a1e318dccfb81bda9dac4245130c24211"
+source = "git+https://github.com/hypengw/QExtra.git#6950eac2a9f08912439ea5c9bc9b7ff4d7c1f0e0"
 dependencies = [
+  "lito-qt",
   "ncrequest",
   "rstd-cppstd",
   "rstd-std",
@@ -248,6 +255,7 @@ dependencies = [
 name = "waywallen-ui"
 version = "0.4.3"
 dependencies = [
+  "lito-qt",
   "ncrequest",
   "qextra",
   "rstd-cppstd",
@@ -258,7 +266,7 @@ dependencies = [
 
 [[packages.externals]]
 name = "qml-material"
-source = "git+https://github.com/hypengw/QmlMaterial.git#a2c560ec728857b7c2b9af35639e3192affce279"
+source = "git+https://github.com/hypengw/QmlMaterial.git#98b8acd3e0bd57ca0710f2712e4dfa3fcef13113"
 
 [[packages]]
 name = "waywallen-video-plugin"
