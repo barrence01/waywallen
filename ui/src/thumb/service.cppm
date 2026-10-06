@@ -4,13 +4,13 @@ module;
 #ifdef Q_MOC_RUN
 // MOC's preprocessor needs the `Q_DECLARE_INTERFACE` macro for
 // `Q_INTERFACES(QQmlParserStatus)` below. The actual compile gets the
-// type via `import qextra`, so this only fires under MOC.
+// type via `import qextra.qt`, so this only fires under MOC.
 #    include "waywallen/thumb/service.moc"
 #    include <QtQml/QQmlParserStatus>
 #endif
 
 export module waywallen:thumb.service;
-import qextra;
+import qextra.qt;
 
 namespace waywallen
 {

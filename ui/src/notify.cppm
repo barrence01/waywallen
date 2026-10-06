@@ -6,7 +6,7 @@ module;
 #endif
 
 export module waywallen:notify;
-import qextra;
+import qextra.qt;
 export import :proto;
 
 namespace waywallen

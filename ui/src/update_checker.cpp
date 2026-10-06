@@ -1,13 +1,9 @@
 module;
 #include "waywallen/update_checker.moc.h"
 
-#include <QtCore/QVersionNumber>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QNetworkRequest>
-
 module waywallen;
-import qextra;
+import qextra.qt;
+import rstd.cppstd;
 import :update_checker;
 import :app;
 

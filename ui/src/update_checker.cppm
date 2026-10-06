@@ -1,7 +1,4 @@
 module;
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkReply>
-
 #include "QExtra/macro_qt.hpp"
 
 #ifdef Q_MOC_RUN
@@ -9,7 +6,7 @@ module;
 #endif
 
 export module waywallen:update_checker;
-import qextra;
+import qextra.qt;
 
 namespace waywallen
 {

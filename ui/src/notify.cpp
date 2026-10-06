@@ -2,7 +2,7 @@ module;
 #include "waywallen/notify.moc.h"
 
 module waywallen;
-import qextra;
+import qextra.qt;
 import :notify;
 import :app;
 import :msg.store;

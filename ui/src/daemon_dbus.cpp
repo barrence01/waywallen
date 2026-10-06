@@ -5,7 +5,7 @@ module;
 #include <sys/types.h>
 
 module waywallen;
-import qextra;
+import qextra.qt;
 import :daemon_dbus;
 
 namespace waywallen
