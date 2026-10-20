@@ -80,10 +80,12 @@ ColumnLayout {
 
     readonly property bool isRenderNode: schema.key === "render_node"
     readonly property bool isResolution: schema.key === "resolution"
+    readonly property bool hasChoices: !!schema.choices && schema.choices.length > 0
 
     // Wire enum value → display label. Kept in sync with
     // <waywallen-bridge/resolution.h> WW_RESOLUTION_*.
     readonly property var resolutionPresets: [
+        { value: "-2", label: qsTr("Auto") },
         { value: "-1", label: qsTr("Custom") },
         { value: "0", label: qsTr("Origin") },
         { value: "1", label: "720p" },
@@ -93,13 +95,15 @@ ColumnLayout {
     ]
 
     readonly property bool isTextField: {
+        if (root.hasChoices)
+            return false;
         const t = schema.type;
         if (t === kBool)
             return false;
         if (root.isRenderNode || root.isResolution)
             return false;
         if (t === kString)
-            return !(schema.choices && schema.choices.length > 0);
+            return true;
         // Integer settings fall back to a dense textfield when the range is too
         // wide to be useful on a slider.
         if (root._isIntegerType(t))
@@ -186,6 +190,8 @@ ColumnLayout {
                 return renderNodeField;
             if (root.isResolution)
                 return resolutionField;
+            if (root.hasChoices)
+                return choiceField;
             switch (root.schema.type) {
             case root.kBool:
                 return boolField;
@@ -196,8 +202,6 @@ ColumnLayout {
             case root.kF32:
                 return root._hasNumericRange() ? sliderField : numericField;
             case root.kString:
-                if (root.schema.choices && root.schema.choices.length > 0)
-                    return choiceField;
                 return stringField;
             default:
                 return stringField;
@@ -223,7 +227,7 @@ ColumnLayout {
             MD.Switch {
                 id: sw
                 checked: root.value === "true"
-                onToggled: root._emit(checked ? "true" : "false")
+                onCheckedChangeRequested: checked => root._emit(checked ? "true" : "false")
                 Connections {
                     target: root
                     function onValueChanged() {
@@ -257,7 +261,7 @@ ColumnLayout {
             function displayValue(v) {
                 return root._isIntegerType(root.schema.type) ? Math.round(v).toString() : Number(v).toFixed(2);
             }
-            onMoved: {
+            onValueChangeRequested: value => {
                 if (root._isIntegerType(root.schema.type)) {
                     root._emit(Math.round(value).toString());
                 } else {
@@ -331,7 +335,7 @@ ColumnLayout {
             mdState.size: MD.Enum.S
             model: root.schema.choices
             currentIndex: Math.max(0, root.schema.choices.indexOf(root.value))
-            onActivated: root._emit(root.schema.choices[currentIndex])
+            onSelectionChangeRequested: index => root._emit(root.schema.choices[index])
             Connections {
                 target: root
                 function onValueChanged() {
@@ -343,7 +347,7 @@ ColumnLayout {
     }
 
     // Resolution chip list. Wire value is the WW_RESOLUTION_* enum
-    // (string-encoded), filtered against the schema's [min, max] range.
+    // (string-encoded), filtered by choices or the legacy [min, max] range.
     Component {
         id: resolutionField
         Flow {
@@ -364,15 +368,17 @@ ColumnLayout {
                     id: resChip
                     required property var modelData
                     readonly property int modelValue: parseInt(modelData.value, 10)
-                    visible: modelValue >= parent.loValue && modelValue <= parent.hiValue
+                    visible: root.hasChoices
+                        ? root.schema.choices.indexOf(modelData.value) >= 0
+                        : modelValue >= parent.loValue && modelValue <= parent.hiValue
                     text: modelData.label
-                    checked: root.value === modelData.value
-                    onClicked: root._emit(modelData.value)
+                    selected: root.value === modelData.value
+                    onSelectionRequested: root._emit(modelData.value)
                     Connections {
                         target: root
                         function onValueChanged() {
                             const c = root.value === resChip.modelData.value;
-                            if (resChip.checked !== c) resChip.checked = c;
+                            if (resChip.selected !== c) resChip.selected = c;
                         }
                     }
                 }
@@ -391,13 +397,13 @@ ColumnLayout {
             MD.FilterChip {
                 id: autoChip
                 text: qsTr("Auto")
-                checked: root.value === ""
-                onClicked: root._emit("")
+                selected: root.value === ""
+                onSelectionRequested: root._emit("")
                 Connections {
                     target: root
                     function onValueChanged() {
                         const c = root.value === "";
-                        if (autoChip.checked !== c) autoChip.checked = c;
+                        if (autoChip.selected !== c) autoChip.selected = c;
                     }
                 }
             }
@@ -409,17 +415,17 @@ ColumnLayout {
                     required property var modelData
                     text: (modelData.driver || "drm")
                         + " " + modelData.renderMajor + ":" + modelData.renderMinor
-                    checked: root.value === modelData.renderNode
+                    selected: root.value === modelData.renderNode
                     enabled: modelData.renderNode.length > 0
-                    onClicked: root._emit(modelData.renderNode)
-                    MD.ToolTip.visible: gpuChip.hovered
+                    onSelectionRequested: root._emit(modelData.renderNode)
+                    MD.ToolTip.visible: gpuChip.mdState.interactions.hovered
                     MD.ToolTip.delay: 300
                     MD.ToolTip.text: W.GpuDetails.toolTipText(gpuChip.modelData)
                     Connections {
                         target: root
                         function onValueChanged() {
                             const c = root.value === gpuChip.modelData.renderNode;
-                            if (gpuChip.checked !== c) gpuChip.checked = c;
+                            if (gpuChip.selected !== c) gpuChip.selected = c;
                         }
                     }
                 }

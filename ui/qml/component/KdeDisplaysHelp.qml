@@ -31,14 +31,14 @@ ColumnLayout {
             text: qsTr("GitHub")
             mdState.type: MD.Enum.BtFilledTonal
             onClicked: MD.Util.openUrlExternally(root.githubUrl)
-            MD.ToolTip.visible: hovered
+            MD.ToolTip.visible: mdState.interactions.hovered
             MD.ToolTip.text: root.githubUrl
         }
         MD.Button {
             text: qsTr("KDE Store")
             mdState.type: MD.Enum.BtFilledTonal
             onClicked: MD.Util.openUrlExternally(root.kdeStoreUrl)
-            MD.ToolTip.visible: hovered
+            MD.ToolTip.visible: mdState.interactions.hovered
             MD.ToolTip.text: root.kdeStoreUrl
         }
     }

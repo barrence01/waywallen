@@ -355,10 +355,9 @@ MD.Page {
 
                         MD.FilterChip {
                             text: qsTr("Mute all")
-                            checkable: false
-                            checked: W.Notify.globalMuted
+                            selected: W.Notify.globalMuted
                             enabled: W.Notify.daemonPhase === W.Notify.DaemonPhase.Ready && !globalMuteSetQuery.querying
-                            onClicked: {
+                            onSelectionRequested: {
                                 globalMuteSetQuery.muted = !W.Notify.globalMuted;
                                 globalMuteSetQuery.reload();
                             }
@@ -366,10 +365,9 @@ MD.Page {
 
                         MD.FilterChip {
                             text: qsTr("Pause all")
-                            checkable: false
-                            checked: W.Notify.globalPaused
+                            selected: W.Notify.globalPaused
                             enabled: W.Notify.daemonPhase === W.Notify.DaemonPhase.Ready && !globalPauseSetQuery.querying
-                            onClicked: {
+                            onSelectionRequested: {
                                 globalPauseSetQuery.paused = !W.Notify.globalPaused;
                                 globalPauseSetQuery.reload();
                             }
@@ -377,10 +375,9 @@ MD.Page {
 
                         MD.FilterChip {
                             text: qsTr("Stop all")
-                            checkable: false
-                            checked: W.Notify.globalStopped
+                            selected: W.Notify.globalStopped
                             enabled: W.Notify.daemonPhase === W.Notify.DaemonPhase.Ready && !globalStopSetQuery.querying
-                            onClicked: {
+                            onSelectionRequested: {
                                 globalStopSetQuery.stopped = !W.Notify.globalStopped;
                                 globalStopSetQuery.reload();
                             }

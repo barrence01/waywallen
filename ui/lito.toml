@@ -3,6 +3,9 @@ name = "waywallen-ui"
 version.workspace = true
 standard = "c++23"
 
+[features.update-check]
+default = true
+
 [[bin]]
 name = "waywallen-ui"
 module = "waywallen.entry"
@@ -92,6 +95,7 @@ sources = [
   "src/query/wallpaper_query.cppm",
   "src/thumb/service.cpp",
   "src/thumb/service.cppm",
+  "src/tray_i18n.cpp",
   "src/ui_language.cpp",
   "src/ui_language.cppm",
   "src/update_checker.cpp",

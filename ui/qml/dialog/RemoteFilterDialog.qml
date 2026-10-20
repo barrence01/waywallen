@@ -202,7 +202,7 @@ MD.Dialog {
                             popupMaximumHeight: 320
                             model: root.selectOptions(filterRow.modelData)
                             currentIndex: root.selectIndex(filterRow.modelData)
-                            onActivated: function (idx) {
+                            onSelectionChangeRequested: function (idx) {
                                 const values = root.filterValues(filterRow.modelData);
                                 root.setFilterValues(filterRow.modelData, idx > 0 ? [values[idx - 1]] : []);
                             }
@@ -244,10 +244,9 @@ MD.Dialog {
                                 model: filterRow.modelData.options ?? []
                                 delegate: MD.FilterChip {
                                     required property var modelData
-                                    checkable: false
                                     text: root.valueLabel(filterRow.modelData, modelData.value)
-                                    checked: root.selectedFor(filterRow.modelData).indexOf(modelData.value) >= 0
-                                    onClicked: root.toggleFilterValue(filterRow.modelData, modelData.value)
+                                    selected: root.selectedFor(filterRow.modelData).indexOf(modelData.value) >= 0
+                                    onSelectionRequested: root.toggleFilterValue(filterRow.modelData, modelData.value)
                                 }
                             }
                         }
@@ -291,10 +290,7 @@ MD.Dialog {
                         MD.Switch {
                             id: toggleControl
                             checked: root.hasFilterValue(filterRow.modelData)
-                            onClicked: {
-                                root.requestToggle(filterRow.modelData, !root.hasFilterValue(filterRow.modelData));
-                                checked = Qt.binding(() => root.hasFilterValue(filterRow.modelData));
-                            }
+                            onCheckedChangeRequested: checked => root.requestToggle(filterRow.modelData, checked)
                         }
                     }
                 }

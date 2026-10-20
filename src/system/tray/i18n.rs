@@ -1,49 +1,45 @@
-//! Translations for the tray menu.
-//!
-//! The tray menu is not drawn by the UI process: the daemon publishes its
-//! labels over `com.canonical.dbusmenu` and the desktop shell renders them
-//! verbatim. The Qt catalogs installed in `waywallen-ui` therefore never
-//! apply to it, and the labels have to be resolved here instead.
-//!
-//! Lookups run against a compile-time table picked from the process locale,
-//! so a missing language or a missing entry simply yields the English source
-//! string.
+//! The shell renders daemon-owned tray labels, so `build.rs` extracts the UI's
+//! `TrayMenu` translations into a Rust catalog to avoid a Qt runtime dependency.
 
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 
 /// One language's messages as `(msgid, msgstr)` pairs, sorted by `msgid`.
 type Catalog = &'static [(&'static str, &'static str)];
 
-const RU: Catalog = &[
-    ("1 hour", "1 час"),
-    ("1 minute", "1 минута"),
-    ("15 minutes", "15 минут"),
-    ("30 seconds", "30 секунд"),
-    ("5 minutes", "5 минут"),
-    ("Linux wallpaper daemon", "Демон обоев для Linux"),
-    ("Mute", "Заглушить"),
-    ("Next", "Следующие обои"),
-    ("Off", "Выкл."),
-    ("Open UI", "Открыть интерфейс"),
-    ("Pause", "Пауза"),
-    ("Previous", "Предыдущие обои"),
-    ("Quit", "Выход"),
-    ("Rescan wallpapers", "Пересканировать обои"),
-    ("Resume", "Возобновить"),
-    ("Rotate", "Смена обоев"),
-    ("Shuffle", "Вперемешку"),
-    ("Unmute", "Включить звук"),
-];
+include!(concat!(env!("OUT_DIR"), "/tray_i18n_generated.rs"));
+
+fn normalize_language_tag(language: &str) -> String {
+    language
+        .split(['.', '@'])
+        .next()
+        .unwrap_or_default()
+        .replace('-', "_")
+        .to_ascii_lowercase()
+}
 
 fn catalog_for(language: &str) -> Option<Catalog> {
-    match language {
-        "ru" => Some(RU),
-        _ => None,
+    let mut normalized = normalize_language_tag(language);
+    if normalized.is_empty() {
+        return None;
+    }
+
+    // Qt shortens the default Simplified Chinese locale to `zh` in BCP 47 tags.
+    if normalized == "zh" {
+        normalized = "zh_cn".to_string();
+    }
+
+    loop {
+        if let Some(catalog) = GENERATED_CATALOGS
+            .iter()
+            .find_map(|&(tag, catalog)| (tag == normalized.as_str()).then_some(catalog))
+        {
+            return Some(catalog);
+        }
+        let end = normalized.rfind('_')?;
+        normalized.truncate(end);
     }
 }
 
-/// Primary language subtag of the active locale, lowercased: `ru_RU.UTF-8`
-/// and `ru` both yield `ru`. `C` and `POSIX` mean "no translation".
 fn locale_language() -> Option<String> {
     for key in ["LC_ALL", "LC_MESSAGES", "LANG"] {
         let value = match std::env::var(key) {
@@ -53,26 +49,48 @@ fn locale_language() -> Option<String> {
         if value.is_empty() {
             continue;
         }
-        if value == "C" || value == "POSIX" {
+
+        let base = value.split(['.', '@']).next().unwrap_or_default();
+        if base.eq_ignore_ascii_case("C") || base.eq_ignore_ascii_case("POSIX") {
             return None;
         }
-        let tag = value
-            .split(['.', '@'])
-            .next()
-            .unwrap_or_default()
-            .split(['_', '-'])
-            .next()
-            .unwrap_or_default();
-        if !tag.is_empty() {
-            return Some(tag.to_ascii_lowercase());
+
+        let normalized = normalize_language_tag(&value);
+        if !normalized.is_empty() {
+            return Some(normalized);
         }
     }
     None
 }
 
+fn language_override() -> &'static RwLock<Option<String>> {
+    static LANGUAGE: OnceLock<RwLock<Option<String>>> = OnceLock::new();
+    LANGUAGE.get_or_init(|| RwLock::new(None))
+}
+
+/// `system` restores the process locale. Returns whether the selection changed.
+pub fn set_language(language: &str) -> bool {
+    let normalized = normalize_language_tag(language);
+    let next = if language.eq_ignore_ascii_case("system") || normalized.is_empty() {
+        None
+    } else {
+        Some(normalized)
+    };
+
+    let mut selected = language_override().write().unwrap();
+    if *selected == next {
+        return false;
+    }
+    *selected = next;
+    true
+}
+
 fn active_catalog() -> Option<Catalog> {
-    static ACTIVE: OnceLock<Option<Catalog>> = OnceLock::new();
-    *ACTIVE.get_or_init(|| locale_language().as_deref().and_then(catalog_for))
+    let selected = language_override().read().unwrap().clone();
+    match selected {
+        Some(language) => catalog_for(&language),
+        None => locale_language().as_deref().and_then(catalog_for),
+    }
 }
 
 /// Translate a tray label, falling back to the English source string.
@@ -91,31 +109,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn catalogs_are_sorted_and_complete() {
-        for catalog in [RU] {
+    fn generated_catalogs_are_sorted() {
+        for &(locale, catalog) in GENERATED_CATALOGS {
             assert!(
                 catalog.windows(2).all(|w| w[0].0 < w[1].0),
-                "catalog entries must be sorted by msgid for binary_search"
+                "{locale} catalog entries must be sorted by msgid for binary_search"
             );
             assert!(catalog.iter().all(|(_, text)| !text.is_empty()));
         }
     }
 
     #[test]
-    fn lookup_falls_back_to_the_source_string() {
-        assert_eq!(
-            RU.binary_search_by_key(&"Rescan wallpapers", |(id, _)| *id)
-                .map(|i| RU[i].1),
-            Ok("Пересканировать обои")
-        );
-        assert!(RU
-            .binary_search_by_key(&"not a tray label", |(id, _)| *id)
-            .is_err());
+    fn catalog_selection_accepts_bcp47_and_locale_tags() {
+        assert!(catalog_for("de-DE").is_some());
+        assert!(catalog_for("ru_RU.UTF-8").is_some());
+        assert!(catalog_for("zh-CN").is_some());
+        assert!(catalog_for("en-US").is_none());
     }
 
     #[test]
-    fn catalog_is_selected_by_primary_subtag() {
-        assert!(catalog_for("ru").is_some());
-        assert!(catalog_for("en").is_none());
+    fn catalog_selection_does_not_fall_back_to_another_region() {
+        assert_eq!(catalog_for("zh"), catalog_for("zh-CN"));
+        assert!(catalog_for("zh").is_some());
+        for language in ["zh-TW", "zh-HK", "zh-SG", "zh-Hant-TW"] {
+            assert!(catalog_for(language).is_none(), "{language}");
+        }
+        assert_eq!(catalog_for("de-AT"), catalog_for("de"));
+        assert_eq!(catalog_for("ru-BY"), catalog_for("ru"));
+    }
+
+    #[test]
+    fn missing_message_falls_back_to_source() {
+        let ru = catalog_for("ru").unwrap();
+        assert!(ru
+            .binary_search_by_key(&"not a tray label", |(id, _)| *id)
+            .is_err());
     }
 }

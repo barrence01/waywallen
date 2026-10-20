@@ -89,7 +89,7 @@ fn validate_plugin_dir_name(id: &str) -> Result<()> {
     }
 }
 
-fn apply_zip_mode(entry: &zip::read::ZipFile<'_>, path: &Path) -> Result<()> {
+fn apply_zip_mode<R: std::io::Read>(entry: &zip::read::ZipFile<'_, R>, path: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

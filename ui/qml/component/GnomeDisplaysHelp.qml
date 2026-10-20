@@ -27,7 +27,7 @@ ColumnLayout {
         text: qsTr("GitHub")
         mdState.type: MD.Enum.BtFilledTonal
         onClicked: MD.Util.openUrlExternally(root.githubUrl)
-        MD.ToolTip.visible: hovered
+        MD.ToolTip.visible: mdState.interactions.hovered
         MD.ToolTip.text: root.githubUrl
     }
 }

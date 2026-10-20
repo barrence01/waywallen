@@ -18,18 +18,14 @@ MD.Page {
     property var discoverTweakSheet: null
     property var infoPresentation: null
     property var managePresentation: null
-    readonly property var discoverTweakState: discoverTweakStateLoader.item
+    property W.TweakState discoverTweakState: discoverTweakStateComponent.createObject(root, {
+        settingsCategory: "DiscoverView"
+    })
 
-    Loader {
-        id: discoverTweakStateLoader
-        active: true
-        property string settingsCategory: "DiscoverView"
+    Component {
+        id: discoverTweakStateComponent
 
-        sourceComponent: Component {
-            W.TweakState {
-                settingsCategory: discoverTweakStateLoader.settingsCategory
-            }
-        }
+        W.TweakState {}
     }
 
     W.DiscoverState {
@@ -117,13 +113,18 @@ MD.Page {
 
     function loadDiscoverTweakState(id) {
         const category = tweakSettingsCategory(id);
-        if (discoverTweakStateLoader.item && discoverTweakStateLoader.settingsCategory === category)
+        if (discoverTweakState.settingsCategory === category)
+            return;
+        const next = discoverTweakStateComponent.createObject(root, {
+            settingsCategory: category
+        });
+        if (!next)
             return;
         if (isSheetActive(discoverTweakSheet))
             discoverTweakSheet.close();
-        discoverTweakStateLoader.active = false;
-        discoverTweakStateLoader.settingsCategory = category;
-        discoverTweakStateLoader.active = true;
+        const previous = discoverTweakState;
+        discoverTweakState = next;
+        previous.destroy();
     }
 
     function setSource(id) {
@@ -272,7 +273,7 @@ MD.Page {
 
     MD.Action {
         id: filterAction
-        icon.name: MD.Token.icon.filter_list
+        icon.name: MD.Token.icon.filter_alt
         text: qsTr("Filters")
         enabled: m_filter_dialog.filters.length > 0
         checked: searchQuery.tags.length > 0

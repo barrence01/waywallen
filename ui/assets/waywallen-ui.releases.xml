@@ -1,3 +1,34 @@
+<release version="0.5.0" date="2026-10-20">
+  <description>
+    <p>Added:</p>
+    <ul>
+      <li>Smart playlists automatically select wallpapers using filter rules, including library inclusion and exclusion.</li>
+      <li>Libraries have editable names and can be hidden from the wallpaper page.</li>
+      <li>Automatic sizing follows display and canvas layouts.</li>
+      <li>Lock-screen displays have a dedicated role and remain independent of global desktop pause.</li>
+      <li>Automatic playback rules can react to battery power. #345 by @MR-kartoshki</li>
+      <li>Wallpaper sources can provide author avatars in the detail panel. #343 by @wehrwolfmann</li>
+    </ul>
+    <p>Improved:</p>
+    <ul>
+      <li>Library directory changes trigger automatic rescanning. #325 by @wehrwolfmann</li>
+      <li>Filter rules use numeric steppers and compact text editors.</li>
+      <li>Flip controls wrap on narrow panels. #330 by @wehrwolfmann</li>
+      <li>The About page shows the daemon version when it differs from the UI version. #327 by @wehrwolfmann</li>
+      <li>Packagers can disable update checks at build time. #328 by @wehrwolfmann</li>
+      <li>German translations are available. #319 by @wehrwolfmann</li>
+      <li>Russian translations are updated. #320 by @wehrwolfmann</li>
+    </ul>
+    <p>Fixed:</p>
+    <ul>
+      <li>Video renderers advertise even dimensions for NV12 buffers. #332 by @MR-kartoshki</li>
+      <li>Wayfire is recognized as a layer-shell display backend. #337 by @MR-kartoshki</li>
+      <li>The tray language follows UI language changes. #335 by @MR-kartoshki</li>
+      <li>Web wallpaper actions open the correct resource directory. #333 by @MR-kartoshki</li>
+      <li>Russian settings labels use clearer wording. #323 by @wehrwolfmann</li>
+    </ul>
+  </description>
+</release>
 <release version="0.4.4" date="2026-10-06">
   <description>
     <p>Added:</p>

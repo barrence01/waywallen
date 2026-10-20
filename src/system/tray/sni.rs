@@ -162,6 +162,28 @@ impl StatusNotifierItem {
     pub async fn new_status(ctxt: &SignalContext<'_>, status: &str) -> zbus::Result<()>;
 }
 
+pub async fn notify_tool_tip_changed(app: &Arc<DaemonContext>) {
+    let conn = match app
+        .tray
+        .lock()
+        .await
+        .as_ref()
+        .map(|t| t.connection().clone())
+    {
+        Some(c) => c,
+        None => return,
+    };
+    let iface = match conn
+        .object_server()
+        .interface::<_, StatusNotifierItem>(super::ITEM_PATH)
+        .await
+    {
+        Ok(i) => i,
+        Err(_) => return,
+    };
+    let _ = StatusNotifierItem::new_tool_tip(iface.signal_context()).await;
+}
+
 async fn open_ui(app: &Arc<DaemonContext>) -> anyhow::Result<()> {
     if !crate::open_or_raise_ui(app).await {
         anyhow::bail!("waywallen-ui not available");

@@ -17,6 +17,7 @@ pub const CONTROL_CAPABILITIES: &[&str] = &[
     CONTROL_REVISION,
     // `LogReadRequest` / `SettingsGetResponse.log_dir`, since 0.3.8.
     "log-read",
+    "tray-language",
 ];
 
 #[cfg(test)]

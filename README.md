@@ -52,7 +52,6 @@ Waywallen is built by [Lito](https://github.com/litocpp/lito) (Please star it)
 | **Sway** | [waywallen-display/layer_shell](https://github.com/waywallen/waywallen-display/tree/main/src/bin/layer_shell) | ✅ | ❌ |
 
 ## Known issue
-
 - Web wallpapers on NVIDIA GPUs require `shared_texture_enabled` to be disabled in the web renderer settings.
 - Flatpak requires the `--talk-name=org.mpris.MediaPlayer2.*` D-Bus permission to read information about the currently playing track. Grant it for the current user with:
   ```bash

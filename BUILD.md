@@ -100,6 +100,9 @@ export LD_LIBRARY_PATH="$PWD/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 ## Packaging
 
+The “On battery” auto replay rule reads UPower on the system bus. Flatpak packages
+need `--system-talk-name=org.freedesktop.UPower` to enable it.
+
 Build release artifacts and stage them into the package root with Lito:
 
 ```bash
@@ -109,6 +112,11 @@ lito install --prefix package-root/usr --profile release
 
 Packages should consume the staged install tree. Lito is the public project build interface; CMake
 is only used internally by source dependency providers.
+
+The UI looks for a new release on GitHub and links to its download page. This is the `update-check`
+feature of `waywallen-ui`, on by default. Where a package manager delivers the updates, pass
+`--no-default-features` to both commands: the UI then sends no such request and hides the button on
+the about page and the switch in the settings.
 
 The protocol XMLs (`protocol/*.xml`) and `proto/control.proto` / `proto/filter.proto` are build-time
 codegen inputs and are not shipped in the package. Read them from the source tree if you need to

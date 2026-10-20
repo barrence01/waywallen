@@ -474,10 +474,15 @@ MD.Page {
                     width: parent.actionAreaWidth
                     actions: [pluginUpdateAction, pluginDeleteAction]
                     iconDelegate: MD.BusyIconButton {
-                        action: MD.ToolBarLayout.action
+                        MD.ActionCommand.action: MD.ToolBarLayout.action
+                        text: MD.ActionCommand.text
+                        icon.actionIcon: MD.ActionCommand.icon
+                        enabled: MD.ActionCommand.enabled
+                        busy: MD.ActionCommand.action?.busy ?? MD.Enum.Idle
+                        progress: MD.ActionCommand.action?.progress ?? 0
                         mdState.size: MD.Enum.XS
                     }
-                    moreDelegate: MD.IconButton {
+                    moreDelegate: MD.ActionIconButton {
                         action: pluginActionToolBar.moreAction
                         mdState.size: MD.Enum.XS
                     }

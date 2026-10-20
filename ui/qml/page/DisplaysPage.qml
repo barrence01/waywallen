@@ -545,8 +545,8 @@ MD.Page {
         const objects = key.kind === "canvas" ? W.App.displayManager.canvases : W.App.displayManager.displays;
         return (objects || []).find(object => object.id === key.id) || null;
     }
-    readonly property var selectedDisplayObject: selectedKind === "display" ? selected : null
-    readonly property var selectedCanvasObject: selectedKind === "canvas" ? selected : null
+    readonly property W.Display selectedDisplayObject: selected as W.Display
+    readonly property W.Canvas selectedCanvasObject: selected as W.Canvas
 
     MD.SplitView {
         id: pageContent
@@ -611,7 +611,7 @@ MD.Page {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: canvasEditor.dirty
                         actions: [resetCanvasAlignmentAction, applyCanvasAlignmentAction]
-                        iconDelegate: MD.IconButton {
+                        iconDelegate: MD.ActionIconButton {
                             id: canvasActionButton
                             mdState.size: MD.Enum.XS
 
@@ -620,9 +620,9 @@ MD.Page {
                             action: MD.ToolBarLayout.action
                             hoverEnabled: true
                             MD.ToolTip.text: toolTipText
-                            MD.ToolTip.visible: hovered && toolTipText.length > 0 && !pressed
+                            MD.ToolTip.visible: mdState.interactions.hovered && toolTipText.length > 0 && !mdState.interactions.pressed
                         }
-                        moreDelegate: MD.IconButton {
+                        moreDelegate: MD.ActionIconButton {
                             mdState.size: MD.Enum.XS
                             action: canvasAlignmentActionToolBar.moreAction
                         }
@@ -639,7 +639,7 @@ MD.Page {
                         enabled: W.DaemonDBusClient.daemonAvailable
                         hoverEnabled: true
                         MD.ToolTip.text: qsTr("Refresh displays")
-                        MD.ToolTip.visible: hovered && !pressed
+                        MD.ToolTip.visible: mdState.interactions.hovered && !mdState.interactions.pressed
                         onClicked: {
                             if (!W.DaemonDBusClient.refreshDisplays())
                                 W.Global.toastError(qsTr("Failed to refresh displays"));
@@ -1139,7 +1139,7 @@ MD.Page {
                                 visible: root.selectedKind === "display" && !!displayObject
                                 enabled: !!displayObject && !displayPauseQuery.querying
                                 icon.name: displayObject?.manualPaused ? MD.Token.icon.play_arrow : MD.Token.icon.pause
-                                MD.ToolTip.visible: hovered
+                                MD.ToolTip.visible: mdState.interactions.hovered
                                 MD.ToolTip.text: displayObject?.manualPaused ? qsTr("Resume display") : qsTr("Pause display")
                                 onClicked: {
                                     displayPauseQuery.displayId = displayObject.id;
@@ -1152,7 +1152,7 @@ MD.Page {
                                 visible: parent.canEdit && !!root.selected
                                 enabled: !renameQuery.querying && !canvasMutationQuery.querying && !canvasEditor.dirty
                                 icon.name: MD.Token.icon.edit
-                                MD.ToolTip.visible: hovered
+                                MD.ToolTip.visible: mdState.interactions.hovered
                                 MD.ToolTip.text: root.selectedKind === "canvas" ? qsTr("Edit canvas") : qsTr("Edit display")
                                 onClicked: {
                                     if (root.selectedKind === "canvas") {
@@ -1167,7 +1167,7 @@ MD.Page {
                                 visible: root.selectedKind === "canvas"
                                 enabled: !canvasEditor.dirty && !canvasMutationQuery.querying
                                 icon.name: MD.Token.icon.delete_forever
-                                MD.ToolTip.visible: hovered
+                                MD.ToolTip.visible: mdState.interactions.hovered
                                 MD.ToolTip.text: qsTr("Delete canvas")
                                 onClicked: deleteCanvasDialog.open()
                             }
@@ -1200,7 +1200,7 @@ MD.Page {
                                         visible: root.selectedKind === "canvas"
                                         enabled: !displayPauseQuery.querying
                                         icon.name: displayObject.manualPaused ? MD.Token.icon.play_arrow : MD.Token.icon.pause
-                                        MD.ToolTip.visible: hovered
+                                        MD.ToolTip.visible: mdState.interactions.hovered
                                         MD.ToolTip.text: displayObject.manualPaused ? qsTr("Resume display") : qsTr("Pause display")
                                         onClicked: {
                                             displayPauseQuery.displayId = displayObject.id;
@@ -1283,7 +1283,7 @@ MD.Page {
                                     return root.selectedCanvasObject?.effectiveLayout || ({});
                                 return root.selected.displayLayout || root.selected.effectiveLayout || ({});
                             }
-                            wallpaperOverride: !!root.selected && root.selectedKind === "display" && root.selected.layoutOverriddenByWallpaper
+                            wallpaperOverride: root.selectedDisplayObject?.layoutOverriddenByWallpaper ?? false
                             resetEnabled: {
                                 if (!root.selected)
                                     return false;

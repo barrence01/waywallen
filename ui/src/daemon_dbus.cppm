@@ -72,6 +72,8 @@ public:
 
     Q_INVOKABLE bool refreshDisplays();
 
+    Q_INVOKABLE bool setTrayLanguage(const QString& language);
+
     Q_INVOKABLE bool quitDaemon();
 
     /// Spawn the daemon as a detached child. Returns true on success.

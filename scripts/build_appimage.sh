@@ -10,7 +10,7 @@ ENV_NAME="${WAYWALLEN_CONDA_ENV:-waywallen}"
 ENV_PREFIX="${WAYWALLEN_CONDA_PREFIX:-$PROJECT_DIR/build/conda-envs/$ENV_NAME}"
 TMP_DIR="${TMPDIR:-/tmp}"
 WAYWALLEN_DISPLAY_REPO="${WAYWALLEN_DISPLAY_REPO:-https://github.com/waywallen/waywallen-display.git}"
-WAYWALLEN_DISPLAY_REF="${WAYWALLEN_DISPLAY_REF:-0d0ed7a9137afbd0ce4f6ced240f09a091884f78}"
+WAYWALLEN_DISPLAY_REF="${WAYWALLEN_DISPLAY_REF:-f8119f0483cc30baca20ec9b697070cb9a1724e6}"
 APPDIR="$PROJECT_DIR/build/AppDir"
 INSTALL_DIR="$APPDIR/usr"
 TOOLS_DIR="$PROJECT_DIR/build/_tools"
@@ -158,6 +158,14 @@ set +u
 conda activate "$ENV_PREFIX"
 set -u
 
+# Keep Cargo's linker on the same sysroot as Conda's native libraries.
+RUST_HOST_TARGET="$(rustc -vV | awk '/^host: / { print $2 }')"
+[[ -n "$RUST_HOST_TARGET" ]] || fail "could not read the rustc host target"
+[[ -n "${CC:-}" ]] || fail "Conda C compiler is unavailable"
+RUST_LINKER_ENV="CARGO_TARGET_${RUST_HOST_TARGET^^}_LINKER"
+RUST_LINKER_ENV="${RUST_LINKER_ENV//-/_}"
+export "${RUST_LINKER_ENV}=${CC}"
+
 bash "$PROJECT_DIR/scripts/build_ffmpeg.sh"
 bash "$PROJECT_DIR/scripts/copy_syslibs.sh"
 
@@ -205,12 +213,7 @@ git -C "$WAYWALLEN_DISPLAY_SRC" fetch --tags origin "$WAYWALLEN_DISPLAY_REF" \
     || git -C "$WAYWALLEN_DISPLAY_SRC" fetch --tags origin
 git -C "$WAYWALLEN_DISPLAY_SRC" checkout --detach "$WAYWALLEN_DISPLAY_REF"
 pushd "$WAYWALLEN_DISPLAY_SRC"
-RUST_HOST_TARGET="$(rustc -vV | awk '/^host: / { print $2 }')"
-[[ -n "$RUST_HOST_TARGET" ]] || fail "could not read the rustc host target"
-[[ -n "${CC:-}" ]] || fail "Conda C compiler is unavailable"
-RUST_LINKER_ENV="CARGO_TARGET_${RUST_HOST_TARGET^^}_LINKER"
-RUST_LINKER_ENV="${RUST_LINKER_ENV//-/_}"
-env "${RUST_LINKER_ENV}=${CC}" cargo build \
+cargo build \
     --bin waywallen-layer-shell \
     --release \
     --locked

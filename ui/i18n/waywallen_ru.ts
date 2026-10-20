@@ -10,6 +10,11 @@
     </message>
     <message>
         <location filename="../qml/page/AboutPage.qml" line="58"/>
+        <source>Daemon version %1</source>
+        <translation>Версия демона %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/AboutPage.qml" line="58"/>
         <source>Checking for updates…</source>
         <translation>Проверка обновлений…</translation>
     </message>
@@ -67,6 +72,14 @@
 <context>
     <name>AddLibraryPage</name>
     <message>
+        <source>Library name (optional)</source>
+        <translation>Название библиотеки (необязательно)</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the folder name.</source>
+        <translation>Оставьте пустым, чтобы использовать имя папки.</translation>
+    </message>
+    <message>
         <location filename="../qml/page/AddLibraryPage.qml" line="9"/>
         <location filename="../qml/page/AddLibraryPage.qml" line="136"/>
         <source>Add Library</source>
@@ -91,6 +104,10 @@
 </context>
 <context>
     <name>AddToPlaylistSheetContent</name>
+    <message>
+        <source>No manual playlists found</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <location filename="../qml/page/wallpaper/AddToPlaylistSheetContent.qml" line="25"/>
         <source>Add to playlist</source>
@@ -442,6 +459,11 @@
         <source>Rotation</source>
         <translation>Поворот</translation>
     </message>
+    <message>
+        <location filename="../qml/page/display/DisplayLayoutControls.qml" line="207"/>
+        <source>Flip</source>
+        <translation>Отражение</translation>
+    </message>
 </context>
 <context>
     <name>DisplaysPage</name>
@@ -790,6 +812,38 @@
 <context>
     <name>PlaylistEditPage</name>
     <message>
+        <source>Smart playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wallpapers matching these filters are updated automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default order</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last modified</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reverse order</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Waiting for matching wallpapers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/PlaylistEditPage.qml" line="14"/>
         <source>Edit playlist</source>
         <translation>Редактировать плейлист</translation>
@@ -888,6 +942,14 @@
 <context>
     <name>PlaylistListSheet</name>
     <message>
+        <source>Create smart playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smart playlist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/page/wallpaper/PlaylistListSheet.qml" line="22"/>
         <source>Create playlist</source>
         <translation>Создать плейлист</translation>
@@ -950,6 +1012,11 @@
         <location filename="../qml/page/wallpaper/PlaylistListSheet.qml" line="183"/>
         <source>Delete playlist</source>
         <translation>Удалить плейлист</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/wallpaper/PlaylistListSheet.qml" line="22"/>
+        <source>Hidden wallpapers</source>
+        <translation>Скрытые обои</translation>
     </message>
 </context>
 <context>
@@ -1791,7 +1858,7 @@ Related display: #%1</source>
         <location filename="../qml/page/SettingsPage.qml" line="473"/>
         <location filename="../src/ui_language.cpp" line="74"/>
         <source>System</source>
-        <translation>Системная</translation>
+        <translation>Как в системе</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="460"/>
@@ -1906,7 +1973,7 @@ Related display: #%1</source>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="532"/>
         <source>Auto replay</source>
-        <translation>Автоповтор</translation>
+        <translation>Автопауза</translation>
     </message>
     <message>
         <location filename="../qml/page/SettingsPage.qml" line="584"/>
@@ -2107,9 +2174,41 @@ Related display: #%1</source>
         <source>Excluded windows</source>
         <translation>Исключённые окна</translation>
     </message>
+    <message>
+        <source>On battery</source>
+        <translation>От батареи</translation>
+    </message>
 </context>
 <context>
     <name>SourceManagePage</name>
+    <message>
+        <source>Rename library</source>
+        <translation>Переименовать библиотеку</translation>
+    </message>
+    <message>
+        <source>Library name</source>
+        <translation>Название библиотеки</translation>
+    </message>
+    <message>
+        <source>Removed source #%1</source>
+        <translation>Удалённый источник №%1</translation>
+    </message>
+    <message>
+        <source>Clear hidden state</source>
+        <translation>Сбросить скрытие</translation>
+    </message>
+    <message>
+        <source>Hide source</source>
+        <translation>Скрыть источник</translation>
+    </message>
+    <message>
+        <source>Show source</source>
+        <translation>Показать источник</translation>
+    </message>
+    <message>
+        <source>Remove library</source>
+        <translation>Удалить библиотеку</translation>
+    </message>
     <message>
         <location filename="../qml/page/SourceManagePage.qml" line="10"/>
         <source>Library Manager</source>
@@ -2296,6 +2395,10 @@ Unsaved frame state may be lost.</source>
 <context>
     <name>StringFilter</name>
     <message>
+        <source>Apply</source>
+        <translation>Применить</translation>
+    </message>
+    <message>
         <location filename="../qml/component/filter/StringFilter.qml" line="16"/>
         <source>contains</source>
         <translation>содержит</translation>
@@ -2389,6 +2492,26 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/page/wallpaper/TweakSheet.qml" line="131"/>
         <source>Fixed</source>
         <translation>Фиксированное</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/wallpaper/TweakSheet.qml" line="141"/>
+        <source>Image decode cache</source>
+        <translation>Кэш декодированных изображений</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/wallpaper/TweakSheet.qml" line="153"/>
+        <source>%1 MiB</source>
+        <translation>%1 МиБ</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/wallpaper/TweakSheet.qml" line="154"/>
+        <source>512 MiB</source>
+        <translation>512 МиБ</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/wallpaper/TweakSheet.qml" line="160"/>
+        <source>Lower values use less memory but may increase CPU usage when playing animated thumbnails. Set to 0 to disable caching.</source>
+        <translation>Меньшие значения экономят память, но могут повысить нагрузку на процессор при воспроизведении анимированных превью. 0 отключает кэш.</translation>
     </message>
 </context>
 <context>
@@ -2641,9 +2764,18 @@ Unsaved frame state may be lost.</source>
         <source>No display connected</source>
         <translation>Нет подключённых мониторов</translation>
     </message>
+    <message>
+        <location filename="../qml/page/WallpaperDetailPanel.qml" line="799"/>
+        <source>Flip</source>
+        <translation>Отражение</translation>
+    </message>
 </context>
 <context>
     <name>WallpaperFilter</name>
+    <message>
+        <source>Library</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <location filename="../qml/component/filter/WallpaperFilter.qml" line="23"/>
         <source>Name</source>
@@ -2688,6 +2820,14 @@ Unsaved frame state may be lost.</source>
 <context>
     <name>WallpaperFilterDialog</name>
     <message>
+        <source>Clear rules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="11"/>
         <source>Filters</source>
         <translation>Фильтры</translation>
@@ -2731,6 +2871,26 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="241"/>
         <source>OR</source>
         <translation>ИЛИ</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="182"/>
+        <source>Visibility</source>
+        <translation>Видимость</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="190"/>
+        <source>Not hidden</source>
+        <translation>Не скрытые</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="195"/>
+        <source>Hidden only</source>
+        <translation>Только скрытые</translation>
+    </message>
+    <message>
+        <location filename="../qml/dialog/WallpaperFilterDialog.qml" line="200"/>
+        <source>All</source>
+        <translation>Все</translation>
     </message>
 </context>
 <context>
@@ -2961,6 +3121,31 @@ Unsaved frame state may be lost.</source>
         <source>Auto detect libraries</source>
         <translation>Найти библиотеки автоматически</translation>
     </message>
+    <message>
+        <location filename="../qml/page/WallpaperPage.qml" line="54"/>
+        <source>Hidden %1</source>
+        <translation>Скрыто: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WallpaperPage.qml" line="54"/>
+        <source>Unhidden %1</source>
+        <translation>Снова показано: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WallpaperPage.qml" line="58"/>
+        <source>Hide failed</source>
+        <translation>Не удалось скрыть</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WallpaperPage.qml" line="287"/>
+        <source>Unhide %1</source>
+        <translation>Показать: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/WallpaperPage.qml" line="287"/>
+        <source>Hide %1</source>
+        <translation>Скрыть: %1</translation>
+    </message>
 </context>
 <context>
     <name>Window</name>
@@ -3144,6 +3329,196 @@ Unsaved frame state may be lost.</source>
         <location filename="../qml/component/SidebarNowPlaying.qml" line="33"/>
         <source>Current wallpapers</source>
         <translation>Текущие обои</translation>
+    </message>
+</context>
+<context>
+    <name>FlipButtons</name>
+    <message>
+        <location filename="../qml/component/FlipButtons.qml" line="14"/>
+        <source>None</source>
+        <translation>Нет</translation>
+    </message>
+    <message>
+        <location filename="../qml/component/FlipButtons.qml" line="19"/>
+        <source>Horizontal</source>
+        <translation>По горизонтали</translation>
+    </message>
+    <message>
+        <location filename="../qml/component/FlipButtons.qml" line="24"/>
+        <source>Vertical</source>
+        <translation>По вертикали</translation>
+    </message>
+    <message>
+        <location filename="../qml/component/FlipButtons.qml" line="29"/>
+        <source>Both</source>
+        <translation>Обе оси</translation>
+    </message>
+</context>
+<context>
+    <name>HiddenWallpapersPage</name>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="12"/>
+        <source>Hidden wallpapers</source>
+        <translation>Скрытые обои</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="17"/>
+        <source>Refresh</source>
+        <translation>Обновить</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="36"/>
+        <source>Unhidden</source>
+        <translation>Снова показано</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="42"/>
+        <source>Unhide failed</source>
+        <translation>Не удалось показать</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="85"/>
+        <source>Untitled</source>
+        <translation>Без названия</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="111"/>
+        <source>Unhide</source>
+        <translation>Показать</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="125"/>
+        <source>No hidden wallpapers</source>
+        <translation>Скрытых обоев нет</translation>
+    </message>
+    <message>
+        <location filename="../qml/page/HiddenWallpapersPage.qml" line="136"/>
+        <source>Failed to load hidden wallpapers</source>
+        <translation>Не удалось загрузить скрытые обои</translation>
+    </message>
+</context>
+<context>
+    <name>TrayMenu</name>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="6"/>
+        <source>1 hour</source>
+        <translation>1 час</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="7"/>
+        <source>1 minute</source>
+        <translation>1 минута</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="8"/>
+        <source>15 minutes</source>
+        <translation>15 минут</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="9"/>
+        <source>30 seconds</source>
+        <translation>30 секунд</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="10"/>
+        <source>5 minutes</source>
+        <translation>5 минут</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="11"/>
+        <source>Linux wallpaper daemon</source>
+        <translation>Демон обоев для Linux</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="12"/>
+        <source>Mute</source>
+        <translation>Заглушить</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="13"/>
+        <source>Next</source>
+        <translation>Следующие обои</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="14"/>
+        <source>Off</source>
+        <translation>Выкл.</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="15"/>
+        <source>Open UI</source>
+        <translation>Открыть интерфейс</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="16"/>
+        <source>Pause</source>
+        <translation>Пауза</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="17"/>
+        <source>Previous</source>
+        <translation>Предыдущие обои</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="18"/>
+        <source>Quit</source>
+        <translation>Выход</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="19"/>
+        <source>Rescan wallpapers</source>
+        <translation>Пересканировать обои</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="20"/>
+        <source>Resume</source>
+        <translation>Возобновить</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="21"/>
+        <source>Rotate</source>
+        <translation>Смена обоев</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="22"/>
+        <source>Shuffle</source>
+        <translation>Вперемешку</translation>
+    </message>
+    <message>
+        <location filename="../src/tray_i18n.cpp" line="23"/>
+        <source>Unmute</source>
+        <translation>Включить звук</translation>
+    </message>
+</context>
+<context>
+    <name>LibraryFilter</name>
+    <message>
+        <source>includes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>excludes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unavailable library #%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select library</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+
+<context>
+    <name>WallpaperFilterRules</name>
+    <message>
+        <source>Add rule</source>
+        <translation>Добавить правило</translation>
+    </message>
+    <message>
+        <source>Delete group</source>
+        <translation>Удалить группу</translation>
     </message>
 </context>
 </TS>

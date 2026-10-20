@@ -66,7 +66,7 @@ ColumnLayout {
                 mdState.size: MD.Enum.XS
                 enabled: control.resetEnabled
                 icon.name: MD.Token.icon.settings_backup_restore
-                MD.ToolTip.visible: hovered
+                MD.ToolTip.visible: mdState.interactions.hovered
                 MD.ToolTip.text: qsTr("Revert to global default")
                 onClicked: control.resetRequested()
             }
@@ -94,7 +94,7 @@ ColumnLayout {
                 mdState.size: MD.Enum.S
                 model: control.fillModeLabels
                 currentIndex: control.fillModeIndex(control.displayLayout.fillmode || 0)
-                onActivated: index => control.fillModeRequested(control.fillModeValues[index])
+                onSelectionChangeRequested: index => control.fillModeRequested(control.fillModeValues[index])
             }
         }
 
@@ -121,7 +121,7 @@ ColumnLayout {
                 valueText: control.clampPercent(value)
                 valueMaxText: control.clampPercent(to).toString()
                 valueHorizontalAlignment: Text.AlignLeft
-                onMoved: control.locationRequested(value, verticalLocation.value)
+                onValueChangeRequested: value => control.locationRequested(value, verticalLocation.value)
             }
         }
 
@@ -148,7 +148,7 @@ ColumnLayout {
                 valueText: control.clampPercent(value)
                 valueMaxText: control.clampPercent(to).toString()
                 valueHorizontalAlignment: Text.AlignLeft
-                onMoved: control.locationRequested(horizontalLocation.value, value)
+                onValueChangeRequested: value => control.locationRequested(horizontalLocation.value, value)
             }
         }
 
@@ -178,22 +178,22 @@ ColumnLayout {
                 MD.SegmentedButton {
                     text: control.rotationLabels[0]
                     checked: rotationGroup.isChecked(control.rotationValues[0])
-                    onClicked: rotationGroup.applyRotation(control.rotationValues[0])
+                    onCheckedChangeRequested: rotationGroup.applyRotation(control.rotationValues[0])
                 }
                 MD.SegmentedButton {
                     text: control.rotationLabels[1]
                     checked: rotationGroup.isChecked(control.rotationValues[1])
-                    onClicked: rotationGroup.applyRotation(control.rotationValues[1])
+                    onCheckedChangeRequested: rotationGroup.applyRotation(control.rotationValues[1])
                 }
                 MD.SegmentedButton {
                     text: control.rotationLabels[2]
                     checked: rotationGroup.isChecked(control.rotationValues[2])
-                    onClicked: rotationGroup.applyRotation(control.rotationValues[2])
+                    onCheckedChangeRequested: rotationGroup.applyRotation(control.rotationValues[2])
                 }
                 MD.SegmentedButton {
                     text: control.rotationLabels[3]
                     checked: rotationGroup.isChecked(control.rotationValues[3])
-                    onClicked: rotationGroup.applyRotation(control.rotationValues[3])
+                    onCheckedChangeRequested: rotationGroup.applyRotation(control.rotationValues[3])
                 }
             }
 

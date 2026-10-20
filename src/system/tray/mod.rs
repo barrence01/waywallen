@@ -63,6 +63,14 @@ pub async fn ensure_stopped(app: &DaemonContext) {
     log::info!("tray: removed {ITEM_PATH}");
 }
 
+pub async fn set_language(app: &Arc<DaemonContext>, language: &str) {
+    if !i18n::set_language(language) {
+        return;
+    }
+    dbusmenu::notify_language_changed(app).await;
+    sni::notify_tool_tip_changed(app).await;
+}
+
 async fn start(app: Arc<DaemonContext>) -> Result<TrayHandle> {
     let tasks = app.tasks.clone();
     // Own connection, not the daemon's — see `TrayHandle`.

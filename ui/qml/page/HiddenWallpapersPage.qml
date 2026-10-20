@@ -107,7 +107,7 @@ MD.Page {
                         unhideQuery.wallpaperId = wallpaperItem.model.id_proto;
                         unhideQuery.reload();
                     }
-                    MD.ToolTip.visible: hovered
+                    MD.ToolTip.visible: mdState.interactions.hovered
                     MD.ToolTip.text: qsTr("Unhide")
                 }
             }

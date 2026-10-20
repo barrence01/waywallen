@@ -26,6 +26,7 @@ qt.translations({
   ts_files = {
     "i18n/waywallen_zh_CN.ts",
     "i18n/waywallen_ru.ts",
+    "i18n/waywallen_de.ts",
   },
   resource_prefix = "/i18n",
 })
@@ -62,12 +63,14 @@ qt.qml_module({
     "qml/component/SidebarNowPlaying.qml",
     "qml/component/filter/StringFilter.qml",
     "qml/component/filter/IntFilter.qml",
+    "qml/component/filter/LibraryFilter.qml",
     "qml/component/filter/WpTypeFilter.qml",
     "qml/component/filter/TagFilter.qml",
     "qml/component/filter/TagPickerDialog.qml",
     "qml/component/filter/ContentRatingFilter.qml",
     "qml/component/filter/EmptyFilter.qml",
     "qml/component/filter/WallpaperFilter.qml",
+    "qml/component/filter/WallpaperFilterRules.qml",
     "qml/component/settings/SettingField.qml",
     "qml/dialog/DaemonNotRunDialog.qml",
     "qml/dialog/WallpaperFilterDialog.qml",

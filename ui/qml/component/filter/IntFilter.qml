@@ -23,20 +23,16 @@ QtObject {
     ]
 
     readonly property Component valueDelegate: Component {
-        MD.InputChip {
-            id: valueChip
+        MD.StepperInput {
             visible: root.condition !== WC.IntCondition.INT_CONDITION_UNSPECIFIED
-            text: String(root.value)
-            onClicked: edit = true
-            editDelegate: MD.TextInput {
-                text: String(root.value)
-                validator: IntValidator {}
-                onAccepted: {
-                    const parsed = parseInt(text, 10);
-                    root.value = isNaN(parsed) ? 0 : parsed;
-                    valueChip.edit = false;
-                }
-            }
+            implicitHeight: 32
+            valueWidth: 64
+            from: -2147483648
+            to: 2147483647
+            step: 1
+            decimals: 0
+            value: root.value
+            onValueChangeRequested: value => root.value = value
         }
     }
 

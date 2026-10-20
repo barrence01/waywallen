@@ -117,6 +117,16 @@ void App::init() {
         }
     }
 
+    auto sync_tray_language = [d, dbus]() {
+        if (dbus->status() != DaemonDBusClient::Connected ||
+            ! dbus->hasDaemonCapability(QStringLiteral("tray-language")))
+            return;
+        dbus->setTrayLanguage(d->m_ui_language->resolvedLanguage());
+    };
+    connect(dbus, &DaemonDBusClient::statusChanged, this, sync_tray_language);
+    connect(this, &App::resolvedUiLanguageChanged, this, sync_tray_language);
+    sync_tray_language();
+
     // React to daemon availability / port changes. The backend is only
     // (re)configured when the daemon reports `Connected` — VersionMissing
     // and VersionMismatch hold the backend disconnected even if a port

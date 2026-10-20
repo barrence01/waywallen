@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -129,11 +130,8 @@ fn flatpak_id(caps: &DeCaps) -> String {
     caps.flatpak_id.clone().unwrap_or_default()
 }
 
-/// Read environment to populate `DeCaps`. Never panics; unset values are
-/// left at their defaults.
-pub fn detect_de() -> DeCaps {
-    let xdg_desktop = std::env::var("XDG_CURRENT_DESKTOP")
-        .ok()
+fn desktop_tokens(current_desktop: Option<&str>, wayfire_socket: Option<&OsStr>) -> Vec<String> {
+    let mut tokens = current_desktop
         .map(|s| {
             s.split(':')
                 .filter(|p| !p.is_empty())
@@ -141,6 +139,22 @@ pub fn detect_de() -> DeCaps {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+
+    if tokens.iter().all(|token| token == "wayland")
+        && wayfire_socket.is_some_and(|socket| !socket.is_empty())
+    {
+        tokens.push("wayfire".to_string());
+    }
+
+    tokens
+}
+
+/// Read environment to populate `DeCaps`. Never panics; unset values are
+/// left at their defaults.
+pub fn detect_de() -> DeCaps {
+    let current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
+    let wayfire_socket = std::env::var_os("WAYFIRE_SOCKET");
+    let xdg_desktop = desktop_tokens(current_desktop.as_deref(), wayfire_socket.as_deref());
     let wayland_display = std::env::var("WAYLAND_DISPLAY")
         .ok()
         .filter(|s| !s.is_empty());
@@ -585,7 +599,7 @@ mod tests {
 
     #[test]
     fn wlroots_desktops_pick_layer_shell() {
-        for desktop in ["hyprland", "sway", "niri", "cosmic"] {
+        for desktop in ["hyprland", "sway", "niri", "cosmic", "wayfire"] {
             let caps = DeCaps {
                 xdg_desktop: vec![desktop.into()],
                 ..Default::default()
@@ -594,6 +608,46 @@ mod tests {
                 PickOutcome::Matched(d) => assert_eq!(d.name, "layer-shell"),
                 other => panic!("expected Matched(layer-shell) for {desktop}, got {other:?}"),
             }
+        }
+    }
+
+    #[test]
+    fn wayfire_socket_adds_wayfire_desktop_hint() {
+        let socket = Some(OsStr::new("/run/user/1000/wayfire.sock"));
+        assert_eq!(
+            desktop_tokens(Some("wayland"), socket),
+            vec!["wayland".to_string(), "wayfire".to_string()]
+        );
+        for desktop in [None, Some(""), Some(":")] {
+            let caps = DeCaps {
+                xdg_desktop: desktop_tokens(desktop, socket),
+                ..Default::default()
+            };
+            match pick_backend(&registry(), &caps) {
+                PickOutcome::Matched(d) => assert_eq!(d.name, "layer-shell"),
+                other => panic!("expected Matched(layer-shell), got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn empty_or_unset_wayfire_socket_does_not_add_desktop_hint() {
+        for socket in [None, Some(OsStr::new(""))] {
+            assert!(desktop_tokens(None, socket).is_empty());
+            assert_eq!(desktop_tokens(Some("wayland"), socket), ["wayland"]);
+            assert_eq!(desktop_tokens(Some("Wayfire"), socket), ["wayfire"]);
+        }
+    }
+
+    #[test]
+    fn wayfire_socket_preserves_explicit_desktop_tokens() {
+        let socket = Some(OsStr::new("/run/user/1000/wayfire.sock"));
+        assert_eq!(desktop_tokens(Some("Wayfire"), socket), ["wayfire"]);
+        for desktop in ["GNOME", "KDE", "sway", "wayland:GNOME"] {
+            assert_eq!(
+                desktop_tokens(Some(desktop), socket),
+                desktop_tokens(Some(desktop), None)
+            );
         }
     }
 

@@ -211,17 +211,16 @@ ColumnLayout {
                             onEditingFinished: control.configureHeight(displayPanel.index, displayPanel.scaleHeight, draftText)
                         }
 
-                        MD.IconButton {
+                        MD.IconToggleButton {
                             id: lockButton
 
                             enabled: !control.busy
-                            checkable: true
                             checked: displayPanel.aspectLocked
                             mdState.size: MD.Enum.XS
                             icon.name: displayPanel.aspectLocked ? MD.Token.icon.lock : MD.Token.icon.lock_open
-                            MD.ToolTip.visible: hovered
+                            MD.ToolTip.visible: mdState.interactions.hovered
                             MD.ToolTip.text: displayPanel.aspectLocked ? qsTr("Unlock aspect ratio") : qsTr("Lock aspect ratio")
-                            onClicked: control.editor.setMemberAspectLocked(displayPanel.index, !displayPanel.aspectLocked)
+                            onCheckedChangeRequested: checked => control.editor.setMemberAspectLocked(displayPanel.index, checked)
                         }
 
                         MD.IconButton {
@@ -230,7 +229,7 @@ ColumnLayout {
                             enabled: !control.busy && displayPanel.minimumWidth > 0 && displayPanel.minimumHeight > 0 && (displayPanel.scaleWidth !== displayPanel.minimumWidth || displayPanel.scaleHeight !== displayPanel.minimumHeight)
                             mdState.size: MD.Enum.XS
                             icon.name: MD.Token.icon.settings_backup_restore
-                            MD.ToolTip.visible: hovered
+                            MD.ToolTip.visible: mdState.interactions.hovered
                             MD.ToolTip.text: qsTr("Reset to original size")
                             onClicked: control.editor.resetMemberSize(displayPanel.index)
                         }

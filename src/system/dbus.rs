@@ -149,6 +149,10 @@ impl Daemon1 {
         Ok(())
     }
 
+    async fn set_tray_language(&self, language: String) {
+        crate::system::tray::set_language(&self.app, &language).await;
+    }
+
     async fn apply_by_id(&self, id: String) -> zbus::fdo::Result<String> {
         application::apply_wallpaper_by_id(&self.app, &id, application::ApplySource::UserWallpaper)
             .await

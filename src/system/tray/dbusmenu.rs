@@ -330,6 +330,47 @@ pub async fn notify_menu_changed(app: &Arc<DaemonContext>) {
     let _ = DBusMenu::layout_updated(iface.signal_context(), rev, ID_ROOT).await;
 }
 
+pub async fn notify_language_changed(app: &Arc<DaemonContext>) {
+    let conn = match app
+        .tray
+        .lock()
+        .await
+        .as_ref()
+        .map(|t| t.connection().clone())
+    {
+        Some(c) => c,
+        None => return,
+    };
+    let iface = match conn
+        .object_server()
+        .interface::<_, DBusMenu>(super::MENU_PATH)
+        .await
+    {
+        Ok(i) => i,
+        Err(_) => return,
+    };
+
+    const LABEL_IDS: &[i32] = &[
+        ID_OPEN_UI, ID_NEXT, ID_PREV, ID_SHUFFLE, ID_ROTATE, ID_ROT_OFF, ID_ROT_30S, ID_ROT_1M,
+        ID_ROT_5M, ID_ROT_15M, ID_ROT_1H, ID_PAUSE, ID_MUTE, ID_RESCAN, ID_QUIT,
+    ];
+
+    let menu = snapshot_menu_state(app).await;
+    let mut updates = Vec::new();
+    for &id in LABEL_IDS {
+        if let Some(mut props) = props_for(id, &menu) {
+            props.retain(|name, _| name == "label");
+            if !props.is_empty() {
+                updates.push((id, props));
+            }
+        }
+    }
+
+    let _ = DBusMenu::items_properties_updated(iface.signal_context(), updates, Vec::new()).await;
+    let rev = bump_revision();
+    let _ = DBusMenu::layout_updated(iface.signal_context(), rev, ID_ROOT).await;
+}
+
 // ---------------------------------------------------------------------------
 // Static menu tree
 

@@ -16,4 +16,4 @@ pub mod system;
 pub mod tasks;
 pub mod wallframe;
 
-pub(crate) use daemon::{open_or_raise_ui, spawn_ui, DaemonContext};
+pub(crate) use daemon::{open_or_raise_ui, DaemonContext};
