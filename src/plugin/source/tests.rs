@@ -1,13 +1,8 @@
 use super::parsing::redact_secrets;
 use super::*;
 use crate::plugin::i18n::LocalizedText;
-use crate::probe::media::{MediaMeta, MediaProbe};
 use std::io::Write;
 use std::time::Duration;
-
-struct FakeProbe {
-    meta: MediaMeta,
-}
 
 #[test]
 fn remote_errors_redact_credentials() {
@@ -144,12 +139,6 @@ return M
         .is_err());
 }
 
-impl MediaProbe for FakeProbe {
-    fn probe_media(&self, _path: &str) -> MediaMeta {
-        self.meta.clone()
-    }
-}
-
 /// Drive an async scan from a sync `#[test]` — these tests don't
 /// touch the DB so a single-thread runtime is fine.
 fn block(fut: impl std::future::Future<Output = ()>) {
@@ -169,13 +158,7 @@ fn block_value<T>(fut: impl std::future::Future<Output = T>) -> T {
 }
 
 #[test]
-fn ctx_probe_callable_from_lua() {
-    let probe = Arc::new(FakeProbe {
-        meta: MediaMeta {
-            width: Some(1920),
-            height: Some(1080),
-        },
-    });
+fn source_context_does_not_expose_media_probe() {
     let dir = tempfile::tempdir().unwrap();
     let plugin_path = dir.path().join("probe_test.lua");
     let mut f = std::fs::File::create(&plugin_path).unwrap();
@@ -193,8 +176,7 @@ function M.info()
 end
 M.source = {{}}
 function M.source.scan(ctx)
-    local m = ctx.probe("/fake/path/video.mp4")
-    if m == nil then error("probe returned nil") end
+    assert(ctx.probe == nil)
     return {{
         {{
             id = "v1",
@@ -203,9 +185,6 @@ function M.source.scan(ctx)
             resource = "/lib/v1.mp4",
             library_root = "/lib",
             metadata = {{}},
-            _probe_size = m.size,
-            _probe_width = m.width,
-            _probe_height = m.height,
         }},
     }}
 end
@@ -214,16 +193,16 @@ return M
     )
     .unwrap();
 
-    let mgr = SourceManager::with_probe(probe as Arc<dyn MediaProbe>).unwrap();
-    mgr.load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION)
-        .unwrap();
-    block(async { mgr.scan_all(&HashMap::new()).await.unwrap() });
+    for version in ENTRY_VERSION_V3..=ENTRY_VERSION {
+        let mgr = SourceManager::new().unwrap();
+        mgr.load_plugin(&plugin_path, "test.plugin", "1.0", version)
+            .unwrap();
+        block(async { mgr.scan_all(&HashMap::new()).await.unwrap() });
 
-    let entries = mgr.list();
-    assert_eq!(entries.len(), 1);
-    // The Lua plugin called ctx.probe successfully (it would error() otherwise).
-    // Verify the entry was emitted correctly.
-    assert_eq!(entries[0].resource, "/lib/v1.mp4");
+        let entries = mgr.list();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].resource, "/lib/v1.mp4");
+    }
 }
 
 #[test]
@@ -248,6 +227,9 @@ function M.source.scan(ctx)
     assert(type(ctx.file_exists) == "function")
     assert(type(ctx.plugin_config) == "function")
     assert(type(ctx.json_parse) == "function")
+    assert(type(ctx.remote_artifact) == "function")
+    assert(type(ctx.remote_artifact_root) == "function")
+    assert(not pcall(ctx.remote_artifact, '/not-an-installed-artifact'))
     return {}
 end
 return M
@@ -300,6 +282,13 @@ return M
         "error should name the plugin that failed, got: {err}"
     );
     assert!(mgr.list().is_empty());
+    let healthy = dir.path().join("healthy.lua");
+    std::fs::write(&healthy, "return {info=function() return {name='healthy',capabilities={source={types={'image'},scan=true}}} end,source={scan=function() return {} end}}").unwrap();
+    mgr.load_plugin(&healthy, "org.healthy", "1", ENTRY_VERSION)
+        .unwrap();
+    let report = block_value(mgr.scan_all_report(&HashMap::new()));
+    assert_eq!(report.successful, HashSet::from(["healthy".to_owned()]));
+    assert!(report.error.is_some());
 }
 
 #[test]
@@ -457,6 +446,8 @@ return M
     let search =
         block_value(async { mgr.call_discover("imported", "", "", 1, &[]).await.unwrap() });
     assert_eq!(search.items[0].wp_type, "image");
+    assert_eq!(search.items[0].width, None);
+    assert_eq!(search.items[0].height, None);
     // A row without an avatar is still accepted and simply has none.
     assert_eq!(search.items[0].author_avatar_url, "");
     assert_eq!(
@@ -465,13 +456,14 @@ return M
     );
 
     let dl = block_value(async { mgr.call_download("imported", "abc").await.unwrap() });
-    assert_eq!(dl.wp_type, "image");
-    assert_eq!(dl.filename, "abc.jpg");
-    assert_eq!(dl.title, "Imported");
-    assert_eq!(dl.tags, vec!["tag"]);
-    assert_eq!(dl.external_id, "abc");
-    assert_eq!(dl.web_url, "https://example.invalid/item/abc");
-    assert_eq!(dl.size, Some(42));
+    assert_eq!(dl.metadata.wp_type, "image");
+    assert_eq!(dl.transfer.filename, "abc.jpg");
+    assert_eq!(dl.transfer.format, DownloadFormat::File);
+    assert_eq!(dl.metadata.title, "Imported");
+    assert_eq!(dl.metadata.tags, vec!["tag"]);
+    assert_eq!(dl.metadata.external_id, "abc");
+    assert_eq!(dl.metadata.web_url, "https://example.invalid/item/abc");
+    assert_eq!(dl.metadata.size, Some(42));
     let detail = block_value(async { mgr.call_details("imported", "abc").await.unwrap() });
     assert_eq!(detail.width, Some(10));
     assert_eq!(detail.height, Some(20));
@@ -481,6 +473,70 @@ return M
         detail.author_avatar_url,
         "https://example.invalid/avatar/abc.png"
     );
+}
+
+#[test]
+fn discover_search_preserves_optional_resource_dimensions() {
+    let dir = tempfile::tempdir().unwrap();
+    let entry = dir.path().join("dimensions.lua");
+    std::fs::write(
+        &entry,
+        r#"
+local M = {}
+function M.info()
+    return { name = "dimensions", capabilities = { discover = { search = true } } }
+end
+M.discover = {}
+function M.discover.search(ctx, params)
+    local items = {
+        {},
+        { width = 1920, height = 1080 },
+        { width = 1920.0, height = 1080.0 },
+        { width = 0, height = 0 },
+        { width = -1, height = -1 },
+        { width = 1.5, height = 2.5 },
+        { width = 4294967296, height = 4294967296 },
+        { width = 0/0, height = 0/0 },
+        { width = 1/0, height = 1/0 },
+        { width = "1920", height = "1080" },
+        { width = true, height = false },
+        { width = {}, height = {} },
+        { width = 4294967295, height = 1 },
+        { width = 1920 },
+    }
+    for i, item in ipairs(items) do
+        item.id = tostring(i)
+        item.title = "Dimensions"
+        item.preview_url = ""
+        item.author = ""
+    end
+    return { items = items, has_more = false }
+end
+return M
+"#,
+    )
+    .unwrap();
+
+    for entry_version in [ENTRY_VERSION_V3, ENTRY_VERSION_V4] {
+        let manager = SourceManager::new().unwrap();
+        manager
+            .load_plugin(&entry, "org.dimensions", "1", entry_version)
+            .unwrap();
+        let search =
+            block_value(async { manager.call_discover("dimensions", "", "", 1, &[]).await })
+                .unwrap();
+        assert_eq!(search.items.len(), 14);
+        assert!(!search.has_more);
+        for (index, item) in search.items.iter().enumerate() {
+            let expected = match index {
+                1 | 2 => (Some(1920), Some(1080)),
+                12 => (Some(u32::MAX), Some(1)),
+                13 => (Some(1920), None),
+                _ => (None, None),
+            };
+            assert_eq!((item.width, item.height), expected, "item {index}");
+        }
+    }
 }
 
 #[test]
@@ -730,6 +786,7 @@ return M
         item_id: 42,
         name: "Wallpaper".to_string(),
         wp_type: "image".to_string(),
+        sub_type: String::new(),
         resource: item_path.to_string_lossy().to_string(),
         preview: None,
         plugin_name: "remove_only".to_string(),
@@ -738,13 +795,15 @@ return M
         tags: vec!["tag".to_string()],
         external_id: Some("ext-1".to_string()),
         web_url: None,
+        update_available: false,
         size: None,
         width: None,
         height: None,
         content_rating: None,
-        modified_at: None,
-        create_at: 0,
+        file_mtime_ns: None,
+        added_at: 0,
         hidden: false,
+        can_remove: None,
     };
     let libraries = vec![entry.library_root.clone()];
     block_value(async { mgr.remove_item("remove_only", &entry, &libraries).await }).unwrap();
@@ -781,6 +840,7 @@ return M
         item_id: 7,
         name: "Wallpaper".to_string(),
         wp_type: "image".to_string(),
+        sub_type: String::new(),
         resource: "/tmp/wallpaper.png".to_string(),
         preview: None,
         plugin_name: "no_remove".to_string(),
@@ -789,13 +849,15 @@ return M
         tags: Vec::new(),
         external_id: None,
         web_url: None,
+        update_available: false,
         size: None,
         width: None,
         height: None,
         content_rating: None,
-        modified_at: None,
-        create_at: 0,
+        file_mtime_ns: None,
+        added_at: 0,
         hidden: false,
+        can_remove: None,
     };
     let err = block_value(async { mgr.remove_item("no_remove", &entry, &[]).await }).unwrap_err();
     assert!(matches!(
@@ -824,7 +886,7 @@ return bad
 }
 
 #[test]
-fn entry_versions_v3_and_v4_are_supported_and_other_versions_are_rejected() {
+fn entry_versions_v3_through_v6_are_supported_and_other_versions_are_rejected() {
     let dir = tempfile::tempdir().unwrap();
     let plugin_path = dir.path().join("main.lua");
     std::fs::write(
@@ -859,6 +921,14 @@ return M
     let mgr = SourceManager::new().unwrap();
     assert!(mgr
         .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V4)
+        .is_ok());
+    let mgr = SourceManager::new().unwrap();
+    assert!(mgr
+        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V5)
+        .is_ok());
+    let mgr = SourceManager::new().unwrap();
+    assert!(mgr
+        .load_plugin(&plugin_path, "test.plugin", "1.0", ENTRY_VERSION_V6)
         .is_ok());
     let mgr = SourceManager::new().unwrap();
     assert!(mgr
@@ -979,8 +1049,28 @@ end
     let search_item: LuaFunction = map.get("search_item").unwrap();
     let item = runtime.lua.create_table().unwrap();
     item.set("id", "abc").unwrap();
-    let mapped: LuaTable = search_item.call(item).unwrap();
+    let mapped: LuaTable = search_item.call(item.clone()).unwrap();
     assert_eq!(mapped.get::<String>("wp_type").unwrap(), "image");
+    assert_eq!(mapped.get::<Option<u32>>("width").unwrap(), None);
+    assert_eq!(mapped.get::<Option<u32>>("height").unwrap(), None);
+
+    item.set("dimension_x", 2250).unwrap();
+    item.set("dimension_y", 4000).unwrap();
+    let thumbs = runtime.lua.create_table().unwrap();
+    thumbs
+        .set("large", "https://example.invalid/cropped.jpg")
+        .unwrap();
+    thumbs
+        .set("original", "https://example.invalid/portrait.jpg")
+        .unwrap();
+    item.set("thumbs", thumbs).unwrap();
+    let mapped: LuaTable = search_item.call(item).unwrap();
+    assert_eq!(mapped.get::<u32>("width").unwrap(), 2250);
+    assert_eq!(mapped.get::<u32>("height").unwrap(), 4000);
+    assert_eq!(
+        mapped.get::<String>("preview_url").unwrap(),
+        "https://example.invalid/portrait.jpg"
+    );
 
     let details: LuaFunction = map.get("details").unwrap();
     let detail = runtime.lua.create_table().unwrap();
@@ -993,10 +1083,22 @@ end
 
     let download: LuaFunction = map.get("download").unwrap();
     detail.set("id", "abc123").unwrap();
+    let thumbs = runtime.lua.create_table().unwrap();
+    thumbs
+        .set("large", "https://example.invalid/cropped.jpg")
+        .unwrap();
+    thumbs
+        .set("original", "https://example.invalid/portrait.jpg")
+        .unwrap();
+    detail.set("thumbs", thumbs).unwrap();
     let download_mapped: LuaTable = download.call(detail.clone()).unwrap();
     assert_eq!(
         download_mapped.get::<String>("web_url").unwrap(),
         "https://wallhaven.cc/w/abc123"
+    );
+    assert_eq!(
+        download_mapped.get::<String>("preview_url").unwrap(),
+        "https://example.invalid/portrait.jpg"
     );
     // A wallpaper Wallhaven reports no uploader for keeps the empty author
     // the listing has always produced.
@@ -1035,10 +1137,13 @@ fn call_resolve_relays_directory_item() {
         r#"
 local M = {}
 function M.info()
-    return { name = "resolver", capabilities = { discover = { search = true, resolve = true } } }
+    return { name = "resolver", capabilities = { discover = { search = true, download = true, resolve = true } } }
 end
 M.discover = {}
 function M.discover.search(ctx, params) return { items = {}, has_more = false } end
+function M.discover.download(ctx, id)
+    return { wp_type = "scene", title = "R " .. id, external_id = id }
+end
 function M.discover.resolve(ctx, params)
     return {
         name = "R " .. params.id,
@@ -1059,8 +1164,8 @@ return M
     let mgr = SourceManager::new().unwrap();
     mgr.load_plugin(&path, "test.plugin", "1.0", ENTRY_VERSION)
         .unwrap();
-    let got =
-        block_value(async { mgr.call_resolve("resolver", "id1", "/some/dir").await }).unwrap();
+    let got = block_value(async { mgr.call_resolve("resolver", "id1", "/some/dir", None).await })
+        .unwrap();
     assert_eq!(got.name, "R id1");
     assert_eq!(got.wp_type, "scene");
     assert_eq!(got.resource, "scene.pkg");
@@ -1388,9 +1493,7 @@ fn v3_lifecycle_actions_qrlogin_and_subscription_share_plugin_owned_state() {
         state_root.clone(),
         dir.path().to_path_buf(),
     );
-    let manager =
-        SourceManager::with_probe_and_state_store(Arc::new(AvFormatProbe::new()), state_store)
-            .unwrap();
+    let manager = SourceManager::with_state_store(state_store).unwrap();
     let plugin_path = dir.path().join("main.lua");
     std::fs::write(
         &plugin_path,
@@ -1694,6 +1797,235 @@ return M
 }
 
 #[test]
+fn discover_download_action_defaults_and_static_configuration() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("main.lua");
+    for (configuration, enabled, label, tooltip) in [
+        ("", true, "", ""),
+        (
+            "download_action = { enabled = false, label = tr('Log in required'), tooltip = 'Sign in first' },",
+            false,
+            "Log in required",
+            "Sign in first",
+        ),
+    ] {
+        std::fs::write(
+            &path,
+            format!(
+                r#"
+local M = {{}}
+function M.info()
+    return {{ name = 'remote', capabilities = {{ discover = {{ search = true, download = true, {configuration} }} }} }}
+end
+M.discover = {{}}
+function M.discover.search(ctx, params) return {{ items = {{}}, has_more = false }} end
+function M.discover.download(ctx, id) return {{}} end
+return M
+"#,
+            ),
+        )
+        .unwrap();
+        let manager = SourceManager::new().unwrap();
+        manager
+            .load_plugin(&path, "org.test", "1", ENTRY_VERSION_V6)
+            .unwrap();
+        let source = manager.discover_sources().unwrap().remove(0);
+        assert_eq!(source.download_action.enabled, enabled);
+        assert_eq!(source.download_action.label.text(), label);
+        assert_eq!(source.download_action.tooltip.text(), tooltip);
+        if !enabled {
+            assert_eq!(
+                source.download_action.label.message().unwrap().plugin_id,
+                "org.test"
+            );
+        }
+        let source = block_value(async { manager.discover_sources_with_status().await })
+            .unwrap()
+            .remove(0);
+        assert_eq!(source.download_action.enabled, enabled);
+        assert_eq!(source.download_action.label.text(), label);
+        assert_eq!(source.download_action.tooltip.text(), tooltip);
+    }
+}
+
+#[test]
+fn discover_download_action_status_replaces_static_snapshot_after_lifecycle() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("main.lua");
+    std::fs::write(
+        &path,
+        r#"
+local M = {}
+local mode, checked = 'guest', false
+function M.info()
+    return {
+        name = 'remote',
+        capabilities = { discover = { search = true, download = true,
+            download_action = { enabled = false, label = 'Static guest', tooltip = 'Static hint' },
+        } },
+    }
+end
+M.discover = {}
+function M.discover.search(ctx, params)
+    mode, checked = params.query, false
+    return { items = {}, has_more = false }
+end
+function M.discover.download(ctx, id) return {} end
+M.lifecycle = {}
+function M.lifecycle.load(blob) end
+function M.lifecycle.save() return '' end
+function M.lifecycle.check(ctx)
+    checked = true
+    return { state = 'signed_out' }
+end
+M.actions = {}
+function M.actions.status(ctx)
+    assert(checked, 'lifecycle must be checked first')
+    if mode == 'guest' then
+        return { download_action = { enabled = false, label = tr('Log in required'), tooltip = tr('Sign in with %1', 'API Token') } }
+    elseif mode == 'signed_in' then
+        return { download_action = { enabled = true } }
+    elseif mode == 'missing' then
+        return {}
+    elseif mode == 'failed' then
+        error('status unavailable')
+    elseif mode == 'invalid_table' then
+        return { download_action = false }
+    elseif mode == 'invalid_enabled' then
+        return { download_action = { enabled = 'true' } }
+    elseif mode == 'invalid_label' then
+        return { download_action = { label = 42 } }
+    elseif mode == 'invalid_tooltip' then
+        return { download_action = { tooltip = {} } }
+    end
+end
+return M
+"#,
+    )
+    .unwrap();
+    let manager =
+        SourceManager::with_state_store(crate::plugin::state_store::PluginStateStore::new(
+            dir.path().join("state"),
+            dir.path().join("legacy"),
+        ))
+        .unwrap();
+    manager
+        .load_plugin(&path, "org.test", "1", ENTRY_VERSION_V6)
+        .unwrap();
+    let source = block_value(async { manager.discover_sources_with_status().await })
+        .unwrap()
+        .remove(0);
+    assert!(source.actions.is_empty() && source.status.is_empty());
+    assert!(!source.download_action.enabled);
+    assert_eq!(source.download_action.label.text(), "Log in required");
+    assert_eq!(
+        source.download_action.tooltip.message().unwrap().arguments,
+        ["API Token"]
+    );
+    block_value(async {
+        manager
+            .call_discover("remote", "signed_in", "", 1, &[])
+            .await
+    })
+    .unwrap();
+    let source = block_value(async { manager.discover_sources_with_status().await })
+        .unwrap()
+        .remove(0);
+    assert!(source.download_action.enabled);
+    assert!(source.download_action.label.text().is_empty());
+    assert!(source.download_action.tooltip.text().is_empty());
+    for mode in [
+        "missing",
+        "failed",
+        "invalid_table",
+        "invalid_enabled",
+        "invalid_label",
+        "invalid_tooltip",
+    ] {
+        block_value(async { manager.call_discover("remote", mode, "", 1, &[]).await }).unwrap();
+        if mode != "missing" {
+            let runtime = manager.test_runtime("remote");
+            assert!(
+                block_value(async { runtime.lock().await.call_action_status("remote").await })
+                    .is_err()
+            );
+        }
+        let source = block_value(async { manager.discover_sources_with_status().await })
+            .unwrap()
+            .remove(0);
+        assert!(!source.download_action.enabled);
+        assert_eq!(source.download_action.label.text(), "Static guest");
+        assert_eq!(source.download_action.tooltip.text(), "Static hint");
+    }
+}
+
+#[test]
+fn discover_download_action_rejects_invalid_types_and_unsupported_capability() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("main.lua");
+    for (capability, configuration) in [
+        ("download = true,", "false"),
+        ("download = true,", "{ enabled = 'false' }"),
+        ("download = true,", "{ label = 42 }"),
+        ("download = true,", "{ tooltip = {} }"),
+        ("", "{ enabled = false }"),
+    ] {
+        let download = if capability.is_empty() {
+            ""
+        } else {
+            "function M.discover.download(ctx, id) return {} end"
+        };
+        std::fs::write(
+            &path,
+            format!(
+                r#"
+local M = {{}}
+function M.info()
+    return {{ name = 'remote', capabilities = {{ discover = {{ search = true, {capability}
+        download_action = {configuration},
+    }} }} }}
+end
+M.discover = {{}}
+function M.discover.search(ctx, params) return {{ items = {{}}, has_more = false }} end
+{download}
+return M
+"#,
+            ),
+        )
+        .unwrap();
+        assert!(SourceManager::new()
+            .unwrap()
+            .load_plugin(&path, "org.test", "1", ENTRY_VERSION_V6)
+            .is_err());
+    }
+    std::fs::write(
+        &path,
+        r#"
+local M = {}
+function M.info()
+    return { name = 'remote', capabilities = { discover = { search = true } },
+        status = { { id = 'account' } },
+    }
+end
+M.discover = {}
+function M.discover.search(ctx, params) return { items = {}, has_more = false } end
+M.actions = {}
+function M.actions.status(ctx) return { download_action = { enabled = false } } end
+return M
+"#,
+    )
+    .unwrap();
+    let manager = SourceManager::new().unwrap();
+    manager
+        .load_plugin(&path, "org.test", "1", ENTRY_VERSION_V6)
+        .unwrap();
+    let runtime = manager.test_runtime("remote");
+    assert!(
+        block_value(async { runtime.lock().await.call_action_status("remote").await }).is_err()
+    );
+}
+
+#[test]
 fn supported_remote_capabilities_are_mutually_exclusive() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("main.lua");
@@ -1822,9 +2154,7 @@ fn failed_state_migration_preserves_the_legacy_blob() {
         state_root.clone(),
         dir.path().to_path_buf(),
     );
-    let manager =
-        SourceManager::with_probe_and_state_store(Arc::new(AvFormatProbe::new()), state_store)
-            .unwrap();
+    let manager = SourceManager::with_state_store(state_store).unwrap();
     let entry = dir.path().join("main.lua");
     std::fs::write(
         &entry,
@@ -1899,9 +2229,7 @@ fn subscription_mutation_does_not_scan_source_libraries() {
         state_root.clone(),
         dir.path().to_path_buf(),
     );
-    let manager =
-        SourceManager::with_probe_and_state_store(Arc::new(AvFormatProbe::new()), state_store)
-            .unwrap();
+    let manager = SourceManager::with_state_store(state_store).unwrap();
     let entry = dir.path().join("main.lua");
     std::fs::write(
         &entry,
@@ -1947,21 +2275,24 @@ return M
         item_id: 1,
         name: "Workshop item".to_string(),
         wp_type: "image".to_string(),
+        sub_type: String::new(),
         resource: "item.jpg".to_string(),
         preview: None,
         description: None,
         tags: Vec::new(),
         external_id: Some("item".to_string()),
         web_url: None,
+        update_available: false,
         size: None,
         width: None,
         height: None,
         content_rating: None,
-        modified_at: None,
-        create_at: 0,
+        file_mtime_ns: None,
+        added_at: 0,
         plugin_name: "separate_flows".to_string(),
         library_root: String::new(),
         hidden: false,
+        can_remove: None,
     };
     assert!(manager.supports_item_unsubscribe(&subscription_entry));
     assert!(!manager.supports_item_unsubscribe(&WallpaperEntry {
@@ -2041,11 +2372,7 @@ return M
     std::fs::write(&first_path, script("first", "first")).unwrap();
     std::fs::write(&second_path, script("second", "second")).unwrap();
 
-    let manager = SourceManager::with_probe_and_state_store(
-        Arc::new(AvFormatProbe::new()),
-        state_store.clone(),
-    )
-    .unwrap();
+    let manager = SourceManager::with_state_store(state_store.clone()).unwrap();
     manager
         .load_plugin(&first_path, "org.first", "1", ENTRY_VERSION_V3)
         .unwrap();
@@ -2064,11 +2391,7 @@ return M
     let failed = block_value(async { manager.call_discover("first", "fail", "", 1, &[]).await });
     assert!(failed.is_err());
 
-    let restored = SourceManager::with_probe_and_state_store(
-        Arc::new(AvFormatProbe::new()),
-        state_store.clone(),
-    )
-    .unwrap();
+    let restored = SourceManager::with_state_store(state_store.clone()).unwrap();
     restored
         .load_plugin(&first_path, "org.first", "1", ENTRY_VERSION_V3)
         .unwrap();
@@ -2082,9 +2405,7 @@ return M
             .await
     })
     .unwrap();
-    let signed_out =
-        SourceManager::with_probe_and_state_store(Arc::new(AvFormatProbe::new()), state_store)
-            .unwrap();
+    let signed_out = SourceManager::with_state_store(state_store).unwrap();
     signed_out
         .load_plugin(&first_path, "org.first", "1", ENTRY_VERSION_V3)
         .unwrap();
@@ -2328,21 +2649,24 @@ return M
         item_id: 1,
         name: "Wallpaper".into(),
         wp_type: "video".into(),
+        sub_type: String::new(),
         resource: "/tmp/wallpaper.mp4".into(),
         preview: None,
         description: None,
         tags: Vec::new(),
         external_id: None,
         web_url: None,
+        update_available: false,
         size: None,
         width: None,
         height: None,
         content_rating: None,
-        modified_at: None,
-        create_at: 0,
+        file_mtime_ns: None,
+        added_at: 0,
         plugin_name: "apply_test".into(),
         library_root: "/tmp".into(),
         hidden: false,
+        can_remove: None,
     };
 
     let apply = block_value(async { mgr.call_apply("apply_test", &entry).await.unwrap() });

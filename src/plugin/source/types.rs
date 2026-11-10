@@ -15,9 +15,20 @@ pub(super) const RUNTIME_INACTIVE: u8 = 2;
 
 pub const ENTRY_VERSION_V3: u32 = 3;
 pub const ENTRY_VERSION_V4: u32 = 4;
-pub const ENTRY_VERSION: u32 = ENTRY_VERSION_V4;
-pub const LATEST_ENTRY_VERSION: u32 = ENTRY_VERSION_V4;
-pub const SUPPORTED_ENTRY_VERSIONS: &[u32] = &[ENTRY_VERSION_V3, ENTRY_VERSION_V4];
+pub const ENTRY_VERSION_V5: u32 = 5;
+pub const ENTRY_VERSION_V6: u32 = 6;
+pub const ENTRY_VERSION_V7: u32 = 7;
+pub const ENTRY_VERSION: u32 = ENTRY_VERSION_V7;
+pub const LATEST_ENTRY_VERSION: u32 = ENTRY_VERSION_V7;
+pub const SUPPORTED_ENTRY_VERSIONS: &[u32] = &[
+    ENTRY_VERSION_V3,
+    ENTRY_VERSION_V4,
+    ENTRY_VERSION_V5,
+    ENTRY_VERSION_V6,
+    ENTRY_VERSION_V7,
+];
+
+pub(super) const MAX_DISCOVER_CURSOR_BYTES: usize = 4096;
 
 pub fn supports_entry_version(version: u32) -> bool {
     SUPPORTED_ENTRY_VERSIONS.contains(&version)
@@ -76,6 +87,36 @@ pub struct SourcePluginInfo {
     /// User-configurable settings the plugin declares via `info().settings`,
     /// stored under the Lua source name in the shared component settings map.
     pub settings: Vec<SourceSetting>,
+    pub library_settings: Vec<SourceSetting>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SourceLibrary {
+    pub path: String,
+    #[serde(default)]
+    pub settings: HashMap<String, String>,
+}
+
+pub fn validate_library_settings(
+    schema: &[SourceSetting],
+    values: HashMap<String, String>,
+) -> Result<HashMap<String, String>> {
+    let mut result = HashMap::new();
+    for setting in schema {
+        let raw = values.get(&setting.key).unwrap_or(&setting.default);
+        result.insert(
+            setting.key.clone(),
+            validate_source_setting(setting, raw).map_err(Error::SettingsValidationFailed)?,
+        );
+    }
+    for key in values.keys() {
+        if !result.contains_key(key) {
+            return Err(Error::SettingsValidationFailed(format!(
+                "undeclared library setting '{key}'"
+            )));
+        }
+    }
+    Ok(result)
 }
 
 /// One entry from a source plugin's `info().settings` sequence. Shapes the
@@ -93,6 +134,7 @@ pub struct SourceSetting {
     pub group_label: LocalizedText,
     pub order: i32,
     pub choices: Vec<String>,
+    pub choice_labels: Vec<LocalizedText>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -168,6 +210,9 @@ pub struct DiscoverFilter {
     pub options: Vec<DiscoverFilterOption>,
     pub description: LocalizedText,
     pub confirmation: LocalizedText,
+    pub match_modes: Vec<String>,
+    pub default_match_mode: String,
+    pub supports_exclusion: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -175,6 +220,23 @@ pub struct DiscoverFilterOption {
     /// Machine-readable value clients submit for filtering.
     pub value: String,
     pub label: LocalizedText,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DiscoverDownloadAction {
+    pub enabled: bool,
+    pub label: LocalizedText,
+    pub tooltip: LocalizedText,
+}
+
+impl Default for DiscoverDownloadAction {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            label: LocalizedText::default(),
+            tooltip: LocalizedText::default(),
+        }
+    }
 }
 
 /// Discover capability of a single source plugin, derived from
@@ -188,8 +250,10 @@ pub struct DiscoverSourceInfo {
     /// Human-readable display name (falls back to `name`).
     pub display_name: LocalizedText,
     pub supports_search: bool,
+    pub pagination: DiscoverPagination,
     pub remote_capability: Option<RemoteCapability>,
     pub remote_hint: LocalizedText,
+    pub download_action: DiscoverDownloadAction,
     pub sorts: Vec<DiscoverSort>,
     pub filters: Vec<DiscoverFilter>,
     /// Domain id of the owning installable plugin (e.g.
@@ -204,6 +268,14 @@ pub struct DiscoverSourceInfo {
     pub status: Vec<SourceStatus>,
     /// Provider-owned account image returned by `lifecycle.check()`.
     pub avatar_url: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoverPagination {
+    #[default]
+    Page,
+    Cursor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -331,7 +403,18 @@ pub struct DiscoverItem {
     pub author: String,
     pub author_avatar_url: String,
     pub wp_type: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
     pub extra: HashMap<String, String>,
+}
+
+/// One provider-owned information row returned with remote details.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct DiscoverDetailField {
+    pub key: String,
+    pub label: LocalizedText,
+    pub value: String,
+    pub url: String,
 }
 
 /// Detail blob returned by a plugin's `discover.details(ctx, id)`.
@@ -339,6 +422,7 @@ pub struct DiscoverItem {
 pub struct DiscoverDetails {
     pub author: String,
     pub author_avatar_url: String,
+    pub author_url: String,
     pub description: String,
     pub size: String,
     pub width: Option<u32>,
@@ -346,19 +430,53 @@ pub struct DiscoverDetails {
     pub tags: Vec<String>,
     pub web_url: String,
     pub extra: HashMap<String, String>,
+    pub fields: Vec<DiscoverDetailField>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct DiscoverSearchResult {
     pub items: Vec<DiscoverItem>,
     pub has_more: bool,
+    pub next_cursor: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum DownloadFormat {
+    #[default]
+    File,
+    Zip,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DiscoverTransfer {
+    pub url: String,
+    pub filename: String,
+    pub format: DownloadFormat,
+    pub resolve: bool,
+    pub resources: Vec<DiscoverResource>,
+    pub prepare: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiscoverResource {
+    pub id: String,
+    pub url: String,
+    pub size: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct DiscoverDownload {
+pub struct DiscoverAttribution {
+    pub author: String,
+    pub author_url: String,
+    pub license: String,
+    pub license_url: String,
+    pub requirements: String,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct DiscoverMetadata {
     pub wp_type: String,
-    pub url: String,
-    pub filename: String,
     pub title: String,
     pub preview_url: String,
     pub description: String,
@@ -370,6 +488,22 @@ pub struct DiscoverDownload {
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub content_rating: Option<String>,
+    #[serde(default)]
+    pub attribution: Option<DiscoverAttribution>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_data: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DiscoverDownload {
+    pub transfer: DiscoverTransfer,
+    pub metadata: DiscoverMetadata,
+}
+
+/// Retains remote filesystem ownership until the caller finishes deleting its DB row.
+#[derive(Debug)]
+pub struct SourceRemoval {
+    pub(super) _artifact: Option<crate::remote_asset::Removal>,
 }
 
 /// Directory item resolved by `discover.resolve` after a provider fetch.
@@ -385,4 +519,5 @@ pub struct DiscoverResolve {
     pub external_id: String,
     pub size: Option<i64>,
     pub content_rating: Option<String>,
+    pub provider_data: Option<serde_json::Map<String, serde_json::Value>>,
 }

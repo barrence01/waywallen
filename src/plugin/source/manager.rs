@@ -29,6 +29,82 @@ pub(super) struct PluginHandle {
     pub(super) runtime: Arc<tokio::sync::Mutex<LuaPluginRuntime>>,
     info: StdRwLock<LoadedPluginInfo>,
     generation_state: Arc<AtomicU8>,
+    prepare: Option<Arc<crate::remote_asset::prepare::Program>>,
+    probe: Option<Arc<crate::probe::program::Program>>,
+}
+
+pub struct DownloadSession {
+    handle: Arc<PluginHandle>,
+    source_id: String,
+}
+
+impl DownloadSession {
+    pub fn source_id(&self) -> &str {
+        &self.source_id
+    }
+    pub fn plugin_version(&self) -> String {
+        self.handle
+            .info
+            .read()
+            .expect("plugin info lock poisoned")
+            .version
+            .clone()
+    }
+
+    pub(crate) fn ensure_active(&self) -> Result<()> {
+        if self.handle.generation_state.load(Ordering::Acquire) != RUNTIME_ACTIVE {
+            return Err(Error::Internal(anyhow!(
+                "source plugin '{}' changed while downloading",
+                self.source_id
+            )));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn prepare_helper(
+        &self,
+    ) -> Result<Option<Arc<crate::remote_asset::prepare::Program>>> {
+        self.ensure_active()?;
+        Ok(self.handle.prepare.clone())
+    }
+
+    pub async fn download(&self, id: &str) -> Result<DiscoverDownload> {
+        self.ensure_active()?;
+        let result = self
+            .handle
+            .runtime
+            .lock()
+            .await
+            .call_download(&self.source_id, id)
+            .await?;
+        self.ensure_active()?;
+        if result.transfer.prepare.is_some() && self.handle.prepare.is_none() {
+            return Err(Error::Internal(anyhow!(
+                "source plugin '{}' has no declared prepare helper",
+                self.source_id
+            )));
+        }
+        Ok(result)
+    }
+
+    pub async fn resolve(
+        &self,
+        id: &str,
+        dir: &str,
+        metadata: Option<&DiscoverMetadata>,
+        prepared: Option<&serde_json::Map<String, serde_json::Value>>,
+    ) -> Result<DiscoverResolve> {
+        self.ensure_active()?;
+        let result = self
+            .handle
+            .runtime
+            .lock()
+            .await
+            .call_resolve(&self.source_id, id, dir, metadata, prepared)
+            .await?;
+        self.ensure_active()?;
+        Ok(result)
+    }
 }
 
 /// Registry and source catalog for Lua plugins.
@@ -37,9 +113,9 @@ pub(super) struct PluginHandle {
 /// held while cloning handles or replacing snapshots, so callbacks belonging to
 /// different plugins can make progress concurrently.
 pub struct LuaPluginRegistry {
+    scan_lock: tokio::sync::Mutex<()>,
     plugins: StdRwLock<HashMap<String, Arc<PluginHandle>>>,
     catalog: StdRwLock<SourceCatalog>,
-    probe: Arc<dyn MediaProbe>,
     db: StdRwLock<Option<DatabaseConnection>>,
     settings: StdRwLock<Option<Arc<crate::settings::SettingsStore>>>,
     state_store: crate::plugin::state_store::PluginStateStore,
@@ -47,26 +123,23 @@ pub struct LuaPluginRegistry {
 
 pub type SourceManager = LuaPluginRegistry;
 
+pub struct ScanReport {
+    pub successful: HashSet<String>,
+    pub error: Option<Error>,
+}
+
 impl LuaPluginRegistry {
     pub fn new() -> Result<Self> {
-        Self::with_probe(Arc::new(AvFormatProbe::new()))
+        Self::with_state_store(crate::plugin::state_store::PluginStateStore::standard())
     }
 
-    pub fn with_probe(probe: Arc<dyn MediaProbe>) -> Result<Self> {
-        Self::with_probe_and_state_store(
-            probe,
-            crate::plugin::state_store::PluginStateStore::standard(),
-        )
-    }
-
-    pub(super) fn with_probe_and_state_store(
-        probe: Arc<dyn MediaProbe>,
+    pub(crate) fn with_state_store(
         state_store: crate::plugin::state_store::PluginStateStore,
     ) -> Result<Self> {
         Ok(Self {
+            scan_lock: Default::default(),
             plugins: StdRwLock::new(HashMap::new()),
             catalog: StdRwLock::new(SourceCatalog::default()),
-            probe,
             db: StdRwLock::new(None),
             settings: StdRwLock::new(None),
             state_store,
@@ -180,7 +253,19 @@ impl LuaPluginRegistry {
         plugin_version: &str,
         entry_version: u32,
     ) -> Result<String> {
-        let mut runtime = LuaPluginRuntime::with_probe(self.probe.clone())?;
+        self.load_entry(&crate::plugin::renderer_registry::EntryRef {
+            plugin_id: plugin_id.to_owned(),
+            plugin_version: plugin_version.to_owned(),
+            plugin_system: false,
+            entry: path.to_owned(),
+            entry_version,
+            prepare: None,
+            probe: None,
+        })
+    }
+
+    pub fn load_entry(&self, entry: &crate::plugin::renderer_registry::EntryRef) -> Result<String> {
+        let mut runtime = LuaPluginRuntime::new()?;
         runtime.set_state_store(self.state_store.clone());
         if let Some(db) = self.db.read().expect("plugin DB lock poisoned").clone() {
             runtime.attach_db(db);
@@ -193,15 +278,28 @@ impl LuaPluginRegistry {
         {
             runtime.attach_settings(settings);
         }
-        let name = runtime.load_plugin(path, plugin_id, plugin_version, entry_version)?;
+        let name = runtime.load_plugin(
+            &entry.entry,
+            &entry.plugin_id,
+            &entry.plugin_version,
+            entry.entry_version,
+        )?;
         let info = runtime
             .loaded_plugin_info(&name)
             .ok_or_else(|| Error::SourcePluginNotFound(name.clone()))?;
         let generation_state = runtime.generation_state();
         let handle = Arc::new(PluginHandle {
+            probe: entry.probe.clone().map(Arc::new),
             runtime: Arc::new(tokio::sync::Mutex::new(runtime)),
             info: StdRwLock::new(info),
             generation_state,
+            prepare: entry
+                .prepare
+                .as_ref()
+                .map(crate::remote_asset::prepare::Program::open)
+                .transpose()
+                .map_err(Error::Internal)?
+                .map(Arc::new),
         });
         let mut plugins = self.plugins.write().expect("plugin registry lock poisoned");
         if plugins.contains_key(&name) {
@@ -211,6 +309,24 @@ impl LuaPluginRegistry {
         }
         plugins.insert(name.clone(), handle);
         Ok(name)
+    }
+
+    pub fn probe_programs(&self) -> HashMap<String, Arc<crate::probe::program::Program>> {
+        self.plugins
+            .read()
+            .expect("plugin registry lock poisoned")
+            .iter()
+            .filter_map(|(name, handle)| handle.probe.clone().map(|p| (name.clone(), p)))
+            .collect()
+    }
+
+    pub fn download_session(&self, plugin_name: &str) -> Result<DownloadSession> {
+        let session = DownloadSession {
+            handle: self.handle(plugin_name)?,
+            source_id: plugin_name.to_owned(),
+        };
+        session.ensure_active()?;
+        Ok(session)
     }
 
     pub(super) fn handle(&self, plugin_name: &str) -> Result<Arc<PluginHandle>> {
@@ -232,6 +348,15 @@ impl LuaPluginRegistry {
     }
 
     pub async fn scan_all(&self, libs_by_plugin: &HashMap<String, Vec<String>>) -> Result<()> {
+        let report = self.scan_all_report(libs_by_plugin).await;
+        report.error.map_or(Ok(()), Err)
+    }
+
+    pub async fn scan_all_report(
+        &self,
+        libs_by_plugin: &HashMap<String, Vec<String>>,
+    ) -> ScanReport {
+        let _scan = self.scan_lock.lock().await;
         let scans = self.handles().into_iter().filter_map(|(name, handle)| {
             let has_source = handle
                 .info
@@ -246,8 +371,11 @@ impl LuaPluginRegistry {
                     let mut runtime = handle.runtime.lock().await;
                     let mut only_this = HashMap::new();
                     only_this.insert(name.clone(), libraries);
-                    runtime.scan_all(&only_this).await?;
-                    Ok::<_, Error>(runtime.list().to_vec())
+                    let result = runtime
+                        .scan_all(&only_this)
+                        .await
+                        .map(|_| runtime.list().to_vec());
+                    (name, result)
                 }
             })
         });
@@ -258,9 +386,13 @@ impl LuaPluginRegistry {
         // are reported afterwards: a scan that failed must not be presented as
         // a scan that simply found nothing.
         let mut failures: Vec<String> = Vec::new();
-        for result in results {
+        let mut successful = HashSet::new();
+        for (name, result) in results {
             match result {
-                Ok(mut plugin_entries) => entries.append(&mut plugin_entries),
+                Ok(mut plugin_entries) => {
+                    successful.insert(name);
+                    entries.append(&mut plugin_entries);
+                }
                 Err(e) => {
                     log::warn!("scan Lua plugin failed: {e}");
                     failures.push(format!("{e:#}"));
@@ -276,12 +408,27 @@ impl LuaPluginRegistry {
             .write()
             .expect("source catalog lock poisoned")
             .replace(entries);
-        if !failures.is_empty() {
-            return Err(Error::Internal(anyhow!(
-                "source scan failed: {}",
-                failures.join("; ")
-            )));
+        ScanReport {
+            successful,
+            error: (!failures.is_empty())
+                .then(|| Error::Internal(anyhow!("source scan failed: {}", failures.join("; ")))),
         }
+    }
+
+    pub async fn scan_source(&self, name: &str, paths: &[String]) -> Result<()> {
+        let _scan = self.scan_lock.lock().await;
+        let handle = self.handle(name)?;
+        let mut runtime = handle.runtime.lock().await;
+        runtime
+            .scan_all(&HashMap::from([(name.to_owned(), paths.to_vec())]))
+            .await?;
+        let mut entries = self.list();
+        entries.retain(|entry| entry.plugin_name != name);
+        entries.extend(runtime.list().iter().cloned());
+        self.catalog
+            .write()
+            .expect("source state lock poisoned")
+            .replace(entries);
         Ok(())
     }
 
@@ -433,7 +580,7 @@ impl LuaPluginRegistry {
             .await
     }
 
-    pub async fn auto_detect_all(&self) -> Result<HashMap<String, Vec<String>>> {
+    pub async fn auto_detect_all(&self) -> Result<HashMap<String, Vec<SourceLibrary>>> {
         let calls = self
             .handles()
             .into_iter()
@@ -457,8 +604,10 @@ impl LuaPluginRegistry {
                 name: info.name.clone(),
                 display_name: info.display_name.clone(),
                 supports_search: disc.supports_search,
+                pagination: disc.pagination,
                 remote_capability: disc.remote,
                 remote_hint: disc.remote_hint.clone(),
+                download_action: disc.download_action.clone(),
                 sorts: disc.sorts.clone(),
                 filters: disc.filters.clone(),
                 owner_plugin_id: info.plugin_id.clone(),
@@ -532,10 +681,13 @@ impl LuaPluginRegistry {
             .collect();
         let mut sources = self.discover_sources()?;
         for source in &mut sources {
-            if let Some((actions, status, avatar_url)) = dynamic.get(&source.plugin_id) {
+            if let Some((actions, status, avatar_url, download_action)) =
+                dynamic.get(&source.plugin_id)
+            {
                 source.actions = actions.clone();
                 source.status = status.clone();
                 source.avatar_url = avatar_url.clone();
+                source.download_action = download_action.clone();
             }
         }
         Ok(sources)
@@ -549,11 +701,70 @@ impl LuaPluginRegistry {
         page: u32,
         tags: &[String],
     ) -> Result<DiscoverSearchResult> {
+        self.call_discover_with_cursor(plugin_name, query, sort, page, tags, "")
+            .await
+    }
+
+    pub async fn call_discover_with_cursor(
+        &self,
+        plugin_name: &str,
+        query: &str,
+        sort: &str,
+        page: u32,
+        tags: &[String],
+        cursor: &str,
+    ) -> Result<DiscoverSearchResult> {
+        self.call_discover_with_modes(
+            plugin_name,
+            query,
+            sort,
+            page,
+            tags,
+            cursor,
+            &HashMap::new(),
+        )
+        .await
+    }
+
+    pub async fn call_discover_with_modes(
+        &self,
+        plugin_name: &str,
+        query: &str,
+        sort: &str,
+        page: u32,
+        tags: &[String],
+        cursor: &str,
+        modes: &HashMap<String, String>,
+    ) -> Result<DiscoverSearchResult> {
+        self.call_discover_with_exclusions(plugin_name, query, sort, page, tags, cursor, modes, &[])
+            .await
+    }
+
+    pub async fn call_discover_with_exclusions(
+        &self,
+        plugin_name: &str,
+        query: &str,
+        sort: &str,
+        page: u32,
+        tags: &[String],
+        cursor: &str,
+        modes: &HashMap<String, String>,
+        excluded: &[String],
+    ) -> Result<DiscoverSearchResult> {
         self.handle(plugin_name)?
             .runtime
             .lock()
             .await
-            .call_discover(plugin_name, query, sort, page, tags)
+            .call_discover_with_exclusions(
+                plugin_name,
+                query,
+                sort,
+                page,
+                tags,
+                cursor,
+                modes,
+                excluded,
+            )
             .await
     }
 
@@ -611,12 +822,7 @@ impl LuaPluginRegistry {
     }
 
     pub async fn call_download(&self, plugin_name: &str, id: &str) -> Result<DiscoverDownload> {
-        self.handle(plugin_name)?
-            .runtime
-            .lock()
-            .await
-            .call_download(plugin_name, id)
-            .await
+        self.download_session(plugin_name)?.download(id).await
     }
 
     pub async fn call_resolve(
@@ -624,12 +830,22 @@ impl LuaPluginRegistry {
         plugin_name: &str,
         id: &str,
         dir: &str,
+        metadata: Option<&DiscoverMetadata>,
     ) -> Result<DiscoverResolve> {
-        self.handle(plugin_name)?
-            .runtime
-            .lock()
+        self.call_resolve_prepared(plugin_name, id, dir, metadata, None)
             .await
-            .call_resolve(plugin_name, id, dir)
+    }
+
+    pub async fn call_resolve_prepared(
+        &self,
+        plugin_name: &str,
+        id: &str,
+        dir: &str,
+        metadata: Option<&DiscoverMetadata>,
+        prepared: Option<&serde_json::Map<String, serde_json::Value>>,
+    ) -> Result<DiscoverResolve> {
+        self.download_session(plugin_name)?
+            .resolve(id, dir, metadata, prepared)
             .await
     }
 
@@ -648,10 +864,26 @@ impl LuaPluginRegistry {
                 library_label: source.library_label.clone(),
                 library_hint: source.library_hint.clone(),
                 settings: info.settings.clone(),
+                library_settings: source.settings.clone(),
             });
         }
         out.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(out)
+    }
+
+    pub fn library_settings(
+        &self,
+        name: &str,
+        values: HashMap<String, String>,
+    ) -> Result<HashMap<String, String>> {
+        let handle = self.handle(name)?;
+        let info = handle.info.read().expect("plugin info lock poisoned");
+        let source = info
+            .capabilities
+            .source
+            .as_ref()
+            .ok_or_else(|| Error::SourcePluginNotFound(name.into()))?;
+        validate_library_settings(&source.settings, values)
     }
 
     pub fn supports_item_remove(&self, plugin_name: &str) -> bool {
@@ -663,6 +895,10 @@ impl LuaPluginRegistry {
                 .capabilities
                 .source_item_remove
         })
+    }
+
+    pub fn supports_entry_remove(&self, entry: &WallpaperEntry) -> bool {
+        entry.can_remove != Some(false) && self.supports_item_remove(&entry.plugin_name)
     }
 
     pub fn supports_item_unsubscribe(&self, entry: &WallpaperEntry) -> bool {
@@ -687,7 +923,7 @@ impl LuaPluginRegistry {
         plugin_name: &str,
         entry: &WallpaperEntry,
         libraries: &[String],
-    ) -> Result<()> {
+    ) -> Result<SourceRemoval> {
         self.handle(plugin_name)?
             .runtime
             .lock()

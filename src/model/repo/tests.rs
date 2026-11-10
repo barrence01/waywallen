@@ -32,6 +32,82 @@ async fn mem_db() -> DatabaseConnection {
 }
 
 #[tokio::test]
+async fn library_settings_are_persisted_separately_from_plugin_metadata() {
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    let settings = HashMap::from([("scan_mode".to_owned(), "wallpapers".to_owned())]);
+    let library = add_configured_library(&db, plugin.id, "/system/wallpapers", None, &settings)
+        .await
+        .unwrap();
+    assert_eq!(library_settings(&library).unwrap(), settings);
+    set_library_metadata_value(&db, library.id, "plugin-state", Some("saved"))
+        .await
+        .unwrap();
+    let settings = HashMap::from([("scan_mode".to_owned(), "files".to_owned())]);
+    let updated = set_library_settings(&db, library.id, &settings)
+        .await
+        .unwrap();
+    assert_eq!(library_settings(&updated).unwrap(), settings);
+    assert_eq!(
+        get_library_metadata_value(&db, library.id, "plugin-state")
+            .await
+            .unwrap()
+            .as_deref(),
+        Some("saved")
+    );
+}
+
+#[tokio::test]
+async fn library_edit_saves_name_and_settings_without_changing_plugin_state() {
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    let library = add_library(&db, plugin.id, "/wallpapers").await.unwrap();
+    set_library_metadata_value(&db, library.id, "plugin-state", Some("saved"))
+        .await
+        .unwrap();
+    let settings = HashMap::from([("scan_mode".to_owned(), "wallpapers".to_owned())]);
+    let updated = edit_library(&db, library.id, " Desktop wallpapers ", Some(&settings))
+        .await
+        .unwrap();
+    assert_eq!(updated.name, "Desktop wallpapers");
+    assert_eq!(updated.id, library.id);
+    assert_eq!(updated.path, library.path);
+    assert_eq!(updated.plugin_id, plugin.id);
+    assert_eq!(library_settings(&updated).unwrap(), settings);
+    assert_eq!(
+        get_library_metadata_value(&db, library.id, "plugin-state")
+            .await
+            .unwrap()
+            .as_deref(),
+        Some("saved")
+    );
+    let saved = find_library_by_id(&db, library.id).await.unwrap().unwrap();
+    assert_eq!(saved, updated);
+    let renamed = rename_library(&db, library.id, "Renamed").await.unwrap();
+    assert_eq!(library_settings(&renamed).unwrap(), settings);
+}
+
+#[tokio::test]
+async fn library_edit_rejects_empty_name_without_changing_settings() {
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    let library = add_library(&db, plugin.id, "/wallpapers").await.unwrap();
+    let settings = HashMap::from([("scan_mode".to_owned(), "wallpapers".to_owned())]);
+    assert!(matches!(
+        edit_library(&db, library.id, " \n", Some(&settings)).await,
+        Err(Error::InvalidArgument(_))
+    ));
+    assert_eq!(
+        find_library_by_id(&db, library.id).await.unwrap().unwrap(),
+        library
+    );
+    assert!(matches!(
+        edit_library(&db, 999, "Missing", Some(&settings)).await,
+        Err(Error::LibraryNotFound(999))
+    ));
+}
+
+#[tokio::test]
 async fn library_names_default_and_allow_duplicates() {
     let db = mem_db().await;
     let plugin = upsert_plugin(&db, "names", "1").await.unwrap();
@@ -198,15 +274,46 @@ fn minimal_args<'a>(
         library_id,
         path,
         ty,
+        sub_type: "",
         display_name: "",
         preview_path: None,
         description: None,
         external_id: None,
         web_url: None,
+        update_available: false,
         size: None,
         width: None,
         height: None,
         content_rating: None,
+        can_remove: None,
+    }
+}
+
+#[tokio::test]
+async fn item_can_remove_snapshot_round_trips_and_unknown_clears_it() {
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    let library = add_library(&db, plugin.id, "/backgrounds").await.unwrap();
+    let mut id = None;
+    for (permission, update_available) in [
+        (None, false),
+        (Some(false), true),
+        (Some(true), false),
+        (None, true),
+    ] {
+        let mut args = minimal_args(plugin.id, library.id, "one.png", "image");
+        args.can_remove = permission;
+        args.update_available = update_available;
+        let item = upsert_item(&db, args).await.unwrap();
+        assert_eq!(*id.get_or_insert(item.id), item.id);
+        assert_eq!(item.can_remove, permission);
+        assert_eq!(item.update_available, update_available);
+        let entry = get_entry(&db, item.id).await.unwrap().unwrap();
+        assert_eq!(entry.can_remove, permission);
+        assert_eq!(entry.update_available, update_available);
+        let entries = load_entries(&db).await.unwrap();
+        assert_eq!(entries[0].can_remove, permission);
+        assert_eq!(entries[0].update_available, update_available);
     }
 }
 
@@ -229,7 +336,7 @@ async fn item_hidden_batch_validates_all_ids_and_preserves_scan_state() {
         vec![a.id, b.id]
     );
     item::Entity::update_many()
-        .col_expr(item::Column::UpdateAt, Expr::value(123_i64))
+        .col_expr(item::Column::AddedAt, Expr::value(123_i64))
         .filter(item::Column::Id.eq(a.id))
         .exec(&db)
         .await
@@ -249,8 +356,8 @@ async fn item_hidden_batch_validates_all_ids_and_preserves_scan_state() {
             .await
             .unwrap()
             .unwrap()
-            .update_at,
-        saved.update_at
+            .added_at,
+        saved.added_at
     );
     let invalid = b.id + 1;
     assert!(
@@ -344,6 +451,83 @@ async fn library_path_scoped_per_plugin() {
 }
 
 #[tokio::test]
+async fn library_paths_deduplicate_aliases_without_changing_existing_library() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("wallpapers");
+    let alias = dir.path().join("alias");
+    std::fs::create_dir_all(root.join("child")).unwrap();
+    std::os::unix::fs::symlink(&root, &alias).unwrap();
+    let stored_path = format!("{}/./", alias.display());
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    // Simulate a library saved before canonical path comparisons were used.
+    let existing = library::ActiveModel {
+        plugin_id: Set(plugin.id),
+        path: Set(stored_path.clone()),
+        name: Set("Custom name".to_owned()),
+        metadata: Set(r#"{"keep":"value"}"#.to_owned()),
+        ..Default::default()
+    }
+    .insert(&db)
+    .await
+    .unwrap();
+    for path in [
+        root.to_str().unwrap().to_owned(),
+        format!("{}/child/../", root.display()),
+        alias.to_str().unwrap().to_owned(),
+        stored_path.clone(),
+    ] {
+        let found = find_library(&db, plugin.id, &path).await.unwrap().unwrap();
+        assert_eq!(found, existing);
+        assert!(matches!(
+            add_named_library(&db, plugin.id, &path, Some("Replacement")).await,
+            Err(Error::InvalidArgument(message)) if message.contains("already registered")
+        ));
+    }
+    assert_eq!(list_libraries(&db).await.unwrap(), vec![existing]);
+    let other_plugin = upsert_plugin(&db, "video", "1").await.unwrap();
+    add_library(&db, other_plugin.id, root.to_str().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(list_libraries(&db).await.unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn library_paths_concurrent_aliases_only_insert_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let alias = dir.path().join("alias");
+    std::os::unix::fs::symlink(dir.path(), &alias).unwrap();
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    let (first, second) = tokio::join!(
+        add_library(&db, plugin.id, dir.path().to_str().unwrap()),
+        add_library(&db, plugin.id, alias.to_str().unwrap()),
+    );
+    assert_ne!(first.is_ok(), second.is_ok());
+    assert_eq!(list_libraries(&db).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn library_paths_still_match_when_unavailable() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("missing");
+    let path = root.to_str().unwrap();
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "image", "1").await.unwrap();
+    let existing = add_library(&db, plugin.id, path).await.unwrap();
+    assert_eq!(
+        find_library(&db, plugin.id, &format!("{path}/./"))
+            .await
+            .unwrap()
+            .unwrap(),
+        existing
+    );
+    assert!(add_library(&db, plugin.id, &format!("{path}/"))
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn add_library_expands_home_prefix() {
     let _lock = ENV_LOCK.lock().unwrap();
     let _home = HomeGuard::set("/tmp/waywallen-home");
@@ -374,15 +558,18 @@ async fn upsert_item_refreshes_every_column_on_conflict() {
             library_id: lib.id,
             path: "a.png",
             ty: "image",
+            sub_type: "",
             display_name: "Old",
             preview_path: None,
             description: None,
             external_id: None,
             web_url: None,
+            update_available: false,
             size: None,
             width: None,
             height: None,
             content_rating: None,
+            can_remove: None,
         },
     )
     .await
@@ -394,15 +581,18 @@ async fn upsert_item_refreshes_every_column_on_conflict() {
             library_id: lib.id,
             path: "a.png",
             ty: "GIF",
+            sub_type: "",
             display_name: "New",
             preview_path: Some("new/preview.png"),
             description: Some("now animated"),
             external_id: Some("ext-42"),
             web_url: Some("https://example.invalid/item/ext-42"),
+            update_available: false,
             size: None,
             width: None,
             height: None,
             content_rating: None,
+            can_remove: None,
         },
     )
     .await
@@ -430,15 +620,18 @@ async fn upsert_item_persists_media_meta() {
             library_id: lib.id,
             path: "video.mkv",
             ty: "video",
+            sub_type: "",
             display_name: "v",
             preview_path: None,
             description: None,
             external_id: None,
             web_url: None,
+            update_available: false,
             size: Some(123_456),
             width: Some(1920),
             height: Some(1080),
             content_rating: Some("Everyone"),
+            can_remove: None,
         },
     )
     .await
@@ -457,15 +650,18 @@ async fn upsert_item_persists_media_meta() {
             library_id: lib.id,
             path: "video.mkv",
             ty: "video",
+            sub_type: "",
             display_name: "v",
             preview_path: None,
             description: None,
             external_id: None,
             web_url: None,
+            update_available: false,
             size: None,
             width: None,
             height: None,
             content_rating: None,
+            can_remove: None,
         },
     )
     .await
@@ -474,6 +670,55 @@ async fn upsert_item_persists_media_meta() {
     assert_eq!(second.width, Some(1920));
     assert_eq!(second.height, Some(1080));
     assert_eq!(second.content_rating.as_deref(), Some("Everyone"));
+}
+
+#[tokio::test]
+async fn item_stat_preserves_supplied_size_and_fills_missing_size() {
+    let root = tempfile::tempdir().unwrap();
+    let db = mem_db().await;
+    let plugin = upsert_plugin(&db, "stat", "1").await.unwrap();
+    let library = add_library(&db, plugin.id, root.path().to_str().unwrap())
+        .await
+        .unwrap();
+    for (path, supplied) in [("model.glb", Some(123456)), ("image.png", None)] {
+        std::fs::write(root.path().join(path), [0_u8; 17]).unwrap();
+        let mut args = minimal_args(plugin.id, library.id, path, "gltf");
+        args.size = supplied;
+        upsert_item(&db, args).await.unwrap();
+    }
+    let service = std::sync::Arc::new(crate::probe::media::ProbeService::with_tool(None));
+    crate::probe::task::run_pending(&db, service.clone())
+        .await
+        .unwrap();
+    for entry in load_entries(&db).await.unwrap() {
+        assert_eq!(
+            entry.size,
+            Some(if entry.resource.ends_with("model.glb") {
+                123456
+            } else {
+                17
+            })
+        );
+        assert!(entry.file_mtime_ns.is_some());
+    }
+    let stats = crate::probe::task::run_pending(&db, service.clone())
+        .await
+        .unwrap();
+    assert_eq!(stats.stat_changed, 0);
+    for path in ["model.glb", "image.png"] {
+        std::fs::write(root.path().join(path), [0_u8; 23]).unwrap();
+    }
+    crate::probe::task::run_pending(&db, service).await.unwrap();
+    for entry in load_entries(&db).await.unwrap() {
+        assert_eq!(
+            entry.size,
+            Some(if entry.resource.ends_with("model.glb") {
+                123456
+            } else {
+                23
+            })
+        );
+    }
 }
 
 #[tokio::test]
@@ -586,7 +831,7 @@ async fn remove_plugin_cascades_everything_including_item_tag() {
 }
 
 #[tokio::test]
-async fn delete_items_synced_before_sweeps_only_scoped_and_stale() {
+async fn delete_items_not_seen_sweeps_only_scoped_and_stale() {
     let db = mem_db().await;
     let p = upsert_plugin(&db, "p", "").await.unwrap();
     let l1 = add_library(&db, p.id, "/one").await.unwrap();
@@ -600,19 +845,14 @@ async fn delete_items_synced_before_sweeps_only_scoped_and_stale() {
     upsert_item(&db, minimal_args(p.id, l2.id, "z", "image"))
         .await
         .unwrap();
-    // Advance the clock, then re-see only l1/a — it gets a fresh
-    // sync_at; the cutoff sits between the two timestamps.
-    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
-    let cutoff = crate::tasks::now_ms();
-    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
-    upsert_item(&db, minimal_args(p.id, l1.id, "a", "image"))
+    let scan_id = next_scan_id(&db).await.unwrap();
+    let seen = upsert_item(&db, minimal_args(p.id, l1.id, "a", "image"))
         .await
         .unwrap();
+    mark_item_seen(&db, seen.id, scan_id).await.unwrap();
     // Sweep l1 only: stale b/c go, fresh a stays; l2 untouched
     // because it isn't in the scoped set.
-    let deleted = delete_items_synced_before(&db, &[l1.id], cutoff)
-        .await
-        .unwrap();
+    let deleted = delete_items_not_seen(&db, &[l1.id], scan_id).await.unwrap();
     assert_eq!(deleted, 2);
     assert_eq!(list_items_by_library(&db, l1.id).await.unwrap().len(), 1);
     assert_eq!(list_items_by_library(&db, l2.id).await.unwrap().len(), 1);

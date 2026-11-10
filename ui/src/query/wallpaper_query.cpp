@@ -9,6 +9,7 @@ import qextra;
 import :query.wallpaper;
 import :app;
 import :msg.store;
+import :notify;
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -23,6 +24,14 @@ namespace waywallen
 // ---------------------------------------------------------------------------
 
 WallpaperListQuery::WallpaperListQuery(QObject* parent): QueryList(parent) {
+    connect(Notify::instance(),
+            &Notify::statusChanged,
+            this,
+            [this, scanning = Notify::instance()->scanInProgress()]() mutable {
+                const bool active = Notify::instance()->scanInProgress();
+                if (scanning && ! active && m_reload_pending) delayReload();
+                scanning = active;
+            });
     setLimit(0);
     tdata()->set_store(tdata(), AppStore::instance()->wallpapers);
     connect(this, &WallpaperListQuery::wpTypeChanged, this, &WallpaperListQuery::invalidateList);
@@ -69,8 +78,6 @@ WallpaperListQuery::WallpaperListQuery(QObject* parent): QueryList(parent) {
 
 void WallpaperListQuery::invalidateList() {
     Q_EMIT selectionChanged();
-    ++m_generation;
-    cancel();
     m_reload_pending = true;
     delayReload();
 }
@@ -285,10 +292,16 @@ void WallpaperListQuery::restoreSelection(const QVariant& value) {
 }
 
 void WallpaperListQuery::reload() {
-    const auto generation = ++m_generation;
-    m_reload_pending      = false;
+    if (Notify::instance()->scanInProgress()) {
+        m_reload_pending = true;
+        return;
+    }
+    const auto revision = beginRequest();
+    m_reload_pending    = false;
+    m_failed_append     = false;
     setOffset(0);
     setNoMore(false);
+    tdata()->setHasMore(false);
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
     auto req     = proto::Request {};
@@ -297,10 +310,10 @@ void WallpaperListQuery::reload() {
     req.setWallpaperList(std::move(inner));
 
     auto self = QWatcher { this };
-    spawn([self, backend, req = std::move(req), generation]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), revision]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
-        if (! self || self->m_generation != generation) co_return;
+        if (! self || ! self->isCurrentRequest(revision)) co_return;
 
         self->inspect_set(result, [self](const proto::Response& rsp) {
             const auto&                   list_rsp = rsp.wallpaperList();
@@ -328,7 +341,9 @@ void WallpaperListQuery::reload() {
 
 void WallpaperListQuery::fetchMore(qint32) {
     if (noMore() || m_reload_pending || status() == Status::Querying) return;
-    const auto generation = m_generation;
+    const auto revision = beginRequest();
+    m_failed_append     = true;
+    tdata()->setHasMore(false);
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
 
@@ -339,10 +354,10 @@ void WallpaperListQuery::fetchMore(qint32) {
 
     const qint32 next_offset = offset() + 1;
     auto         self        = QWatcher { this };
-    spawn([self, backend, req = std::move(req), next_offset, generation]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), next_offset, revision]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
-        if (! self || self->m_generation != generation) co_return;
+        if (! self || ! self->isCurrentRequest(revision)) co_return;
 
         self->inspect_set(result, [self, next_offset](const proto::Response& rsp) {
             const auto&                   list_rsp = rsp.wallpaperList();
@@ -354,6 +369,7 @@ void WallpaperListQuery::fetchMore(qint32) {
             auto t = self->tdata();
             t->insert(t->rowCount(), items);
             self->setOffset(next_offset);
+            self->m_failed_append = false;
 
             const qint32 new_total = static_cast<qint32>(list_rsp.count());
             if (new_total != self->m_total) {
@@ -366,6 +382,14 @@ void WallpaperListQuery::fetchMore(qint32) {
         });
         co_return;
     });
+}
+
+void WallpaperListQuery::retry() {
+    if (status() != Status::Error) return;
+    if (m_failed_append)
+        fetchMore(tdata()->rowCount());
+    else
+        reload();
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +440,7 @@ void WallpaperGetQuery::setWallpaperId(const QString& v) {
 auto WallpaperGetQuery::wallpaper() const -> const model::Wallpaper& { return m_wallpaper; }
 
 void WallpaperGetQuery::reload() {
+    const auto revision = beginRequest();
     if (m_wallpaper_id.isEmpty()) return;
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
@@ -427,11 +452,10 @@ void WallpaperGetQuery::reload() {
     req.setWallpaperGet(std::move(inner));
 
     auto self = QWatcher { this };
-    spawn([self, backend, req = std::move(req), wallpaper_id]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), revision]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
-        if (! self) co_return;
-        if (self->m_wallpaper_id != wallpaper_id) co_return;
+        if (! self || ! self->isCurrentRequest(revision)) co_return;
 
         self->inspect_set(result, [self](const proto::Response& rsp) {
             self->m_wallpaper = rsp.wallpaperGet().entry();

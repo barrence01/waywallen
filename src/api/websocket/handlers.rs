@@ -460,7 +460,7 @@ pub(super) async fn dispatch_inner(
                     (
                         e.item_id,
                         (
-                            state.source_manager.supports_item_remove(&e.plugin_name),
+                            state.source_manager.supports_entry_remove(e),
                             state.source_manager.supports_item_unsubscribe(e),
                         ),
                     )
@@ -541,9 +541,7 @@ pub(super) async fn dispatch_inner(
                 .flatten()
                 .map(|schema| dedupe_predefined_schema(&schema))
                 .unwrap_or_default();
-            let supports_item_remove = state
-                .source_manager
-                .supports_item_remove(&entry.plugin_name);
+            let supports_item_remove = state.source_manager.supports_entry_remove(&entry);
             let supports_item_unsubscribe = state.source_manager.supports_item_unsubscribe(&entry);
             let overrides = repo::get_user_property_overrides_raw(&state.db, entry.item_id)
                 .await?
@@ -791,9 +789,7 @@ pub(super) async fn dispatch_inner(
             }
 
             let layout_override = layout.map(WallpaperLayoutOverride::from_resolved);
-            let supports_item_remove = state
-                .source_manager
-                .supports_item_remove(&entry.plugin_name);
+            let supports_item_remove = state.source_manager.supports_entry_remove(&entry);
             let supports_item_unsubscribe = state.source_manager.supports_item_unsubscribe(&entry);
             Res::WallpaperLayoutSet(pb::WallpaperLayoutSetResponse {
                 entry: Some(entry_to_pb(
@@ -812,17 +808,14 @@ pub(super) async fn dispatch_inner(
             // Fire-and-forget: kick the rescan onto the TaskManager and
             // return immediately; completion arrives via server events.
             let scan_state = state.clone();
-            state.tasks.spawn_async_unique(
-                tasks::TaskKind::Generic,
-                "scan/refresh",
-                "scan/refresh",
-                async move {
+            state
+                .tasks
+                .spawn_async(tasks::TaskKind::Generic, "scan/refresh", async move {
                     application::refresh_sources(&scan_state)
                         .await
                         .map(|_| ())
                         .map_err(anyhow::Error::from)
-                },
-            );
+                });
             Res::WallpaperScan(pb::WallpaperScanResponse { count: 0 })
         }
 
@@ -840,6 +833,11 @@ pub(super) async fn dispatch_inner(
                     plugin_id: p.plugin_id,
                     settings: p
                         .settings
+                        .iter()
+                        .map(crate::control_proto::source_setting_to_proto)
+                        .collect(),
+                    library_settings: p
+                        .library_settings
                         .iter()
                         .map(crate::control_proto::source_setting_to_proto)
                         .collect(),
@@ -1296,6 +1294,14 @@ pub(super) async fn dispatch_inner(
                             id: s.plugin_id,
                             name: s.name,
                             supports_search: s.supports_search,
+                            pagination: match s.pagination {
+                                crate::plugin::source::DiscoverPagination::Page => {
+                                    pb::RemotePagination::Page as i32
+                                }
+                                crate::plugin::source::DiscoverPagination::Cursor => {
+                                    pb::RemotePagination::Cursor as i32
+                                }
+                            },
                             sorts: s
                                 .sorts
                                 .into_iter()
@@ -1348,6 +1354,9 @@ pub(super) async fn dispatch_inner(
                                         .collect(),
                                     description: filter.description.text().to_string(),
                                     confirmation: filter.confirmation.text().to_string(),
+                                    match_modes: filter.match_modes,
+                                    default_match_mode: filter.default_match_mode,
+                                    supports_exclusion: filter.supports_exclusion,
                                     title_text: crate::control_proto::plugin_message_to_proto(
                                         &filter.title,
                                     ),
@@ -1366,6 +1375,17 @@ pub(super) async fn dispatch_inner(
                             remote_hint_text: crate::control_proto::plugin_message_to_proto(
                                 &s.remote_hint,
                             ),
+                            download_action: Some(pb::DownloadAction {
+                                enabled: s.download_action.enabled,
+                                label: s.download_action.label.text().to_string(),
+                                tooltip: s.download_action.tooltip.text().to_string(),
+                                label_text: crate::control_proto::plugin_message_to_proto(
+                                    &s.download_action.label,
+                                ),
+                                tooltip_text: crate::control_proto::plugin_message_to_proto(
+                                    &s.download_action.tooltip,
+                                ),
+                            }),
                         }
                     })
                     .collect(),
@@ -1380,6 +1400,7 @@ pub(super) async fn dispatch_inner(
                     return Ok(Res::RemoteSearch(pb::RemoteSearchResponse {
                         items: Vec::new(),
                         has_more: false,
+                        next_cursor: String::new(),
                         error: query_error("remote search", e),
                     }));
                 }
@@ -1398,7 +1419,16 @@ pub(super) async fn dispatch_inner(
             };
             let result = state
                 .source_manager
-                .call_discover(&source_id, &r.query, &sort_key, r.page, &r.required_tags)
+                .call_discover_with_exclusions(
+                    &source_id,
+                    &r.query,
+                    &sort_key,
+                    r.page,
+                    &r.required_tags,
+                    &r.cursor,
+                    &r.filter_match_modes,
+                    &r.excluded_tags,
+                )
                 .await;
             match result {
                 Ok(result) => {
@@ -1426,17 +1456,21 @@ pub(super) async fn dispatch_inner(
                             downloaded,
                             source_id: source_id.clone(),
                             wp_type: item.wp_type,
+                            width: item.width,
+                            height: item.height,
                         });
                     }
                     Res::RemoteSearch(pb::RemoteSearchResponse {
                         items,
                         has_more: result.has_more,
+                        next_cursor: result.next_cursor,
                         error: String::new(),
                     })
                 }
                 Err(e) => Res::RemoteSearch(pb::RemoteSearchResponse {
                     items: Vec::new(),
                     has_more: false,
+                    next_cursor: String::new(),
                     error: query_error("remote search", e),
                 }),
             }
@@ -1472,7 +1506,7 @@ pub(super) async fn dispatch_inner(
             let task_state = state.clone();
             let task_source_id = source_id.clone();
             let task_id = r.id.clone();
-            state.tasks.spawn_async_unique(
+            state.tasks.spawn_async_once(
                 tasks::TaskKind::Generic,
                 format!("remote/download/{task_source_id}/{task_id}"),
                 format!("remote/download {task_source_id}:{task_id}"),
@@ -1560,6 +1594,8 @@ pub(super) async fn dispatch_inner(
                         web_url: String::new(),
                         author: String::new(),
                         author_avatar_url: String::new(),
+                        fields: Vec::new(),
+                        author_url: String::new(),
                     }));
                 }
             };
@@ -1575,6 +1611,18 @@ pub(super) async fn dispatch_inner(
                     web_url: details.web_url,
                     author: details.author,
                     author_avatar_url: details.author_avatar_url,
+                    author_url: details.author_url,
+                    fields: details
+                        .fields
+                        .into_iter()
+                        .map(|field| pb::RemoteDetailField {
+                            key: field.key,
+                            label: field.label.text().to_string(),
+                            label_text: crate::control_proto::plugin_message_to_proto(&field.label),
+                            value: field.value,
+                            url: field.url,
+                        })
+                        .collect(),
                 }),
                 Err(e) => Res::RemoteDetails(pb::RemoteDetailsResponse {
                     description: String::new(),
@@ -1586,6 +1634,8 @@ pub(super) async fn dispatch_inner(
                     web_url: String::new(),
                     author: String::new(),
                     author_avatar_url: String::new(),
+                    fields: Vec::new(),
+                    author_url: String::new(),
                 }),
             }
         }
@@ -2114,8 +2164,20 @@ pub(super) async fn dispatch_inner(
         }
 
         Req::LibraryAdd(r) => {
-            application::add_library(&state, &r.plugin_name, &r.path, r.name.as_deref()).await?;
+            application::add_library(
+                &state,
+                &r.plugin_name,
+                &r.path,
+                r.name.as_deref(),
+                r.settings,
+            )
+            .await?;
             Res::LibraryAdd(pb::Empty {})
+        }
+
+        Req::LibraryEdit(r) => {
+            application::edit_library(&state, r.id, &r.name, r.settings).await?;
+            Res::LibraryEdit(pb::Empty {})
         }
 
         Req::LibraryRename(r) => {
@@ -2134,9 +2196,8 @@ pub(super) async fn dispatch_inner(
             repo::remove_library(&state.db, r.id).await?;
             state.router.remove_library(r.id);
             let rescan_state = state.clone();
-            state.tasks.spawn_async_unique(
+            state.tasks.spawn_async(
                 tasks::TaskKind::Generic,
-                "scan/refresh",
                 "scan/refresh-after-library-remove",
                 async move {
                     application::refresh_sources(&rescan_state)
@@ -2196,9 +2257,7 @@ pub(super) async fn dispatch_inner(
                         String::new(),
                         String::new(),
                         None,
-                        state
-                            .source_manager
-                            .supports_item_remove(&entry.plugin_name),
+                        state.source_manager.supports_entry_remove(&entry),
                         state.source_manager.supports_item_unsubscribe(entry),
                     )
                 })

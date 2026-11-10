@@ -466,15 +466,18 @@ mod tests {
                     library_id: library.id,
                     path: &path,
                     ty: "image",
+                    sub_type: "",
                     display_name: "",
                     preview_path: None,
                     description: None,
                     external_id: None,
                     web_url: None,
+                    update_available: false,
                     size: None,
                     width: None,
                     height: None,
                     content_rating: None,
+                    can_remove: None,
                 },
             )
             .await

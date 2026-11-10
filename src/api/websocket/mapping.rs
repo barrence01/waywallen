@@ -560,6 +560,7 @@ pub(super) fn canvas_snapshot_to_pb(
             .map(|member| pb::CanvasMemberInfo {
                 settings_key: member.settings_key,
                 rect: Some(canvas_rect_to_pb(member.rect)),
+                effective_rect: Some(canvas_rect_to_pb(member.effective_rect)),
                 display_ids: member.display_ids,
                 minimum_scale_to: member.minimum_scale_to.map(|size| pb::CanvasSize {
                     width: size.width,
@@ -1185,6 +1186,7 @@ pub(super) fn renderers_replace_event(
 
 pub(super) fn library_instance_to_pb(s: LibrarySnapshot) -> pb::LibraryInstance {
     pb::LibraryInstance {
+        settings: s.settings,
         id: s.id,
         name: s.name,
         path: s.path,
@@ -1420,32 +1422,10 @@ pub(super) fn global_event_to_pb(e: &GlobalEvent, state: &Arc<DaemonContext>) ->
             id,
             state,
             error,
-        } => Some(pb::Event {
-            payload: Some(pb::event::Payload::RemoteDownloadProgress(
-                pb::RemoteDownloadProgress {
-                    source_id: source_id.clone(),
-                    id: id.clone(),
-                    state: match state {
-                        crate::events::RemoteDownloadState::Pending => {
-                            pb::RemoteDownloadState::Pending as i32
-                        }
-                        crate::events::RemoteDownloadState::Downloading => {
-                            pb::RemoteDownloadState::Downloading as i32
-                        }
-                        crate::events::RemoteDownloadState::Done => {
-                            pb::RemoteDownloadState::Done as i32
-                        }
-                        crate::events::RemoteDownloadState::Timeout => {
-                            pb::RemoteDownloadState::Timeout as i32
-                        }
-                        crate::events::RemoteDownloadState::Error => {
-                            pb::RemoteDownloadState::Error as i32
-                        }
-                    },
-                    error: error.clone(),
-                },
-            )),
-        }),
+            transfer,
+        } => Some(remote_download_progress_event(
+            source_id, id, *state, error, *transfer,
+        )),
         GlobalEvent::QrLoginProgress {
             session_id,
             plugin_id,
@@ -1537,10 +1517,84 @@ fn wallpaper_hidden_changed_event(wallpaper_ids: &[String], hidden: bool) -> pb:
     }
 }
 
+fn remote_download_progress_event(
+    source_id: &str,
+    id: &str,
+    state: crate::events::RemoteDownloadState,
+    error: &str,
+    transfer: Option<crate::events::RemoteDownloadTransfer>,
+) -> pb::Event {
+    use crate::events::RemoteDownloadState;
+    pb::Event {
+        payload: Some(pb::event::Payload::RemoteDownloadProgress(
+            pb::RemoteDownloadProgress {
+                source_id: source_id.to_string(),
+                id: id.to_string(),
+                state: match state {
+                    RemoteDownloadState::Pending => pb::RemoteDownloadState::Pending,
+                    RemoteDownloadState::Downloading => pb::RemoteDownloadState::Downloading,
+                    RemoteDownloadState::Done => pb::RemoteDownloadState::Done,
+                    RemoteDownloadState::Timeout => pb::RemoteDownloadState::Timeout,
+                    RemoteDownloadState::Error => pb::RemoteDownloadState::Error,
+                } as i32,
+                error: error.to_string(),
+                transfer: transfer.map(|value| pb::RemoteDownloadTransfer {
+                    received_bytes: value.received_bytes,
+                    total_bytes: value.total_bytes,
+                }),
+            },
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn remote_download_progress_protobuf_roundtrip() {
+        use crate::events::{RemoteDownloadState, RemoteDownloadTransfer};
+        use prost::Message;
+        for transfer in [
+            None,
+            Some(RemoteDownloadTransfer {
+                received_bytes: 3,
+                total_bytes: None,
+            }),
+            Some(RemoteDownloadTransfer {
+                received_bytes: 3,
+                total_bytes: Some(10),
+            }),
+            Some(RemoteDownloadTransfer {
+                received_bytes: 0,
+                total_bytes: Some(0),
+            }),
+        ] {
+            let event = remote_download_progress_event(
+                "source",
+                "item",
+                RemoteDownloadState::Downloading,
+                "",
+                transfer,
+            );
+            let decoded = pb::Event::decode(event.encode_to_vec().as_slice()).unwrap();
+            let Some(pb::event::Payload::RemoteDownloadProgress(value)) = decoded.payload else {
+                panic!("missing download progress");
+            };
+            assert_eq!(value.source_id, "source");
+            assert_eq!(value.id, "item");
+            assert_eq!(value.state, pb::RemoteDownloadState::Downloading as i32);
+            assert!(value.error.is_empty());
+            assert_eq!(
+                value.transfer.map(|value| RemoteDownloadTransfer {
+                    received_bytes: value.received_bytes,
+                    total_bytes: value.total_bytes,
+                }),
+                transfer
+            );
+        }
+    }
 
     #[test]
     fn wallpaper_hidden_event_roundtrip() {

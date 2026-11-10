@@ -24,6 +24,7 @@ namespace waywallen
 LibraryListQuery::LibraryListQuery(QObject* parent): Query(parent) {}
 
 void LibraryListQuery::reload() {
+    const auto revision = beginRequest();
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
 
@@ -31,10 +32,10 @@ void LibraryListQuery::reload() {
     req.setLibraryList(proto::LibraryListRequest {});
 
     auto self = QWatcher { this };
-    spawn([self, backend, req = std::move(req)]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), revision]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
-        if (! self) co_return;
+        if (! self || ! self->isCurrentRequest(revision)) co_return;
 
         self->inspect_set(result, [](const proto::Response& rsp) {
             if (auto* lm = LibraryManager::instance()) {
@@ -85,6 +86,10 @@ void LibraryAddQuery::reload() {
     auto inner = proto::LibraryAddRequest {};
     inner.setPath(m_path);
     inner.setPluginName(m_plugin_name);
+    QHash<QString, QString> settings;
+    for (auto it = m_settings.cbegin(); it != m_settings.cend(); ++it)
+        settings.insert(it.key(), it.value().toString());
+    inner.setSettings(settings);
     if (! m_name.trimmed().isEmpty()) inner.setName(m_name.trimmed());
     req.setLibraryAdd(std::move(inner));
 
@@ -101,43 +106,48 @@ void LibraryAddQuery::reload() {
 }
 
 // ---------------------------------------------------------------------------
-// LibraryRenameQuery
+// LibraryEditQuery
 // ---------------------------------------------------------------------------
 
-LibraryRenameQuery::LibraryRenameQuery(QObject* parent): Query(parent) {}
+LibraryEditQuery::LibraryEditQuery(QObject* parent): Query(parent) {}
 
-auto LibraryRenameQuery::libraryId() const -> qint64 { return m_library_id; }
-void LibraryRenameQuery::setLibraryId(qint64 v) {
+auto LibraryEditQuery::libraryId() const -> qint64 { return m_library_id; }
+void LibraryEditQuery::setLibraryId(qint64 v) {
     if (m_library_id != v) {
         m_library_id = v;
         Q_EMIT libraryIdChanged();
     }
 }
 
-auto LibraryRenameQuery::name() const -> const QString& { return m_name; }
-void LibraryRenameQuery::setName(const QString& v) {
+auto LibraryEditQuery::name() const -> const QString& { return m_name; }
+void LibraryEditQuery::setName(const QString& v) {
     if (m_name != v) {
         m_name = v;
         Q_EMIT nameChanged();
     }
 }
 
-void LibraryRenameQuery::reload() {
+void LibraryEditQuery::reload() {
     if (m_library_id <= 0 || m_name.trimmed().isEmpty()) return;
 
+    const auto revision = beginRequest();
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
     auto req     = proto::Request {};
-    auto inner   = proto::LibraryRenameRequest {};
+    auto inner   = proto::LibraryEditRequest {};
     inner.setId_proto(m_library_id);
     inner.setName(m_name.trimmed());
-    req.setLibraryRename(std::move(inner));
+    QHash<QString, QString> settings;
+    for (auto it = m_settings.cbegin(); it != m_settings.cend(); ++it)
+        settings.insert(it.key(), it.value().toString());
+    inner.setSettings(settings);
+    req.setLibraryEdit(std::move(inner));
 
     auto self = QWatcher { this };
-    spawn([self, backend, req = std::move(req)]() mutable -> task<void> {
+    spawn([self, backend, revision, req = std::move(req)]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
-        if (! self) co_return;
+        if (! self || ! self->isCurrentRequest(revision)) co_return;
         self->inspect_set(result, [](const proto::Response&) {
         });
         co_return;
@@ -153,6 +163,7 @@ LibraryAutoDetectQuery::LibraryAutoDetectQuery(QObject* parent): Query(parent) {
 auto LibraryAutoDetectQuery::addedCount() const -> qint32 { return m_added_count; }
 
 void LibraryAutoDetectQuery::reload() {
+    const auto revision = beginRequest();
     setStatus(Status::Querying);
     auto backend = App::instance()->backend();
 
@@ -160,10 +171,10 @@ void LibraryAutoDetectQuery::reload() {
     req.setLibraryAutoDetect(proto::LibraryAutoDetectRequest {});
 
     auto self = QWatcher { this };
-    spawn([self, backend, req = std::move(req)]() mutable -> task<void> {
+    spawn([self, backend, req = std::move(req), revision]() mutable -> task<void> {
         auto result = co_await backend->send(std::move(req));
         if (! co_await QAsyncResult::qexecutor()) co_return;
-        if (! self) co_return;
+        if (! self || ! self->isCurrentRequest(revision)) co_return;
 
         self->inspect_set(result, [self](const proto::Response& rsp) {
             auto added = static_cast<qint32>(rsp.libraryAutoDetect().added().size());

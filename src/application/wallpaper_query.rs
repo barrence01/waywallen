@@ -57,15 +57,18 @@ mod tests {
                     library_id: lib.id,
                     path: "same.png",
                     ty: "image",
+                    sub_type: "",
                     display_name: name,
                     preview_path: None,
                     description: None,
                     external_id: None,
                     web_url: None,
+                    update_available: false,
                     size: None,
                     width: None,
                     height: None,
                     content_rating: None,
+                    can_remove: None,
                 },
             )
             .await

@@ -4,11 +4,10 @@ use std::sync::Arc;
 use anyhow::Context;
 
 use super::{DaemonConfig, DaemonContext};
-use crate::probe::media::{AvFormatProbe, MediaProbe};
+use crate::probe::media::ProbeService;
 use crate::wallframe::{display, renderer_manager, routing};
 use crate::{
-    api, application, event_process, events, model, playback, plugin, probe, settings, system,
-    tasks,
+    api, application, event_process, events, model, playback, plugin, settings, system, tasks,
 };
 
 /// Resolve the UI executable path.  Order:
@@ -74,11 +73,15 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
         None
     } else {
         let registry = build_display_registry(&cli.plugin_dirs);
-        Some(select_display_backend(
-            &registry,
-            &display_caps,
-            cli.display_backend.as_deref(),
-        )?)
+        let pick =
+            select_display_backend(&registry, &display_caps, cli.display_backend.as_deref())?;
+        // A backend pinned with --display-backend never falls back.
+        let fallbacks = if cli.display_backend.is_none() {
+            display::spawner::fallback_backends(&registry, &display_caps, &pick)
+        } else {
+            Vec::new()
+        };
+        Some((pick, fallbacks))
     };
 
     // Single-instance gate.
@@ -115,16 +118,15 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
         registry.register(def.clone());
     }
 
-    // Shared media probe — constructed once, reused by SourceManager
-    // and the sync layer so libavformat is dlopen-ed at most once.
-    let probe = Arc::new(AvFormatProbe::new()) as Arc<dyn MediaProbe>;
+    let probe = Arc::new(match cli.probe_path {
+        Some(path) => ProbeService::with_tool(Some(path)),
+        None => ProbeService::new(),
+    });
 
     // Create an empty source manager now; Lua loading and source scans
     // run later in a background task.
-    let source_mgr = Arc::new(
-        plugin::source::SourceManager::with_probe(probe.clone())
-            .expect("failed to create source manager"),
-    );
+    let source_mgr =
+        Arc::new(plugin::source::SourceManager::new().expect("failed to create source manager"));
 
     let renderer_mgr = Arc::new(renderer_manager::RendererManager::new(registry));
     let router = routing::Router::new(renderer_mgr.clone());
@@ -252,6 +254,7 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
         events,
         ws_port: std::sync::atomic::AtomicU16::new(0),
         scan_in_progress: std::sync::atomic::AtomicBool::new(false),
+        scans: Arc::new(crate::application::ScanCoordinator::default()),
         ui_path: std::sync::Mutex::new(None),
         xdg_activation_token: std::sync::Mutex::new(None),
         dbus_conn: std::sync::Mutex::new(None),
@@ -346,7 +349,7 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
             display::spawner::DisplayBackendStatus::disabled(&display_caps);
         None
     } else {
-        let pick = display_pick.expect("display pick missing without --no-display");
+        let (pick, fallbacks) = display_pick.expect("display pick missing without --no-display");
         display::spawner::log_outcome(&pick, &display_caps);
         let should_spawn = display::spawner::should_daemon_spawn(&pick);
         let (status, backend) = match pick {
@@ -355,7 +358,7 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
                 if should_spawn =>
             {
                 let (status, backend) =
-                    display::spawner::preflight_daemon_backend(def, &display_caps);
+                    display::spawner::preflight_with_fallback(def, &fallbacks, &display_caps);
                 if status.state == display::spawner::DISPLAY_BACKEND_STATE_BINARY_MISSING
                     || status.state == display::spawner::DISPLAY_BACKEND_STATE_FLATPAK_RESTRICTED
                 {
@@ -428,12 +431,7 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
                 // the owning plugin domain id and entry ABI version.
                 tokio::task::spawn_blocking(move || {
                     for r in &entry_refs {
-                        if let Err(e) = source_mgr.load_plugin(
-                            &r.entry,
-                            &r.plugin_id,
-                            &r.plugin_version,
-                            r.entry_version,
-                        ) {
+                        if let Err(e) = source_mgr.load_entry(r) {
                             log::warn!("load entry {}: {e:#}", r.entry.display());
                         }
                     }
@@ -443,6 +441,9 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
 
                 // Register loaded plugins before auto-detect so names resolve
                 // even when no libraries exist yet.
+                state_for_task
+                    .probe
+                    .replace_programs(state_for_task.source_manager.probe_programs());
                 {
                     let infos = state_for_task.source_manager.plugins();
                     match infos {
@@ -575,17 +576,14 @@ pub async fn run(cli: DaemonConfig) -> anyhow::Result<()> {
             });
     }
 
-    // Background media-probe scheduler.
-    // Pulls unprobed media items from the DB and fills metadata.
+    // Dependency changes use the same serialized scan coordinator.
     {
-        let probe_for_task = probe.clone();
-        let db_for_task = db.clone();
+        let app = state.clone();
         let shutdown_for_task = state.shutdown.subscribe();
-        let changes = state.wallpaper_changes.clone();
         state
             .tasks
-            .spawn_async(tasks::TaskKind::Service, "probe/scheduler", async move {
-                probe::task::scheduler_loop(db_for_task, probe_for_task, shutdown_for_task, changes)
+            .spawn_async(tasks::TaskKind::Service, "probe/input-watch", async move {
+                application::run_media_input_watcher(app, shutdown_for_task)
                     .await
                     .map_err(anyhow::Error::from)
             });

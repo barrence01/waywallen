@@ -58,6 +58,11 @@ pub fn source_setting_to_proto(s: &crate::plugin::source::SourceSetting) -> Sett
         max: String::new(),
         step: String::new(),
         choices: s.choices.clone(),
+        choice_labels: s
+            .choice_labels
+            .iter()
+            .map(|label| plugin_message_to_proto(label).unwrap_or_default())
+            .collect(),
         group: s.group.clone(),
         order: s.order,
         label: plugin_message_to_proto(&s.label),
@@ -161,6 +166,7 @@ pub fn setting_def_to_proto(key: &str, def: &SettingDef, plugin_id: &str) -> Set
             .map(toml_value_to_wire)
             .unwrap_or_default(),
         choices: def.choices.clone().unwrap_or_default(),
+        choice_labels: Vec::new(),
         group: def.group.clone().unwrap_or_default(),
         order: def.order.unwrap_or(0),
         label: plugin_message_to_proto(&label),
@@ -172,6 +178,28 @@ pub fn setting_def_to_proto(key: &str, def: &SettingDef, plugin_id: &str) -> Set
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn remote_item_dimensions_round_trip() {
+        use prost::Message;
+
+        let legacy = RemoteItem {
+            id: "legacy".into(),
+            ..Default::default()
+        };
+        let decoded = RemoteItem::decode(legacy.encode_to_vec().as_slice()).unwrap();
+        assert_eq!(decoded.width, None);
+        assert_eq!(decoded.height, None);
+
+        let sized = RemoteItem {
+            width: Some(2250),
+            height: Some(4000),
+            ..legacy
+        };
+        let decoded = RemoteItem::decode(sized.encode_to_vec().as_slice()).unwrap();
+        assert_eq!(decoded.width, Some(2250));
+        assert_eq!(decoded.height, Some(4000));
+    }
 
     #[test]
     fn plugin_message_mapping_preserves_namespace_and_raw_branch() {

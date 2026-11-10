@@ -38,6 +38,10 @@ pub struct PluginMeta {
     #[serde(default)]
     pub entry_version: Option<u32>,
     #[serde(default)]
+    pub prepare: Option<PluginPrepare>,
+    #[serde(default)]
+    pub probe: Option<crate::probe::program::Declaration>,
+    #[serde(default)]
     pub i18n: Option<PluginTranslationMeta>,
     /// Declarative file manifest with paths relative to the plugin dir.
     /// Loaded during scanning from the required `files.txt`.
@@ -54,6 +58,15 @@ pub struct PluginMeta {
 /// ship beside its `plugin.toml`. One path per line; blanks ignored.
 pub const PLUGIN_FILES_MANIFEST: &str = "files.txt";
 
+pub(crate) fn read_plugin_files(root: &Path) -> std::io::Result<Vec<String>> {
+    Ok(std::fs::read_to_string(root.join(PLUGIN_FILES_MANIFEST))?
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
 /// Lua entry discovered in a plugin manifest.
 /// Carries the owning plugin metadata and entry ABI version.
 #[derive(Debug, Clone)]
@@ -63,6 +76,63 @@ pub struct EntryRef {
     pub plugin_system: bool,
     pub entry: PathBuf,
     pub entry_version: u32,
+    pub prepare: Option<PluginPrepare>,
+    pub probe: Option<crate::probe::program::Program>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PluginPrepare {
+    pub bin: PathBuf,
+    pub version: u32,
+}
+
+fn resolve_prepare(
+    root: &Path,
+    definition: &PluginPrepare,
+    files: &[String],
+    entry_version: Option<u32>,
+) -> Result<PluginPrepare, String> {
+    if entry_version.is_none_or(|version| version < crate::plugin::source::ENTRY_VERSION_V7) {
+        return Err("plugin.prepare requires Lua entry_version 7".into());
+    }
+    if definition.version != 1 {
+        return Err("plugin.prepare.version must be 1".into());
+    }
+    crate::remote_asset::relative_path(&definition.bin).map_err(|error| error.to_string())?;
+    let relative = definition
+        .bin
+        .to_str()
+        .ok_or("plugin.prepare.bin is not UTF-8")?;
+    if !files.iter().any(|file| file == relative) {
+        return Err("plugin.prepare.bin must be listed in files.txt".into());
+    }
+    let root = root.canonicalize().map_err(|error| error.to_string())?;
+    let mut target = root.clone();
+    for component in definition.bin.components() {
+        target.push(component);
+        if std::fs::symlink_metadata(&target)
+            .map_err(|error| error.to_string())?
+            .file_type()
+            .is_symlink()
+        {
+            return Err("plugin.prepare.bin must not contain symlinks".into());
+        }
+    }
+    if !std::fs::symlink_metadata(&target)
+        .map_err(|error| error.to_string())?
+        .file_type()
+        .is_file()
+        || !target
+            .canonicalize()
+            .map_err(|error| error.to_string())?
+            .starts_with(&root)
+    {
+        return Err("plugin.prepare.bin must be a regular file inside the plugin".into());
+    }
+    Ok(PluginPrepare {
+        bin: target,
+        version: definition.version,
+    })
 }
 
 /// Components collected from scanning one or more `plugins/` directories.
@@ -728,19 +798,51 @@ pub fn scan_plugins(dir: &Path, system: bool) -> PluginScan {
 
         // Every plugin must ship a newline-separated `files.txt` manifest.
         let files_path = plugin_dir.join(PLUGIN_FILES_MANIFEST);
-        match std::fs::read_to_string(&files_path) {
-            Ok(text) => meta.files.extend(
-                text.lines()
-                    .map(str::trim)
-                    .filter(|l| !l.is_empty())
-                    .map(str::to_owned),
-            ),
+        match read_plugin_files(&plugin_dir) {
+            Ok(files) => meta.files = files,
             Err(e) => log::warn!(
                 "plugin {}: required {} missing or unreadable ({e})",
                 meta.id,
                 files_path.display()
             ),
         }
+
+        let probe = match &meta.probe {
+            Some(declaration) => match crate::probe::program::Program::open(
+                &meta.id,
+                &plugin_dir,
+                declaration,
+                &meta.files,
+            ) {
+                Ok(program) => Some(program),
+                Err(error) => {
+                    let reason = format!("invalid plugin.probe: {error:#}");
+                    log::warn!("skip plugin {}: {reason}", meta.id);
+                    out.incompatible.push(PluginIncompat {
+                        plugin_id: meta.id.clone(),
+                        reason,
+                    });
+                    continue;
+                }
+            },
+            None => None,
+        };
+        let prepare = match &meta.prepare {
+            Some(definition) => {
+                match resolve_prepare(&plugin_dir, definition, &meta.files, meta.entry_version) {
+                    Ok(definition) => Some(definition),
+                    Err(reason) => {
+                        log::warn!("skip plugin {}: {reason}", meta.id);
+                        out.incompatible.push(PluginIncompat {
+                            plugin_id: meta.id.clone(),
+                            reason,
+                        });
+                        continue;
+                    }
+                }
+            }
+            None => None,
+        };
 
         if let Some(i18n) = &meta.i18n {
             match crate::plugin::i18n::load_plugin_translation_documents(
@@ -773,6 +875,8 @@ pub fn scan_plugins(dir: &Path, system: bool) -> PluginScan {
                         plugin_system: meta.system,
                         entry: resolve_rel(&plugin_dir, entry),
                         entry_version,
+                        prepare: prepare.clone(),
+                        probe: probe.clone(),
                     });
                 }
                 Some(entry_version) => {
@@ -1062,6 +1166,53 @@ fn normalize_path(path: &Path) -> PathBuf {
 mod schema_tests {
     use super::*;
 
+    #[tokio::test]
+    async fn probe_declaration_is_bound_to_the_loaded_source() {
+        let root = tempfile::tempdir().unwrap();
+        let plugin = root.path().join("org.test.probe");
+        std::fs::create_dir(&plugin).unwrap();
+        std::fs::write(plugin.join("plugin.toml"), "[plugin]\nid='org.test.probe'\nname='Probe'\nentry='main.lua'\nentry_version=4\n[plugin.probe]\nentry='probe.lua'\nversion=1\ntypes=['scene']\n").unwrap();
+        std::fs::write(
+            plugin.join("files.txt"),
+            "plugin.toml\nfiles.txt\nmain.lua\nprobe.lua\n",
+        )
+        .unwrap();
+        std::fs::write(plugin.join("main.lua"),"return {info=function() return {name='probe-source',capabilities={source={types={'scene'},scan=true}}} end,source={scan=function() return {} end}}").unwrap();
+        std::fs::write(
+            plugin.join("probe.lua"),
+            "return {probe=function() return {width=1,height=1} end}",
+        )
+        .unwrap();
+        let scan = scan_plugins(root.path(), false);
+        assert_eq!(scan.entries.len(), 1);
+        let manager = crate::plugin::source::SourceManager::with_state_store(
+            crate::plugin::state_store::PluginStateStore::new(
+                root.path().join("state"),
+                root.path().join("legacy"),
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            manager.load_entry(&scan.entries[0]).unwrap(),
+            "probe-source"
+        );
+        let service = crate::probe::media::ProbeService::with_tool(None);
+        service.replace_programs(manager.probe_programs());
+        let programs = service.prepare_programs().await.unwrap();
+        assert!(programs
+            .input_kind("probe-source", "scene", "")
+            .unwrap()
+            .starts_with("lua:"));
+        assert_eq!(
+            programs.input_kind("probe-source", "video", "").as_deref(),
+            Some("media")
+        );
+        std::fs::remove_file(plugin.join("probe.lua")).unwrap();
+        let invalid = scan_plugins(root.path(), false);
+        assert!(invalid.entries.is_empty());
+        assert_eq!(invalid.incompatible.len(), 1);
+    }
+
     fn write_test_plugin(plugins_dir: &Path, id: &str) {
         let plugin_dir = plugins_dir.join(id);
         std::fs::create_dir_all(&plugin_dir).unwrap();
@@ -1091,6 +1242,8 @@ types = ["image"]
             update: None,
             entry: None,
             entry_version: None,
+            prepare: None,
+            probe: None,
             i18n: None,
             files: Vec::new(),
             system,
@@ -1194,10 +1347,11 @@ types = ["image"]
     }
 
     #[test]
-    fn image_video_resolution_defaults_and_custom_extent() {
+    fn local_renderer_resolution_defaults_and_custom_extent() {
         for source in [
             include_str!("../../plugins/org.waywallen.image/plugin.toml"),
             include_str!("../../plugins/org.waywallen.video/plugin.toml"),
+            include_str!("../../plugins/org.waywallen.gltf/plugin.toml"),
         ] {
             let manifest: PluginManifest = toml::from_str(source).unwrap();
             for renderer in manifest.renderers.values() {
@@ -1234,6 +1388,42 @@ types = ["image"]
                 }
             }
         }
+    }
+
+    #[test]
+    fn gltf_renderer_manifest_settings() {
+        let manifest: PluginManifest =
+            toml::from_str(include_str!("../../plugins/org.waywallen.gltf/plugin.toml")).unwrap();
+        assert_eq!(manifest.plugin.id, "org.waywallen.gltf");
+        let renderer = &manifest.renderers["waywallen-gltf"];
+        assert_eq!(renderer.spawn_version, Some(10));
+        assert_eq!(renderer.types, vec![WallpaperType::from("gltf")]);
+        for (key, expected) in [
+            ("fps", "30"),
+            ("exposure", "1"),
+            ("animation", "0"),
+            ("loop", "true"),
+        ] {
+            let setting = &renderer.settings[key];
+            assert_eq!(setting_default_value(setting), expected);
+            assert!(coerce_and_validate(key, expected, setting).is_ok());
+        }
+        for (key, value) in [
+            ("fps", "0"),
+            ("fps", "241"),
+            ("exposure", "0"),
+            ("exposure", "17"),
+            ("animation", "-2"),
+        ] {
+            assert!(coerce_and_validate(key, value, &renderer.settings[key]).is_err());
+        }
+        assert_eq!(
+            coerce_and_validate("animation", "-1", &renderer.settings["animation"]).unwrap(),
+            "-1"
+        );
+        assert!(!renderer.settings["exposure"].identity);
+        assert!(!renderer.settings["animation"].identity);
+        assert!(!renderer.settings["loop"].identity);
     }
 
     fn test_setting(ty: SettingType, default: toml::Value, identity: bool) -> SettingDef {

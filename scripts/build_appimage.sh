@@ -3,6 +3,7 @@
 #     <repo>/waywallen-<version>-<architecture>.AppImage
 
 set -euo pipefail
+umask 022
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/environment.yml"
@@ -10,7 +11,7 @@ ENV_NAME="${WAYWALLEN_CONDA_ENV:-waywallen}"
 ENV_PREFIX="${WAYWALLEN_CONDA_PREFIX:-$PROJECT_DIR/build/conda-envs/$ENV_NAME}"
 TMP_DIR="${TMPDIR:-/tmp}"
 WAYWALLEN_DISPLAY_REPO="${WAYWALLEN_DISPLAY_REPO:-https://github.com/waywallen/waywallen-display.git}"
-WAYWALLEN_DISPLAY_REF="${WAYWALLEN_DISPLAY_REF:-f8119f0483cc30baca20ec9b697070cb9a1724e6}"
+WAYWALLEN_DISPLAY_REF="${WAYWALLEN_DISPLAY_REF:-48946b4965c9f746c7d56bb72b66e5ff01c2d6e9}"
 APPDIR="$PROJECT_DIR/build/AppDir"
 INSTALL_DIR="$APPDIR/usr"
 TOOLS_DIR="$PROJECT_DIR/build/_tools"
@@ -170,7 +171,9 @@ bash "$PROJECT_DIR/scripts/build_ffmpeg.sh"
 bash "$PROJECT_DIR/scripts/copy_syslibs.sh"
 
 QT_VER="$("$CONDA_PREFIX/bin/qmake6" -query QT_VERSION)"
-if [[ ! -f "$CONDA_PREFIX/lib/cmake/Qt6Protobuf/Qt6ProtobufConfig.cmake" ]]; then
+QTPROTOBUFGEN="$("$CONDA_PREFIX/bin/qmake6" -query QT_INSTALL_LIBEXECS)/qtprotobufgen"
+# An empty protoc request checks the plugin and its shared libraries without CLI options.
+if ! "$QTPROTOBUFGEN" </dev/null >/dev/null 2>&1; then
     info "Building qtgrpc v$QT_VER"
     QTGRPC_SRC="$PROJECT_DIR/build/_qtgrpc-src"
     QTGRPC_BUILD="$PROJECT_DIR/build/_qtgrpc-build"
@@ -190,6 +193,8 @@ if [[ ! -f "$CONDA_PREFIX/lib/cmake/Qt6Protobuf/Qt6ProtobufConfig.cmake" ]]; the
         -DQT_BUILD_TESTS=OFF
     cmake --build "$QTGRPC_BUILD" --parallel
     cmake --install "$QTGRPC_BUILD"
+    "$QTPROTOBUFGEN" </dev/null >/dev/null \
+        || fail "qtprotobufgen cannot run after rebuilding qtgrpc"
 fi
 
 info "Building and installing waywallen into AppDir: $APPDIR"
@@ -202,7 +207,7 @@ pushd "$PROJECT_DIR"
     --config "tools.cmake.search-path=[\"$CONDA_PREFIX\"]"
 popd
 
-info "Building and installing waywallen-layer-shell"
+info "Building and installing waywallen-layer-shell and waywallen-x11"
 if [[ -d "$WAYWALLEN_DISPLAY_SRC/.git" ]]; then
     git -C "$WAYWALLEN_DISPLAY_SRC" remote set-url origin "$WAYWALLEN_DISPLAY_REPO"
 else
@@ -215,12 +220,16 @@ git -C "$WAYWALLEN_DISPLAY_SRC" checkout --detach "$WAYWALLEN_DISPLAY_REF"
 pushd "$WAYWALLEN_DISPLAY_SRC"
 cargo build \
     --bin waywallen-layer-shell \
+    --bin waywallen-x11 \
+    --features x11 \
     --release \
     --locked
 popd
-install -Dm755 \
-    "$WAYWALLEN_DISPLAY_SRC/target/release/waywallen-layer-shell" \
-    "$INSTALL_DIR/bin/waywallen-layer-shell"
+for display_bin in waywallen-layer-shell waywallen-x11; do
+    install -Dm755 \
+        "$WAYWALLEN_DISPLAY_SRC/target/release/$display_bin" \
+        "$INSTALL_DIR/bin/$display_bin"
+done
 
 mkdir -p "$TOOLS_DIR"
 LINUXDEPLOY="$TOOLS_DIR/linuxdeploy-$APPIMAGE_ARCH.AppImage"
@@ -272,6 +281,7 @@ popd
 cd "$PROJECT_DIR/build"
 LINUXDEPLOY_EXECUTABLE_ARGS=(
     --executable "$INSTALL_DIR/bin/waywallen-ui"
+    --executable "$INSTALL_DIR/bin/waywallen-probe"
     --executable "$INSTALL_DIR/bin/waywallen-video-renderer"
 )
 PATH="$TOOLS_DIR:$PATH" \
@@ -320,6 +330,11 @@ for style in "${QUICKCONTROLS2_PRUNE[@]}"; do
     done
     rm -rfv "$APPDIR/usr/qml/QtQuick/Controls/${style}" 2>/dev/null || true
 done
+
+info "Stripping shared libraries"
+pushd "$APPDIR/usr/lib"
+strip --strip-unneeded lib*
+popd
 
 info "Packing AppImage"
 rm -f "$APPIMAGE_OUT" "$ZSYNC_OUT"
